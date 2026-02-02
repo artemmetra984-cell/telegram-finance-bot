@@ -7,11 +7,6 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <style>
-        .transaction-savings {
-            color: #9b59b6;
-        }
-    </style>
 </head>
 <body>
     <div class="container">
@@ -25,70 +20,59 @@
         <div id="main-content" style="display: none;">
             <!-- Главная страница -->
             <div id="main-page">
-                <!-- Контейнер для диаграмм с навигацией -->
-                <div class="chart-wrapper">
-                    <!-- Кнопка истории сверху -->
-                    <button id="history-btn" class="history-btn-top">
-                        <span>📅</span>
-                    </button>
-                    
-                    <!-- Выбор валюты -->
-                    <div class="currency-selector">
-                        <button class="currency-btn" id="currency-btn" onclick="toggleCurrencyDropdown()">
-                            <span id="current-currency">₽</span>
+                <!-- Верхняя панель -->
+                <div class="top-bar">
+                    <h1>💰 Финансы</h1>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <!-- Кнопка истории -->
+                        <button id="history-btn" class="history-btn-small">
+                            <span>📅</span>
                         </button>
-                        <div class="currency-dropdown" id="currency-dropdown">
-                            <div class="currency-option" data-currency="RUB" onclick="changeCurrency('RUB')">
-                                ₽ RUB
-                            </div>
-                            <div class="currency-option" data-currency="USD" onclick="changeCurrency('USD')">
-                                $ USD
-                            </div>
-                            <div class="currency-option" data-currency="EUR" onclick="changeCurrency('EUR')">
-                                € EUR
-                            </div>
-                            <div class="currency-option" data-currency="GEL" onclick="changeCurrency('GEL')">
-                                ₾ GEL
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Навигация диаграмм -->
-                    <div class="chart-navigation">
-                        <button class="chart-arrow" id="prev-chart">
-                            <span>←</span>
-                        </button>
-                        <div class="chart-title" id="chart-title">Финансы</div>
-                        <button class="chart-arrow" id="next-chart">
-                            <span>→</span>
-                        </button>
-                    </div>
-                    
-                    <!-- Контейнер для двух диаграмм -->
-                    <div id="chart-container" style="display: flex; width: 200%;">
-                        <!-- Основная диаграмма -->
-                        <div class="chart-container" style="width: 50%;">
-                            <canvas id="finance-chart"></canvas>
-                            <div class="chart-balance">
-                                <div class="balance-label">Баланс</div>
-                                <div class="balance-amount" id="balance">0 <span id="current-currency-symbol">₽</span></div>
-                            </div>
-                        </div>
                         
-                        <!-- Диаграмма накоплений -->
-                        <div class="chart-container" style="width: 50%;">
-                            <canvas id="savings-chart"></canvas>
-                            <div class="chart-balance">
-                                <div class="balance-label">Накопления</div>
-                                <div class="balance-amount" id="total-savings">0 <span id="current-currency-symbol2">₽</span></div>
+                        <!-- Выбор валюты -->
+                        <div class="currency-selector">
+                            <button class="currency-btn" id="currency-btn">
+                                <span id="current-currency">₽</span>
+                            </button>
+                            <div class="currency-dropdown" id="currency-dropdown">
+                                <div class="currency-option" data-currency="RUB" onclick="changeCurrency('RUB')">
+                                    ₽ RUB
+                                </div>
+                                <div class="currency-option" data-currency="USD" onclick="changeCurrency('USD')">
+                                    $ USD
+                                </div>
+                                <div class="currency-option" data-currency="EUR" onclick="changeCurrency('EUR')">
+                                    € EUR
+                                </div>
+                                <div class="currency-option" data-currency="GEL" onclick="changeCurrency('GEL')">
+                                    ₾ GEL
+                                </div>
                             </div>
                         </div>
                     </div>
+                </div>
+
+                <!-- Диаграммы -->
+                <div class="charts-section">
+                    <div class="chart-nav">
+                        <button class="chart-arrow" id="prev-chart">←</button>
+                        <div class="chart-title" id="chart-title">Финансы</div>
+                        <button class="chart-arrow" id="next-chart">→</button>
+                    </div>
                     
-                    <!-- Индикатор текущей диаграммы -->
+                    <div class="chart-container">
+                        <!-- Основная диаграмма -->
+                        <canvas id="finance-chart"></canvas>
+                        <div class="chart-balance">
+                            <div class="balance-label">Баланс</div>
+                            <div class="balance-amount" id="balance">0 ₽</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Индикатор -->
                     <div class="chart-indicator">
-                        <div class="indicator-dot active" onclick="switchChart('main')"></div>
-                        <div class="indicator-dot" onclick="switchChart('savings')"></div>
+                        <div class="indicator-dot active"></div>
+                        <div class="indicator-dot"></div>
                     </div>
                 </div>
 
@@ -104,7 +88,7 @@
                     </div>
                 </div>
 
-                <!-- Кнопки управления (теперь 3) -->
+                <!-- Кнопки управления -->
                 <div class="controls">
                     <button id="income-btn" class="btn income-btn">
                         <span class="btn-icon">💰</span>
@@ -120,18 +104,17 @@
                     </button>
                 </div>
 
-                <!-- Последние транзакции -->
+                <!-- Последние операции -->
                 <div class="history-section">
                     <h3>Последние операции</h3>
                     <div id="recent-transactions" class="transactions-list">
-                        <!-- Последние 3 транзакции -->
+                        <!-- Здесь появятся транзакции -->
                     </div>
-                    <!-- Кнопка "Ещё" появится здесь если нужно -->
                 </div>
 
                 <!-- Форма добавления -->
                 <div id="transaction-form" class="form-container" style="display: none;">
-                    <h3 id="form-title">Добавить транзакцию</h3>
+                    <h3 id="form-title">Добавить доход</h3>
                     <div class="form-group">
                         <label for="amount">Сумма</label>
                         <input type="number" id="amount" placeholder="1000" min="1" step="1">
@@ -153,20 +136,29 @@
 
             <!-- Страница истории -->
             <div id="history-page" style="display: none;">
-                <button id="back-btn" class="back-btn" onclick="showMain()">
-                    <span>←</span> Назад
-                </button>
+                <div class="history-header">
+                    <button id="back-btn" class="back-btn">← Назад</button>
+                    <h2>История</h2>
+                </div>
                 
-                <div class="history-section">
-                    <h3>История по месяцам</h3>
-                    <div id="monthly-history">
-                        <!-- История будет здесь -->
+                <div class="monthly-history">
+                    <h3>По месяцам</h3>
+                    <div id="monthly-list">
+                        <!-- История по месяцам -->
+                    </div>
+                </div>
+                
+                <!-- Все транзакции -->
+                <div class="all-transactions">
+                    <h3>Все операции</h3>
+                    <div id="all-transactions-list">
+                        <!-- Все транзакции -->
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Уведомления -->
+        <!-- Уведомление -->
         <div id="notification" class="notification"></div>
     </div>
 
