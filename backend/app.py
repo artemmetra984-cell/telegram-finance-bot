@@ -84,15 +84,16 @@ def init_user():
         if db:
             user_id, currency = db.get_or_create_user(telegram_id, username, first_name)
             summary = db.get_financial_summary(user_id)
+            total_transactions = db.get_transactions_count(user_id)
             
-            # Категории для всех типов
-            categories = {'income': [], 'expense': [], 'savings': []}
+            # Категории
+            categories = {'income': [], 'expense': []}
             all_categories = db.get_categories(user_id)
             for cat in all_categories:
                 if cat['type'] in categories:
                     categories[cat['type']].append(cat['name'])
             
-            # Последние 3 транзакции всех типов
+            # Последние 3 транзакции
             recent = db.get_transactions(user_id, limit=3)
             recent_transactions = []
             for trans in recent:
@@ -107,22 +108,22 @@ def init_user():
             
         else:
             user_id = telegram_id
-            currency = 'RUB'
-            summary = {'total_income': 0, 'total_expense': 0, 'total_savings': 0, 'balance': 0}
+            summary = {'total_income': 0, 'total_expense': 0, 'balance': 0, 'total_savings': 0}
             categories = {
                 'income': ['Зарплата', 'Фриланс'],
-                'expense': ['Продукты', 'Транспорт'],
-                'savings': ['На отпуск', 'Подушка безопасности']
+                'expense': ['Продукты', 'Транспорт', 'Накопления']
             }
             recent_transactions = []
+            total_transactions = 0
+            currency = 'RUB'
         
         return jsonify({
             'user_id': user_id,
-            'currency': currency,
             'summary': summary,
             'categories': categories,
             'recent_transactions': recent_transactions,
-            'available_currencies': ['RUB', 'USD', 'EUR', 'GEL']
+            'total_transactions': total_transactions,
+            'currency': currency
         })
     except Exception as e:
         print(f"Init error: {e}")
@@ -141,7 +142,7 @@ def add_transaction():
         if not all([user_id, trans_type, amount, category]):
             return jsonify({'error': 'Missing fields'}), 400
         
-        if trans_type not in ['income', 'expense', 'savings']:
+        if trans_type not in ['income', 'expense']:
             return jsonify({'error': 'Invalid type'}), 400
         
         try:
@@ -171,10 +172,9 @@ def get_transactions(user_id):
     try:
         limit = request.args.get('limit', 50, type=int)
         offset = request.args.get('offset', 0, type=int)
-        trans_type = request.args.get('type')
         
         if db:
-            transactions = db.get_transactions(user_id, limit, offset, trans_type)
+            transactions = db.get_transactions(user_id, limit, offset)
             result = []
             for trans in transactions:
                 result.append({
@@ -192,6 +192,18 @@ def get_transactions(user_id):
         print(f"Get transactions error: {e}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/transactions_count/<int:user_id>')
+def get_transactions_count(user_id):
+    try:
+        if db:
+            count = db.get_transactions_count(user_id)
+            return jsonify({'count': count})
+        else:
+            return jsonify({'count': 0})
+    except Exception as e:
+        print(f"Count error: {e}")
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/history/<int:user_id>')
 def get_history(user_id):
     try:
@@ -204,7 +216,7 @@ def get_history(user_id):
         print(f"History error: {e}")
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/currency/update', methods=['POST'])
+@app.route('/api/update_currency', methods=['POST'])
 def update_currency():
     try:
         data = request.json
@@ -218,15 +230,8 @@ def update_currency():
             return jsonify({'error': 'Invalid currency'}), 400
         
         if db:
-            success = db.update_user_currency(user_id, currency)
-            if success:
-                return jsonify({
-                    'success': True,
-                    'message': 'Валюта обновлена',
-                    'currency': currency
-                })
-            else:
-                return jsonify({'error': 'Update failed'}), 500
+            db.update_user_currency(user_id, currency)
+            return jsonify({'success': True, 'currency': currency})
         else:
             return jsonify({'error': 'Database error'}), 500
     except Exception as e:
