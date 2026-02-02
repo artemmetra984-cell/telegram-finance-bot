@@ -82,17 +82,17 @@ def init_user():
             return jsonify({'error': 'Telegram ID required'}), 400
         
         if db:
-            user_id = db.get_or_create_user(telegram_id, username, first_name)
+            user_id, currency = db.get_or_create_user(telegram_id, username, first_name)
             summary = db.get_financial_summary(user_id)
             
-            # Категории
-            categories = {'income': [], 'expense': []}
+            # Категории для всех типов
+            categories = {'income': [], 'expense': [], 'savings': []}
             all_categories = db.get_categories(user_id)
             for cat in all_categories:
                 if cat['type'] in categories:
                     categories[cat['type']].append(cat['name'])
             
-            # Последние 3 транзакции
+            # Последние 3 транзакции всех типов
             recent = db.get_transactions(user_id, limit=3)
             recent_transactions = []
             for trans in recent:
@@ -107,18 +107,22 @@ def init_user():
             
         else:
             user_id = telegram_id
-            summary = {'total_income': 0, 'total_expense': 0, 'balance': 0}
+            currency = 'RUB'
+            summary = {'total_income': 0, 'total_expense': 0, 'total_savings': 0, 'balance': 0}
             categories = {
                 'income': ['Зарплата', 'Фриланс'],
-                'expense': ['Продукты', 'Транспорт']
+                'expense': ['Продукты', 'Транспорт'],
+                'savings': ['На отпуск', 'Подушка безопасности']
             }
             recent_transactions = []
         
         return jsonify({
             'user_id': user_id,
+            'currency': currency,
             'summary': summary,
             'categories': categories,
-            'recent_transactions': recent_transactions
+            'recent_transactions': recent_transactions,
+            'available_currencies': ['RUB', 'USD', 'EUR', 'GEL']
         })
     except Exception as e:
         print(f"Init error: {e}")
@@ -137,7 +141,7 @@ def add_transaction():
         if not all([user_id, trans_type, amount, category]):
             return jsonify({'error': 'Missing fields'}), 400
         
-        if trans_type not in ['income', 'expense']:
+        if trans_type not in ['income', 'expense', 'savings']:
             return jsonify({'error': 'Invalid type'}), 400
         
         try:
@@ -167,9 +171,10 @@ def get_transactions(user_id):
     try:
         limit = request.args.get('limit', 50, type=int)
         offset = request.args.get('offset', 0, type=int)
+        trans_type = request.args.get('type')
         
         if db:
-            transactions = db.get_transactions(user_id, limit, offset)
+            transactions = db.get_transactions(user_id, limit, offset, trans_type)
             result = []
             for trans in transactions:
                 result.append({
@@ -197,6 +202,35 @@ def get_history(user_id):
             return jsonify([])
     except Exception as e:
         print(f"History error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/currency/update', methods=['POST'])
+def update_currency():
+    try:
+        data = request.json
+        user_id = data.get('user_id')
+        currency = data.get('currency')
+        
+        if not user_id or not currency:
+            return jsonify({'error': 'Missing fields'}), 400
+        
+        if currency not in ['RUB', 'USD', 'EUR', 'GEL']:
+            return jsonify({'error': 'Invalid currency'}), 400
+        
+        if db:
+            success = db.update_user_currency(user_id, currency)
+            if success:
+                return jsonify({
+                    'success': True,
+                    'message': 'Валюта обновлена',
+                    'currency': currency
+                })
+            else:
+                return jsonify({'error': 'Update failed'}), 500
+        else:
+            return jsonify({'error': 'Database error'}), 500
+    except Exception as e:
+        print(f"Currency error: {e}")
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':

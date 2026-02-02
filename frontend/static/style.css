@@ -1,436 +1,67 @@
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+/* ДОБАВЬ ЭТИ СТИЛИ В КОНЕЦ ФАЙЛА */
+
+/* Кнопка истории справа сверху */
+.history-btn-top {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    background: #3498db;
+    color: white;
+    border: none;
+    border-radius: 12px;
+    padding: 8px 12px;
+    font-size: 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    z-index: 10;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
 }
 
-body {
-    background-color: #1a1a1a;
-    color: #ffffff;
-    padding: 0;
-    line-height: 1.6;
-    max-width: 100%;
-    overflow-x: hidden;
-    -webkit-tap-highlight-color: transparent;
-}
-
-.container {
-    max-width: 100%;
-    margin: 0 auto;
-    padding: 16px;
-    background-color: #1a1a1a;
-    min-height: 100vh;
-}
-
-/* Скрываем заголовок */
-header {
-    display: none;
-}
-
-/* Диаграмма */
-.chart-container {
+/* Контейнер для диаграммы с навигацией */
+.chart-wrapper {
     position: relative;
     height: 280px;
     margin-bottom: 20px;
-    background: #2d2d2d;
-    border-radius: 20px;
-    padding: 20px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-    position: relative;
 }
 
-.chart-balance {
+.chart-navigation {
     position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    text-align: center;
+    top: 20px;
+    left: 20px;
+    right: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     z-index: 10;
 }
 
-.balance-label {
+.chart-title {
+    color: white;
     font-size: 14px;
-    color: #888;
-    margin-bottom: 4px;
+    font-weight: 600;
 }
 
-.balance-amount {
-    font-size: 28px;
-    font-weight: 700;
-    color: #ffffff;
-}
-
-/* Сводка */
-.summary-mini {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
-    margin-bottom: 24px;
-}
-
-.mini-card {
-    background: #2d2d2d;
-    padding: 16px;
-    border-radius: 16px;
-    text-align: center;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
-}
-
-.mini-card.income {
-    border-left: 4px solid #2ecc71;
-}
-
-.mini-card.expense {
-    border-left: 4px solid #e74c3c;
-}
-
-.mini-card h4 {
-    font-size: 12px;
-    color: #aaa;
-    margin-bottom: 8px;
-    font-weight: 500;
-}
-
-.mini-amount {
-    font-size: 20px;
-    font-weight: 700;
-}
-
-.mini-income {
-    color: #2ecc71;
-}
-
-.mini-expense {
-    color: #e74c3c;
-}
-
-/* Кнопки управления */
-.controls {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
-    margin-bottom: 24px;
-}
-
-.btn {
-    padding: 18px;
+.chart-arrow {
+    background: rgba(255,255,255,0.1);
     border: none;
-    border-radius: 16px;
-    font-size: 16px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-}
-
-.btn:active {
-    transform: scale(0.98);
-}
-
-.income-btn {
-    background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
     color: white;
-}
-
-.expense-btn {
-    background: linear-gradient(135deg, #c0392b 0%, #e74c3c 100%);
-    color: white;
-}
-
-.btn-icon {
-    font-size: 22px;
-    font-weight: bold;
-}
-
-.btn-text {
-    font-size: 15px;
-}
-
-/* История операций */
-.history-section {
-    background: #2d2d2d;
-    padding: 20px;
-    border-radius: 20px;
-    margin-top: 20px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-}
-
-.history-section h3 {
-    margin-bottom: 16px;
-    color: #ffffff;
-    font-size: 18px;
-    font-weight: 600;
-}
-
-.transactions-list {
-    max-height: 300px;
-    overflow-y: auto;
-    padding-right: 5px;
-}
-
-.transaction-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 14px 0;
-    border-bottom: 1px solid #3d3d3d;
-}
-
-.transaction-item:last-child {
-    border-bottom: none;
-}
-
-.transaction-info {
-    flex: 1;
-}
-
-.transaction-description {
-    font-weight: 500;
-    margin-bottom: 6px;
-    color: #ffffff;
-}
-
-.transaction-meta {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 12px;
-    color: #888;
-}
-
-.transaction-category {
-    background: #3d3d3d;
-    padding: 3px 10px;
-    border-radius: 12px;
-    font-size: 11px;
-}
-
-.transaction-amount {
-    font-weight: 700;
-    font-size: 16px;
-}
-
-.transaction-income {
-    color: #2ecc71;
-}
-
-.transaction-expense {
-    color: #e74c3c;
-}
-
-/* Форма */
-.form-container {
-    background: #2d2d2d;
-    padding: 20px;
-    border-radius: 20px;
-    margin-bottom: 24px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-}
-
-.form-container h3 {
-    margin-bottom: 20px;
-    color: #ffffff;
-    text-align: center;
-    font-size: 20px;
-}
-
-.form-group {
-    margin-bottom: 16px;
-}
-
-.form-group label {
-    display: block;
-    margin-bottom: 8px;
-    color: #aaa;
-    font-weight: 500;
-    font-size: 14px;
-}
-
-.form-group input,
-.form-group select {
-    width: 100%;
-    padding: 14px;
-    border: 1px solid #3d3d3d;
-    border-radius: 12px;
-    font-size: 16px;
-    background: #1a1a1a;
-    color: white;
-}
-
-.form-group input:focus,
-.form-group select:focus {
-    outline: none;
-    border-color: #3498db;
-    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
-}
-
-.form-buttons {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
-    margin-top: 20px;
-}
-
-.cancel-btn {
-    background: #555;
-    color: white;
-}
-
-.submit-btn {
-    background: #3498db;
-    color: white;
-}
-
-/* Загрузка */
-.loading {
-    text-align: center;
-    padding: 60px 20px;
-    color: #888;
-}
-
-.spinner {
-    width: 40px;
-    height: 40px;
-    border: 4px solid #3d3d3d;
-    border-top: 4px solid #3498db;
+    width: 30px;
+    height: 30px;
     border-radius: 50%;
-    animation: spin 1s linear infinite;
-    margin: 0 auto 16px;
-}
-
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-}
-
-/* Уведомления */
-.notification {
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    padding: 14px 24px;
-    border-radius: 12px;
-    color: white;
-    font-weight: 500;
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
-    z-index: 1000;
-    transform: translateX(150%);
-    transition: transform 0.3s ease;
-}
-
-.notification.success {
-    background: #27ae60;
-}
-
-.notification.error {
-    background: #e74c3c;
-}
-
-/* История по месяцам */
-.month-item {
-    background: #2d2d2d;
-    border-radius: 16px;
-    margin-bottom: 12px;
-    overflow: hidden;
-    border: 1px solid #3d3d3d;
-}
-
-.month-header {
-    padding: 16px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    cursor: pointer;
-}
-
-.month-title {
-    font-weight: 600;
-    font-size: 16px;
-}
-
-.month-balance {
-    font-weight: 700;
-    font-size: 16px;
-}
-
-.month-balance.positive {
-    color: #2ecc71;
-}
-
-.month-balance.negative {
-    color: #e74c3c;
-}
-
-.month-details {
-    padding: 0 16px 16px;
-    border-top: 1px solid #3d3d3d;
-    display: none;
-}
-
-.month-details.active {
-    display: block;
-}
-
-.month-stats {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
-    margin-top: 12px;
-}
-
-.month-stat {
-    background: #3d3d3d;
-    padding: 12px;
-    border-radius: 12px;
-    text-align: center;
-}
-
-.month-stat-label {
-    font-size: 12px;
-    color: #aaa;
-    margin-bottom: 6px;
-}
-
-.month-stat-value {
-    font-size: 18px;
-    font-weight: 700;
-}
-
-.month-stat.income .month-stat-value {
-    color: #2ecc71;
-}
-
-.month-stat.expense .month-stat-value {
-    color: #e74c3c;
-}
-
-/* Кнопка назад */
-.back-btn {
-    background: #2d2d2d;
-    border: 1px solid #3d3d3d;
-    color: white;
-    padding: 12px;
-    border-radius: 12px;
-    font-size: 14px;
-    cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
-    margin-bottom: 20px;
-    width: 100%;
+    cursor: pointer;
+    font-size: 16px;
 }
 
-/* Кнопка добавить категорию */
-.add-category-btn {
-    background: #2ecc71;
-    color: white;
-    border: none;
+/* Кнопка "Ещё" в истории */
+.show-more-btn {
+    background: #3d3d3d;
+    border: 1px solid #4d4d4d;
+    color: #aaa;
     padding: 12px;
     border-radius: 12px;
     font-size: 14px;
@@ -443,30 +74,152 @@ header {
     width: 100%;
 }
 
-/* Адаптивность */
+.show-more-btn:hover {
+    background: #4d4d4d;
+}
+
+/* Кнопка "Копить" */
+.savings-btn {
+    background: #9b59b6;
+    color: white;
+}
+
+/* Контейнер для кнопок управления (теперь 3 кнопки) */
+.controls {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+/* Выбор валюты */
+.currency-selector {
+    position: absolute;
+    top: 20px;
+    right: 80px;
+    z-index: 10;
+}
+
+.currency-btn {
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.2);
+    color: white;
+    padding: 6px 10px;
+    border-radius: 10px;
+    font-size: 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    min-width: 50px;
+    justify-content: center;
+}
+
+.currency-dropdown {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    background: #2d2d2d;
+    border: 1px solid #3d3d3d;
+    border-radius: 10px;
+    padding: 8px;
+    margin-top: 5px;
+    min-width: 80px;
+    display: none;
+    z-index: 100;
+}
+
+.currency-dropdown.active {
+    display: block;
+}
+
+.currency-option {
+    padding: 8px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    color: #ccc;
+}
+
+.currency-option:hover {
+    background: #3d3d3d;
+}
+
+.currency-option.active {
+    background: #3498db;
+    color: white;
+}
+
+/* Дополнительные транзакции */
+.more-transactions {
+    margin-top: 10px;
+    border-top: 1px solid #3d3d3d;
+    padding-top: 10px;
+}
+
+/* Индикатор текущей диаграммы */
+.chart-indicator {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.indicator-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #3d3d3d;
+    cursor: pointer;
+}
+
+.indicator-dot.active {
+    background: #3498db;
+}
+
+/* Анимация переключения диаграмм */
+.chart-container {
+    transition: transform 0.3s ease;
+}
+
+.chart-container.savings-mode {
+    transform: translateX(-100%);
+}
+
+/* Кнопка закрыть дополнительные транзакции */
+.close-more-btn {
+    background: #3d3d3d;
+    border: none;
+    color: #aaa;
+    padding: 8px;
+    border-radius: 8px;
+    font-size: 12px;
+    cursor: pointer;
+    margin-top: 10px;
+    width: 100%;
+}
+
+/* Адаптивность для 3 кнопок */
 @media (max-width: 480px) {
-    .container {
-        padding: 12px;
-    }
-    
-    .chart-container {
-        height: 250px;
-        padding: 15px;
-    }
-    
-    .balance-amount {
-        font-size: 24px;
-    }
-    
     .controls {
+        grid-template-columns: 1fr 1fr 1fr;
         gap: 8px;
     }
     
-    .btn {
-        padding: 16px;
+    .controls .btn {
+        padding: 14px 8px;
+        font-size: 13px;
     }
     
     .btn-text {
-        font-size: 14px;
+        font-size: 12px;
+    }
+    
+    .chart-wrapper {
+        height: 250px;
+    }
+    
+    .currency-selector {
+        right: 70px;
     }
 }

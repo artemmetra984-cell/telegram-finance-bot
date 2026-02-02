@@ -1,7 +1,20 @@
+// Глобальные переменные
 let currentUser = null;
-let financeChart = null;
+let mainChart = null;
+let savingsChart = null;
 let currentTransactionType = 'income';
-let currentPage = 'main'; // main, history
+let currentChart = 'main'; // 'main' или 'savings'
+let showingMoreTransactions = false;
+let transactionsOffset = 0;
+const TRANSACTIONS_PER_PAGE = 10;
+
+// Курсы валют (упрощенные)
+const CURRENCY_RATES = {
+    'RUB': { symbol: '₽', rate: 1 },
+    'USD': { symbol: '$', rate: 0.011 },
+    'EUR': { symbol: '€', rate: 0.010 },
+    'GEL': { symbol: '₾', rate: 0.033 }
+};
 
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('Загрузка...');
@@ -12,10 +25,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('loading').style.display = 'none';
         document.getElementById('main-content').style.display = 'block';
         
-        initChart();
+        initCharts();
         setupEventListeners();
+        setupSwipe();
         
-        // Настройка Telegram Web App
+        // Настройка Telegram
         if (window.Telegram && Telegram.WebApp) {
             Telegram.WebApp.expand();
             Telegram.WebApp.setHeaderColor('#1a1a1a');
@@ -67,39 +81,85 @@ async function initUser() {
         id: data.user_id,
         telegramId: telegramId,
         username: username,
-        firstName: firstName
+        firstName: firstName,
+        currency: data.currency || 'RUB'
     };
     
     window.categories = data.categories;
+    window.availableCurrencies = data.available_currencies || ['RUB', 'USD', 'EUR', 'GEL'];
     
+    updateCurrencyDisplay(currentUser.currency);
     updateSummaryDisplay(data.summary);
     updateRecentTransactions(data.recent_transactions);
 }
 
+// Обновление отображения валюты
+function updateCurrencyDisplay(currency) {
+    const currencySymbol = CURRENCY_RATES[currency]?.symbol || '₽';
+    document.getElementById('current-currency').textContent = currencySymbol;
+    document.getElementById('current-currency-symbol').textContent = currencySymbol;
+    
+    // Обновляем активную опцию в dropdown
+    document.querySelectorAll('.currency-option').forEach(option => {
+        option.classList.toggle('active', option.dataset.currency === currency);
+    });
+    
+    // Обновляем отображение сумм
+    updateAllAmounts();
+}
+
+// Обновление всех сумм на странице
+function updateAllAmounts() {
+    // Эта функция будет вызываться после смены валюты
+    // Пока просто обновим символ валюты
+    const currencySymbol = CURRENCY_RATES[currentUser?.currency]?.symbol || '₽';
+    
+    // Обновим баланс
+    const balanceElement = document.getElementById('balance');
+    if (balanceElement) {
+        const amount = balanceElement.textContent.replace(/[^0-9.,]/g, '');
+        balanceElement.textContent = amount + ' ' + currencySymbol;
+    }
+}
+
 // Обновление сводки
 function updateSummaryDisplay(summary) {
-    document.getElementById('total-income').textContent = 
-        formatCurrency(summary.total_income) + ' ₽';
-    document.getElementById('total-expense').textContent = 
-        formatCurrency(summary.total_expense) + ' ₽';
-    document.getElementById('balance').textContent = 
-        formatCurrency(summary.balance) + ' ₽';
+    const currencySymbol = CURRENCY_RATES[currentUser?.currency]?.symbol || '₽';
     
-    if (financeChart) {
-        updateChart(summary);
+    // Основные доходы/расходы
+    document.getElementById('total-income').textContent = 
+        formatCurrency(summary.total_income) + ' ' + currencySymbol;
+    document.getElementById('total-expense').textContent = 
+        formatCurrency(summary.total_expense) + ' ' + currencySymbol;
+    document.getElementById('balance').textContent = 
+        formatCurrency(summary.balance) + ' ' + currencySymbol;
+    
+    // Накопления
+    document.getElementById('total-savings').textContent = 
+        formatCurrency(summary.total_savings || 0) + ' ' + currencySymbol;
+    
+    if (mainChart) {
+        updateMainChart(summary);
+    }
+    
+    if (savingsChart) {
+        updateSavingsChart(summary);
     }
 }
 
 // Форматирование валюты
 function formatCurrency(amount) {
-    return new Intl.NumberFormat('ru-RU').format(amount);
+    return new Intl.NumberFormat('ru-RU', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+    }).format(amount);
 }
 
-// Инициализация диаграммы
-function initChart() {
-    const ctx = document.getElementById('finance-chart').getContext('2d');
-    
-    financeChart = new Chart(ctx, {
+// Инициализация диаграмм
+function initCharts() {
+    // Основная диаграмма (доходы/расходы)
+    const mainCtx = document.getElementById('finance-chart').getContext('2d');
+    mainChart = new Chart(mainCtx, {
         type: 'doughnut',
         data: {
             labels: ['Доходы', 'Расходы'],
@@ -119,7 +179,39 @@ function initChart() {
                 tooltip: {
                     callbacks: {
                         label: function(context) {
-                            return `${context.label}: ${formatCurrency(context.raw)} ₽`;
+                            const currencySymbol = CURRENCY_RATES[currentUser?.currency]?.symbol || '₽';
+                            return `${context.label}: ${formatCurrency(context.raw)} ${currencySymbol}`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+    
+    // Диаграмма накоплений
+    const savingsCtx = document.getElementById('savings-chart').getContext('2d');
+    savingsChart = new Chart(savingsCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Накопления'],
+            datasets: [{
+                data: [0],
+                backgroundColor: ['#9b59b6'],
+                borderColor: ['#8e44ad'],
+                borderWidth: 3,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '75%',
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const currencySymbol = CURRENCY_RATES[currentUser?.currency]?.symbol || '₽';
+                            return `${context.label}: ${formatCurrency(context.raw)} ${currencySymbol}`;
                         }
                     }
                 }
@@ -128,21 +220,90 @@ function initChart() {
     });
 }
 
-// Обновление диаграммы
-function updateChart(summary) {
-    financeChart.data.datasets[0].data = [
+// Обновление основной диаграммы
+function updateMainChart(summary) {
+    mainChart.data.datasets[0].data = [
         summary.total_income || 0,
         summary.total_expense || 0
     ];
-    financeChart.update();
+    mainChart.update();
+}
+
+// Обновление диаграммы накоплений
+function updateSavingsChart(summary) {
+    savingsChart.data.datasets[0].data = [
+        summary.total_savings || 0
+    ];
+    savingsChart.update();
+}
+
+// Переключение диаграмм
+function switchChart(direction) {
+    const chartContainer = document.getElementById('chart-container');
+    const chartTitle = document.getElementById('chart-title');
+    const indicatorDots = document.querySelectorAll('.indicator-dot');
+    
+    if (direction === 'next') {
+        currentChart = currentChart === 'main' ? 'savings' : 'main';
+    } else if (direction === 'prev') {
+        currentChart = currentChart === 'main' ? 'savings' : 'main';
+    }
+    
+    // Обновляем отображение
+    if (currentChart === 'main') {
+        chartContainer.style.transform = 'translateX(0)';
+        chartTitle.textContent = 'Финансы';
+        indicatorDots[0].classList.add('active');
+        indicatorDots[1].classList.remove('active');
+    } else {
+        chartContainer.style.transform = 'translateX(-100%)';
+        chartTitle.textContent = 'Накопления';
+        indicatorDots[0].classList.remove('active');
+        indicatorDots[1].classList.add('active');
+    }
+}
+
+// Настройка свайпа
+function setupSwipe() {
+    const chartWrapper = document.querySelector('.chart-wrapper');
+    let startX = 0;
+    let endX = 0;
+    
+    chartWrapper.addEventListener('touchstart', (e) => {
+        startX = e.touches[0].clientX;
+    });
+    
+    chartWrapper.addEventListener('touchend', (e) => {
+        endX = e.changedTouches[0].clientX;
+        handleSwipe();
+    });
+    
+    function handleSwipe() {
+        const diff = startX - endX;
+        const minSwipe = 50; // минимальное расстояние свайпа
+        
+        if (Math.abs(diff) > minSwipe) {
+            if (diff > 0) {
+                // Свайп влево
+                switchChart('next');
+            } else {
+                // Свайп вправо
+                switchChart('prev');
+            }
+        }
+    }
 }
 
 // Обновление последних транзакций
 function updateRecentTransactions(transactions) {
     const container = document.getElementById('recent-transactions');
+    const moreContainer = document.getElementById('more-transactions');
+    
     if (!container) return;
     
+    // Очищаем контейнеры
     container.innerHTML = '';
+    if (moreContainer) moreContainer.innerHTML = '';
     
     if (transactions.length === 0) {
         container.innerHTML = `
@@ -153,10 +314,74 @@ function updateRecentTransactions(transactions) {
         return;
     }
     
-    transactions.slice(0, 3).forEach(transaction => {
+    // Показываем первые 3 транзакции
+    const recent = transactions.slice(0, 3);
+    recent.forEach(transaction => {
         const transactionElement = createTransactionElement(transaction);
         container.appendChild(transactionElement);
     });
+    
+    // Если есть еще транзакции, показываем кнопку "Ещё"
+    if (transactions.length > 3 && !showingMoreTransactions) {
+        const showMoreBtn = document.createElement('button');
+        showMoreBtn.className = 'show-more-btn';
+        showMoreBtn.innerHTML = '<span>⬇️</span> Показать все операции';
+        showMoreBtn.onclick = showAllTransactions;
+        container.parentNode.appendChild(showMoreBtn);
+    }
+}
+
+// Показать все транзакции
+async function showAllTransactions() {
+    try {
+        const response = await fetch(`/api/transactions/${currentUser.id}?limit=50`);
+        const allTransactions = await response.json();
+        
+        const moreContainer = document.createElement('div');
+        moreContainer.id = 'more-transactions';
+        moreContainer.className = 'more-transactions';
+        
+        // Пропускаем первые 3, которые уже показаны
+        const additionalTransactions = allTransactions.slice(3);
+        
+        additionalTransactions.forEach(transaction => {
+            const transactionElement = createTransactionElement(transaction);
+            moreContainer.appendChild(transactionElement);
+        });
+        
+        // Добавляем контейнер после основных транзакций
+        const container = document.getElementById('recent-transactions');
+        container.parentNode.insertBefore(moreContainer, container.nextSibling);
+        
+        // Меняем кнопку на "Скрыть"
+        const showMoreBtn = document.querySelector('.show-more-btn');
+        if (showMoreBtn) {
+            showMoreBtn.innerHTML = '<span>⬆️</span> Скрыть';
+            showMoreBtn.onclick = hideAllTransactions;
+        }
+        
+        showingMoreTransactions = true;
+        
+    } catch (error) {
+        console.error('Ошибка загрузки транзакций:', error);
+        showNotification('Ошибка загрузки', 'error');
+    }
+}
+
+// Скрыть дополнительные транзакции
+function hideAllTransactions() {
+    const moreContainer = document.getElementById('more-transactions');
+    if (moreContainer) {
+        moreContainer.remove();
+    }
+    
+    const showMoreBtn = document.querySelector('.show-more-btn');
+    if (showMoreBtn) {
+        showMoreBtn.innerHTML = '<span>⬇️</span> Показать все операции';
+        showMoreBtn.onclick = showAllTransactions;
+    }
+    
+    showingMoreTransactions = false;
 }
 
 // Создание элемента транзакции
@@ -165,9 +390,15 @@ function createTransactionElement(transaction) {
     div.className = 'transaction-item';
     
     const isIncome = transaction.type === 'income';
-    const amountClass = isIncome ? 'transaction-income' : 'transaction-expense';
-    const amountSign = isIncome ? '+' : '-';
-    const icon = isIncome ? '💰' : '💸';
+    const isSavings = transaction.type === 'savings';
+    const amountClass = isIncome ? 'transaction-income' : 
+                       isSavings ? 'transaction-savings' : 'transaction-expense';
+    const amountSign = isIncome ? '+' : 
+                      isSavings ? '💰' : '-';
+    const icon = isIncome ? '💰' : 
+                isSavings ? '🏦' : '💸';
+    
+    const currencySymbol = CURRENCY_RATES[currentUser?.currency]?.symbol || '₽';
     
     div.innerHTML = `
         <div class="transaction-info">
@@ -180,7 +411,7 @@ function createTransactionElement(transaction) {
             </div>
         </div>
         <div class="transaction-amount ${amountClass}">
-            ${amountSign}${formatCurrency(transaction.amount)} ₽
+            ${amountSign}${formatCurrency(transaction.amount)} ${currencySymbol}
         </div>
     `;
     
@@ -216,6 +447,11 @@ function setupEventListeners() {
         showTransactionForm();
     });
     
+    document.getElementById('savings-btn').addEventListener('click', () => {
+        currentTransactionType = 'savings';
+        showTransactionForm();
+    });
+    
     // Кнопки формы
     document.getElementById('cancel-btn').addEventListener('click', hideTransactionForm);
     document.getElementById('submit-btn').addEventListener('click', submitTransaction);
@@ -223,6 +459,58 @@ function setupEventListeners() {
     // Кнопки навигации
     document.getElementById('history-btn').addEventListener('click', showHistory);
     document.getElementById('back-btn').addEventListener('click', showMain);
+    
+    // Кнопки переключения диаграмм
+    document.getElementById('next-chart').addEventListener('click', () => switchChart('next'));
+    document.getElementById('prev-chart').addEventListener('click', () => switchChart('prev'));
+    
+    // Выбор валюты
+    document.getElementById('currency-btn').addEventListener('click', toggleCurrencyDropdown);
+    
+    // Закрытие dropdown при клике вне его
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.currency-selector')) {
+            document.getElementById('currency-dropdown').classList.remove('active');
+        }
+    });
+}
+
+// Показать/скрыть выбор валюты
+function toggleCurrencyDropdown() {
+    document.getElementById('currency-dropdown').classList.toggle('active');
+}
+
+// Смена валюты
+async function changeCurrency(currency) {
+    if (!currentUser) return;
+    
+    try {
+        const response = await fetch('/api/currency/update', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                user_id: currentUser.id,
+                currency: currency
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.error) throw new Error(data.error);
+        
+        currentUser.currency = currency;
+        updateCurrencyDisplay(currency);
+        
+        // Перезагружаем данные для обновления сумм
+        await reloadUserData();
+        
+        showNotification(`Валюта изменена на ${currency}`, 'success');
+        document.getElementById('currency-dropdown').classList.remove('active');
+        
+    } catch (error) {
+        console.error('Ошибка смены валюты:', error);
+        showNotification('Ошибка смены валюты', 'error');
+    }
 }
 
 // Показать форму транзакции
@@ -231,14 +519,20 @@ function showTransactionForm() {
     const formTitle = document.getElementById('form-title');
     const categorySelect = document.getElementById('category');
     
-    formTitle.textContent = currentTransactionType === 'income' ? 'Добавить доход' : 'Добавить расход';
+    let title = 'Добавить доход';
+    if (currentTransactionType === 'expense') title = 'Добавить расход';
+    if (currentTransactionType === 'savings') title = 'Добавить в копилку';
+    
+    formTitle.textContent = title;
     
     categorySelect.innerHTML = '';
     
     const categories = window.categories ? window.categories[currentTransactionType] : [];
     
     if (categories.length === 0) {
-        categories.push(currentTransactionType === 'income' ? 'Зарплата' : 'Продукты');
+        if (currentTransactionType === 'income') categories.push('Зарплата');
+        else if (currentTransactionType === 'expense') categories.push('Продукты');
+        else categories.push('Накопления');
     }
     
     categories.forEach(category => {
@@ -251,7 +545,7 @@ function showTransactionForm() {
     // Добавляем опцию для новой категории
     const newOption = document.createElement('option');
     newOption.value = '__new__';
-    newOption.textContent = '+ Добавить категорию';
+    newOption.textContent = '+ Новая категория';
     categorySelect.appendChild(newOption);
     
     form.style.display = 'block';
@@ -266,14 +560,12 @@ function showTransactionForm() {
         if (this.value === '__new__') {
             const newCategory = prompt('Введите название новой категории:');
             if (newCategory && newCategory.trim()) {
-                // Добавляем новую категорию
-                if (!window.categories) window.categories = { income: [], expense: [] };
+                if (!window.categories) window.categories = { income: [], expense: [], savings: [] };
                 if (!window.categories[currentTransactionType]) {
                     window.categories[currentTransactionType] = [];
                 }
                 window.categories[currentTransactionType].push(newCategory.trim());
                 
-                // Обновляем select
                 showTransactionForm();
                 categorySelect.value = newCategory.trim();
             }
@@ -325,10 +617,12 @@ async function submitTransaction() {
         await reloadUserData();
         
         hideTransactionForm();
-        showNotification(
-            currentTransactionType === 'income' ? '💵 Доход добавлен!' : '💸 Расход добавлен!',
-            'success'
-        );
+        
+        let message = '💵 Доход добавлен!';
+        if (currentTransactionType === 'expense') message = '💸 Расход добавлен!';
+        if (currentTransactionType === 'savings') message = '💰 Добавлено в копилку!';
+        
+        showNotification(message, 'success');
         
     } catch (error) {
         console.error('Ошибка:', error);
@@ -364,7 +658,6 @@ async function reloadUserData() {
 async function showHistory() {
     document.getElementById('main-page').style.display = 'none';
     document.getElementById('history-page').style.display = 'block';
-    currentPage = 'history';
     
     try {
         const response = await fetch(`/api/history/${currentUser.id}`);
@@ -394,6 +687,8 @@ function updateMonthlyHistory(monthlyData) {
         return;
     }
     
+    const currencySymbol = CURRENCY_RATES[currentUser?.currency]?.symbol || '₽';
+    
     monthlyData.forEach(month => {
         const balanceClass = month.balance >= 0 ? 'positive' : 'negative';
         const balanceSign = month.balance >= 0 ? '+' : '';
@@ -405,7 +700,7 @@ function updateMonthlyHistory(monthlyData) {
             <div class="month-header" onclick="toggleMonthDetails(this)">
                 <div class="month-title">${formatMonth(month.month)}</div>
                 <div class="month-balance ${balanceClass}">
-                    ${balanceSign}${formatCurrency(month.balance)} ₽
+                    ${balanceSign}${formatCurrency(month.balance)} ${currencySymbol}
                 </div>
             </div>
             <div class="month-details">
@@ -418,6 +713,10 @@ function updateMonthlyHistory(monthlyData) {
                         <div class="month-stat-label">Расходы</div>
                         <div class="month-stat-value">${formatCurrency(month.expense)}</div>
                     </div>
+                    <div class="month-stat savings">
+                        <div class="month-stat-label">Накопления</div>
+                        <div class="month-stat-value">${formatCurrency(month.savings)}</div>
+                    </div>
                 </div>
             </div>
         `;
@@ -429,22 +728,15 @@ function updateMonthlyHistory(monthlyData) {
 // Форматирование месяца
 function formatMonth(monthStr) {
     const [year, month] = monthStr.split('-');
-    const months = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
-                   'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+    const months = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн',
+                   'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
     return `${months[parseInt(month) - 1]} ${year}`;
-}
-
-// Переключение деталей месяца
-function toggleMonthDetails(element) {
-    const details = element.nextElementSibling;
-    details.classList.toggle('active');
 }
 
 // Показать главную
 function showMain() {
     document.getElementById('history-page').style.display = 'none';
     document.getElementById('main-page').style.display = 'block';
-    currentPage = 'main';
 }
 
 // Показать уведомление
@@ -461,5 +753,14 @@ function showNotification(message, type = 'info') {
 }
 
 // Глобальные функции
-window.toggleMonthDetails = toggleMonthDetails;
+window.toggleMonthDetails = function(element) {
+    const details = element.nextElementSibling;
+    details.classList.toggle('active');
+};
+
 window.showMain = showMain;
+window.switchChart = switchChart;
+window.changeCurrency = changeCurrency;
+window.toggleCurrencyDropdown = toggleCurrencyDropdown;
+window.showAllTransactions = showAllTransactions;
+window.hideAllTransactions = hideAllTransactions;
