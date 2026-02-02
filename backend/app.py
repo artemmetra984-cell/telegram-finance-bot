@@ -204,12 +204,7 @@ if TELEGRAM_TOKEN and WEBHOOK_URL:
         return 'ok'
     
     # Установка вебхука при старте
-    @app.before_first_request
-    def setup_webhook():
-        if TELEGRAM_TOKEN and WEBHOOK_URL:
-            # Устанавливаем вебхук
-            application.bot.set_webhook(url=f"{WEBHOOK_URL}/webhook")
-            print(f"Webhook установлен: {WEBHOOK_URL}/webhook")
+   
 
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 8080))
