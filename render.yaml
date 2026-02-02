@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: telegram-finance-bot
+    runtime: python
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: cd backend && gunicorn app:app
+    envVars:
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: PYTHON_VERSION
+        value: 3.9.0
