@@ -3,6 +3,9 @@ from flask_cors import CORS
 import os
 from dotenv import load_dotenv
 from database import db
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import Application, CommandHandler, CallbackContext
+import asyncio
 
 # Загружаем переменные окружения
 load_dotenv()
@@ -158,6 +161,64 @@ def get_user_categories(user_id):
         print(f"Error in get_categories: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+async def start_command(update: Update, context: CallbackContext):
+    user = update.effective_user
+    welcome_text = f"""
+👋 Привет, {user.first_name}!
+
+💼 *Финансовый помощник* поможет вам:
+• 📊 Отслеживать доходы и расходы
+• 📈 Смотреть статистику в графиках
+• 💰 Контролировать бюджет
+
+🚀 Для начала работы нажмите кнопку ниже!
+"""
+    
+    keyboard = [
+        [InlineKeyboardButton("📱 Открыть приложение", web_app={'url': WEBHOOK_URL})]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    await update.message.reply_text(
+        welcome_text,
+        reply_markup=reply_markup,
+        parse_mode="Markdown"
+    )
+
+# Инициализация Telegram бота
+TELEGRAM_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
+WEBHOOK_URL = os.getenv('WEBHOOK_URL', '')
+
+if TELEGRAM_TOKEN and WEBHOOK_URL:
+    # Создаем приложение Telegram бота
+    application = Application.builder().token(TELEGRAM_TOKEN).build()
+    
+    # Регистрируем обработчики команд
+    application.add_handler(CommandHandler("start", start_command))
+    
+    # Эндпоинт для вебхука
+    @app.route('/webhook', methods=['POST'])
+    def webhook():
+        update = Update.de_json(request.get_json(force=True), application.bot)
+        application.update_queue.put(update)
+        return 'ok'
+    
+    # Установка вебхука при старте
+    @app.before_first_request
+    def setup_webhook():
+        if TELEGRAM_TOKEN and WEBHOOK_URL:
+            # Устанавливаем вебхук
+            application.bot.set_webhook(url=f"{WEBHOOK_URL}/webhook")
+            print(f"Webhook установлен: {WEBHOOK_URL}/webhook")
+
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 8080))
-    app.run(host='0.0.0.0', port=port, debug=False)  # debug=False для продакшена!
+    
+    if TELEGRAM_TOKEN and WEBHOOK_URL:
+        # Продакшен режим с вебхуком
+        print(f"Starting with webhook: {WEBHOOK_URL}")
+        app.run(host='0.0.0.0', port=port, debug=False)
+    else:
+        # Режим разработки
+        print("Starting in development mode")
+        app.run(host='0.0.0.0', port=port, debug=True)
