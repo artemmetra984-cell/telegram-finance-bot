@@ -1,6 +1,6 @@
 import os
 import sys
-from flask import Flask, render_template, jsonify, request
+from flask import Flask, render_template, jsonify, request, send_from_directory
 from flask_cors import CORS
 from dotenv import load_dotenv
 import requests
@@ -237,6 +237,14 @@ def update_currency():
     except Exception as e:
         print(f"Currency error: {e}")
         return jsonify({'error': str(e)}), 500
+
+@app.route('/manifest.json')
+def manifest():
+    return send_from_directory('static', 'manifest.json')
+
+@app.route('/service-worker.js')
+def service_worker():
+    return send_from_directory('static', 'service-worker.js')
 
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 10000))

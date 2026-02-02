@@ -1,0 +1,87 @@
+{
+  "name": "Финансовый помощник",
+  "short_name": "Финансы",
+  "description": "Управление финансами - доходы, расходы и накопления",
+  "start_url": "/",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "background_color": "#1a1a1a",
+  "theme_color": "#1a1a1a",
+  "orientation": "portrait",
+  "categories": ["finance", "productivity", "utilities"],
+  "icons": [
+    {
+      "src": "/static/icon-72x72.png",
+      "sizes": "72x72",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/icon-96x96.png",
+      "sizes": "96x96",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/icon-128x128.png",
+      "sizes": "128x128",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/icon-144x144.png",
+      "sizes": "144x144",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/icon-152x152.png",
+      "sizes": "152x152",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/static/icon-384x384.png",
+      "sizes": "384x384",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/static/screenshot-mobile.png",
+      "sizes": "1080x1920",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Главный экран приложения"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Добавить доход",
+      "short_name": "Доход",
+      "description": "Быстро добавить новый доход",
+      "url": "/?action=add-income",
+      "icons": [{ "src": "/static/icon-income.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Добавить расход",
+      "short_name": "Расход",
+      "description": "Быстро добавить новый расход",
+      "url": "/?action=add-expense",
+      "icons": [{ "src": "/static/icon-expense.png", "sizes": "96x96" }]
+    }
+  ]
+}

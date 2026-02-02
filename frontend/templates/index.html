@@ -4,7 +4,35 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>💰 Финансы</title>
+    
+    <!-- PWA мета-теги -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Финансы">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#1a1a1a">
+    <meta name="description" content="Управление финансами - доходы, расходы и накопления">
+    
+    <!-- Manifest для PWA -->
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+    
+    <!-- Иконки для разных устройств -->
+    <link rel="icon" href="{{ url_for('static', filename='icon-192x192.png') }}" type="image/png">
+    
+    <!-- Иконки для iOS -->
+    <link rel="apple-touch-icon" sizes="72x72" href="{{ url_for('static', filename='icon-72x72.png') }}">
+    <link rel="apple-touch-icon" sizes="96x96" href="{{ url_for('static', filename='icon-96x96.png') }}">
+    <link rel="apple-touch-icon" sizes="128x128" href="{{ url_for('static', filename='icon-128x128.png') }}">
+    <link rel="apple-touch-icon" sizes="144x144" href="{{ url_for('static', filename='icon-144x144.png') }}">
+    <link rel="apple-touch-icon" sizes="152x152" href="{{ url_for('static', filename='icon-152x152.png') }}">
+    <link rel="apple-touch-icon" sizes="192x192" href="{{ url_for('static', filename='icon-192x192.png') }}">
+    <link rel="apple-touch-icon" sizes="384x384" href="{{ url_for('static', filename='icon-384x384.png') }}">
+    <link rel="apple-touch-icon" sizes="512x512" href="{{ url_for('static', filename='icon-512x512.png') }}">
+    
+    <!-- Стили -->
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    
+    <!-- Скрипты -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
@@ -174,10 +202,106 @@
             </div>
         </div>
 
+        <!-- Кнопка установки PWA -->
+        <div id="install-prompt" style="display: none; position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: linear-gradient(135deg, #3498db 0%, #2980b9 100%); color: white; padding: 14px 28px; border-radius: 25px; box-shadow: 0 6px 20px rgba(0,0,0,0.4); z-index: 9999; cursor: pointer; font-weight: 600; font-size: 16px; border: none; white-space: nowrap;">
+          📱 Установить приложение
+        </div>
+
         <!-- Уведомления -->
         <div id="notification" class="notification"></div>
     </div>
 
+    <!-- Основной скрипт -->
     <script src="{{ url_for('static', filename='script.js') }}"></script>
+    
+    <!-- PWA Service Worker -->
+    <script>
+        // Регистрация Service Worker для оффлайн-работы
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register('/static/service-worker.js')
+                    .then(function(registration) {
+                        console.log('✅ ServiceWorker зарегистрирован:', registration.scope);
+                    })
+                    .catch(function(error) {
+                        console.log('❌ Ошибка регистрации ServiceWorker:', error);
+                    });
+            });
+        }
+        
+        // Обработка установки PWA
+        let deferredPrompt;
+        const installPrompt = document.getElementById('install-prompt');
+        
+        // Показываем кнопку установки при возможности
+        window.addEventListener('beforeinstallprompt', (e) => {
+            // Предотвращаем автоматический показ промпта
+            e.preventDefault();
+            // Сохраняем событие
+            deferredPrompt = e;
+            
+            // Показываем нашу кнопку через 5 секунд
+            setTimeout(() => {
+                if (deferredPrompt) {
+                    installPrompt.style.display = 'block';
+                    console.log('✅ Показываем кнопку установки PWA');
+                }
+            }, 5000);
+            
+            // Обновляем Telegram Web App, чтобы не перекрывало
+            if (window.Telegram && Telegram.WebApp) {
+                Telegram.WebApp.setupClosingBehavior();
+            }
+        });
+        
+        // Обработка клика по кнопке установки
+        installPrompt.addEventListener('click', async () => {
+            if (!deferredPrompt) return;
+            
+            // Показываем нативный промпт установки
+            deferredPrompt.prompt();
+            
+            // Ждем выбора пользователя
+            const choiceResult = await deferredPrompt.userChoice;
+            
+            if (choiceResult.outcome === 'accepted') {
+                console.log('✅ Пользователь установил PWA');
+                showNotification('Приложение установлено!', 'success');
+            } else {
+                console.log('❌ Пользователь отказался от установки');
+                showNotification('Установка отменена', 'error');
+            }
+            
+            // Скрываем кнопку
+            installPrompt.style.display = 'none';
+            deferredPrompt = null;
+        });
+        
+        // Скрываем кнопку после установки
+        window.addEventListener('appinstalled', () => {
+            console.log('🎉 PWA успешно установлено!');
+            installPrompt.style.display = 'none';
+            deferredPrompt = null;
+            showNotification('Приложение установлено на рабочий стол!', 'success');
+        });
+        
+        // Проверяем, уже ли установлено приложение
+        window.addEventListener('load', () => {
+            if (window.matchMedia('(display-mode: standalone)').matches || 
+                window.navigator.standalone === true) {
+                console.log('📱 Приложение запущено в standalone режиме');
+                // Можно добавить специальную логику для standalone режима
+            }
+        });
+        
+        // Запрос разрешения на уведомления
+        if ('Notification' in window && Notification.permission === 'default') {
+            setTimeout(() => {
+                Notification.requestPermission().then(permission => {
+                    console.log('Разрешение на уведомления:', permission);
+                });
+            }, 10000);
+        }
+    </script>
 </body>
 </html>
