@@ -41,8 +41,11 @@ async function initTelegramUser() {
     if (window.Telegram && Telegram.WebApp) {
         const tg = Telegram.WebApp;
         
-        // Расширяем на весь экран
+        // Расширяем на весь экран и скрываем надпись
         tg.expand();
+        tg.disableVerticalSwipes = true;
+        tg.setHeaderColor('#1a1a1a');
+        tg.setBackgroundColor('#1a1a1a');
         
         // Получаем данные пользователя
         const user = tg.initDataUnsafe.user;
@@ -75,58 +78,39 @@ async function initTelegramUser() {
             };
             
             console.log('Пользователь инициализирован:', currentUser);
-        } else {
-            // Для тестирования вне Telegram
-            await initTestUser();
         }
-    } else {
-        // Для тестирования вне Telegram
-        await initTestUser();
     }
-}
-
-// Инициализация тестового пользователя
-async function initTestUser() {
-    console.log('Тестовый режим (вне Telegram)');
-    
-    // Используем случайный ID для тестов
-    const testId = Math.floor(Math.random() * 1000000);
-    
-    const response = await fetch('/api/init', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            telegram_id: testId,
-            username: 'test_user_' + testId,
-            first_name: 'Тестовый'
-        })
-    });
-    
-    const data = await response.json();
-    
-    if (data.error) {
-        throw new Error(data.error);
-    }
-    
-    currentUser = {
-        id: data.user_id,
-        telegramId: testId,
-        username: 'test_user_' + testId,
-        firstName: 'Тестовый'
-    };
-    
-    showNotification('Тестовый режим активен', 'info');
 }
 
 // Загрузка данных пользователя
 async function loadUserData() {
-    if (!currentUser) return;
+    if (!currentUser) {
+        // Если не в Telegram, создаем тестового пользователя
+        const testId = Math.floor(Math.random() * 1000000);
+        const response = await fetch('/api/init', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                telegram_id: testId,
+                username: 'test_user_' + testId,
+                first_name: 'Тестовый'
+            })
+        });
+        
+        const data = await response.json();
+        currentUser = {
+            id: data.user_id,
+            telegramId: testId,
+            username: 'test_user_' + testId,
+            firstName: 'Тестовый'
+        };
+    }
     
     try {
-        // Загружаем сводку (из данных инициализации)
-        const summaryResponse = await fetch(`/api/init`, {
+        // Загружаем сводку
+        const response = await fetch('/api/init', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -138,7 +122,7 @@ async function loadUserData() {
             })
         });
         
-        const data = await summaryResponse.json();
+        const data = await response.json();
         
         if (data.error) {
             throw new Error(data.error);
@@ -158,6 +142,7 @@ async function loadUserData() {
 
 // Обновление отображения сводки
 function updateSummaryDisplay(summary) {
+    // Обновляем мини-карточки
     document.getElementById('total-income').textContent = 
         formatCurrency(summary.total_income);
     document.getElementById('total-expense').textContent = 
@@ -197,23 +182,17 @@ function initChart() {
                     'rgba(46, 204, 113, 1)',
                     'rgba(231, 76, 60, 1)'
                 ],
-                borderWidth: 2,
+                borderWidth: 3,
                 hoverOffset: 10
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            cutout: '75%',
             plugins: {
                 legend: {
-                    position: 'bottom',
-                    labels: {
-                        padding: 20,
-                        font: {
-                            size: 12
-                        },
-                        color: '#333'
-                    }
+                    display: false
                 },
                 tooltip: {
                     callbacks: {
@@ -227,8 +206,7 @@ function initChart() {
                         }
                     }
                 }
-            },
-            cutout: '65%'
+            }
         }
     });
 }
@@ -280,7 +258,7 @@ function updateTransactionsList(transactions) {
     
     if (transactions.length === 0 && transactionsOffset === 0) {
         container.innerHTML = `
-            <div class="transaction-item" style="text-align: center; color: #7f8c8d; padding: 30px;">
+            <div class="transaction-item" style="text-align: center; color: #888; padding: 30px;">
                 📭 Нет операций<br>
                 <small>Добавьте первую транзакцию!</small>
             </div>
@@ -306,7 +284,7 @@ function createTransactionElement(transaction) {
     div.innerHTML = `
         <div class="transaction-info">
             <div class="transaction-description">
-                ${transaction.description || 'Без описания'}
+                ${transaction.description}
             </div>
             <div class="transaction-meta">
                 <span class="transaction-category">${transaction.category}</span>
@@ -327,7 +305,6 @@ function formatDate(dateString) {
     return date.toLocaleDateString('ru-RU', {
         day: '2-digit',
         month: '2-digit',
-        year: 'numeric',
         hour: '2-digit',
         minute: '2-digit'
     });
@@ -352,17 +329,6 @@ function setupEventListeners() {
     
     // Кнопка "Загрузить еще"
     document.getElementById('load-more-btn').addEventListener('click', loadMoreTransactions);
-    
-    // Закрытие формы при клике вне ее
-    document.addEventListener('click', (event) => {
-        const form = document.getElementById('transaction-form');
-        if (form.style.display === 'block' && 
-            !form.contains(event.target) &&
-            !document.getElementById('income-btn').contains(event.target) &&
-            !document.getElementById('expense-btn').contains(event.target)) {
-            hideTransactionForm();
-        }
-    });
 }
 
 // Показать форму добавления транзакции
@@ -395,8 +361,6 @@ function showTransactionForm() {
     
     // Показываем форму
     form.style.display = 'block';
-    
-    // Прокручиваем к форме
     form.scrollIntoView({ behavior: 'smooth' });
     
     // Фокусируемся на поле суммы
@@ -445,7 +409,7 @@ async function submitTransaction() {
                 type: currentTransactionType,
                 amount: parseFloat(amount),
                 category: category,
-                description: description || ''
+                description: description || 'Без описания'
             })
         });
         

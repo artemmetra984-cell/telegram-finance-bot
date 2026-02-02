@@ -101,26 +101,43 @@ def init_user():
     try:
         data = request.json
         
+        telegram_id = data.get('telegram_id')
+        username = data.get('username', '')
+        first_name = data.get('first_name', 'Пользователь')
+        
+        if not telegram_id:
+            return jsonify({'error': 'Telegram ID required'}), 400
+        
         if db:
-            telegram_id = data.get('telegram_id', 1)
-            username = data.get('username', 'test')
-            first_name = data.get('first_name', 'Test')
-            
             user_id = db.get_or_create_user(telegram_id, username, first_name)
             summary = db.get_financial_summary(user_id)
+            categories = db.get_categories(user_id)
+            
+            # Форматируем категории
+            income_categories = []
+            expense_categories = []
+            
+            for cat in categories:
+                if cat['type'] == 'income':
+                    income_categories.append(cat['name'])
+                else:
+                    expense_categories.append(cat['name'])
         else:
-            user_id = 1
-            summary = {'total_income': 75000, 'total_expense': 42500, 'balance': 32500}
+            user_id = telegram_id
+            summary = {'total_income': 0, 'total_expense': 0, 'balance': 0}
+            income_categories = ['Зарплата', 'Фриланс', 'Инвестиции']
+            expense_categories = ['Продукты', 'Транспорт', 'Развлечения']
         
         return jsonify({
             'user_id': user_id,
             'summary': summary,
             'categories': {
-                'income': ['Зарплата', 'Фриланс', 'Инвестиции', 'Подарок'],
-                'expense': ['Продукты', 'Транспорт', 'Развлечения', 'Аренда', 'Кафе']
+                'income': income_categories,
+                'expense': expense_categories
             }
         })
     except Exception as e:
+        print(f"❌ Error in init_user: {e}")
         return jsonify({'error': str(e)}), 500
 
 # API для добавления транзакции
@@ -128,50 +145,69 @@ def init_user():
 def add_transaction():
     try:
         data = request.json
-        user_id = data.get('user_id', 1)
+        user_id = data.get('user_id')
         trans_type = data.get('type')
         amount = data.get('amount')
         category = data.get('category')
         description = data.get('description', '')
         
-        if db and all([user_id, trans_type, amount, category]):
-            # Реальный код для базы данных
-            pass
+        # Валидация
+        if not all([user_id, trans_type, amount, category]):
+            return jsonify({'error': 'Missing required fields'}), 400
+        
+        if trans_type not in ['income', 'expense']:
+            return jsonify({'error': 'Invalid transaction type'}), 400
+        
+        try:
+            amount = float(amount)
+            if amount <= 0:
+                return jsonify({'error': 'Amount must be positive'}), 400
+        except ValueError:
+            return jsonify({'error': 'Invalid amount'}), 400
+        
+        if db:
+            # Сохраняем в базу
+            transaction_id = db.add_transaction(user_id, trans_type, amount, category, description)
+            summary = db.get_financial_summary(user_id)
+        else:
+            return jsonify({'error': 'Database not available'}), 500
         
         return jsonify({
             'success': True,
             'message': 'Транзакция добавлена',
-            'transaction_id': 999,
-            'summary': {
-                'total_income': 75000 + (amount if trans_type == 'income' else 0),
-                'total_expense': 42500 + (amount if trans_type == 'expense' else 0),
-                'balance': 32500 + (amount if trans_type == 'income' else -amount)
-            }
+            'transaction_id': transaction_id,
+            'summary': summary
         })
     except Exception as e:
+        print(f"❌ Error in add_transaction: {e}")
         return jsonify({'error': str(e)}), 500
 
 # API для получения транзакций
 @app.route('/api/transactions/<int:user_id>')
 def get_transactions(user_id):
-    return jsonify([
-        {
-            'id': 1,
-            'type': 'income',
-            'amount': 50000,
-            'category': 'Зарплата',
-            'description': 'Основная работа',
-            'date': '2024-01-15'
-        },
-        {
-            'id': 2,
-            'type': 'expense',
-            'amount': 15000,
-            'category': 'Аренда',
-            'description': 'Аренда квартиры',
-            'date': '2024-01-10'
-        }
-    ])
+    try:
+        limit = request.args.get('limit', 50, type=int)
+        offset = request.args.get('offset', 0, type=int)
+        
+        if db:
+            transactions = db.get_user_transactions(user_id, limit, offset)
+            transactions_list = []
+            for trans in transactions:
+                transactions_list.append({
+                    'id': trans['id'],
+                    'type': trans['type'],
+                    'amount': trans['amount'],
+                    'category': trans['category'],
+                    'description': trans['description'] or 'Без описания',
+                    'date': trans['date']
+                })
+            return jsonify(transactions_list)
+        else:
+            return jsonify([])
+            
+    except Exception as e:
+        print(f"❌ Error in get_transactions: {e}")
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 10000))

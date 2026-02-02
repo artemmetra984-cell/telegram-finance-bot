@@ -3,54 +3,51 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>💰 Финансовый помощник</title>
+    <title>💰 Финансы</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
     <div class="container">
-        <!-- Заголовок -->
-        <header>
-            <h1>💰 Финансовый помощник</h1>
-            <p class="subtitle">Контролируйте свои доходы и расходы</p>
-        </header>
-
-        <!-- Статус загрузки -->
+        <!-- Загрузка -->
         <div id="loading" class="loading">
             <div class="spinner"></div>
-            <p>Загрузка данных...</p>
+            <p>Загрузка...</p>
         </div>
 
-        <!-- Основной контент (скрыт до загрузки) -->
+        <!-- Основной контент -->
         <div id="main-content" style="display: none;">
-            <!-- Финансовая сводка -->
-            <div class="summary-cards">
-                <div class="card income-card">
-                    <h3>📈 Доходы</h3>
-                    <div class="amount" id="total-income">0 ₽</div>
-                </div>
-                <div class="card expense-card">
-                    <h3>📉 Расходы</h3>
-                    <div class="amount" id="total-expense">0 ₽</div>
-                </div>
-                <div class="card balance-card">
-                    <h3>💰 Баланс</h3>
-                    <div class="amount" id="balance">0 ₽</div>
-                </div>
-            </div>
-
             <!-- Диаграмма -->
             <div class="chart-container">
                 <canvas id="finance-chart"></canvas>
+                <div class="chart-balance">
+                    <div class="balance-label">Баланс</div>
+                    <div class="balance-amount" id="balance">0 ₽</div>
+                </div>
+            </div>
+
+            <!-- Сводка -->
+            <div class="summary-mini">
+                <div class="mini-card income">
+                    <h4>Доходы</h4>
+                    <div class="mini-amount mini-income" id="total-income">0 ₽</div>
+                </div>
+                <div class="mini-card expense">
+                    <h4>Расходы</h4>
+                    <div class="mini-amount mini-expense" id="total-expense">0 ₽</div>
+                </div>
             </div>
 
             <!-- Кнопки управления -->
             <div class="controls">
                 <button id="income-btn" class="btn income-btn">
-                    <span class="btn-icon">+</span> Добавить доход
+                    <span class="btn-icon">💰</span>
+                    <span class="btn-text">Доход</span>
                 </button>
                 <button id="expense-btn" class="btn expense-btn">
-                    <span class="btn-icon">-</span> Добавить расход
+                    <span class="btn-icon">📉</span>
+                    <span class="btn-text">Расход</span>
                 </button>
             </div>
 
@@ -66,8 +63,8 @@
                     <select id="category"></select>
                 </div>
                 <div class="form-group">
-                    <label for="description">Описание (необязательно)</label>
-                    <input type="text" id="description" placeholder="Например: Зарплата за октябрь">
+                    <label for="description">Описание</label>
+                    <input type="text" id="description" placeholder="Например: Зарплата">
                 </div>
                 <div class="form-buttons">
                     <button id="cancel-btn" class="btn cancel-btn">Отмена</button>
@@ -77,7 +74,7 @@
 
             <!-- История транзакций -->
             <div class="history-section">
-                <h3>📋 История операций</h3>
+                <h3>История операций</h3>
                 <div id="transactions-list" class="transactions-list">
                     <!-- Транзакции будут загружены здесь -->
                 </div>
