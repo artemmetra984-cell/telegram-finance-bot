@@ -1,26 +1,21 @@
-// Глобальные переменные
 let currentUser = null;
 let financeChart = null;
-let savingsChart = null;
-let currentPage = 'main'; // main, history, savings
 let currentTransactionType = 'income';
-let transactionsOffset = 0;
-const TRANSACTIONS_PER_PAGE = 10;
+let currentPage = 'main'; // main, history
 
-// Инициализация
 document.addEventListener('DOMContentLoaded', async () => {
-    console.log('Страница загружена');
+    console.log('Загрузка...');
     
     try {
-        await initTelegramUser();
+        await initUser();
+        
         document.getElementById('loading').style.display = 'none';
         document.getElementById('main-content').style.display = 'block';
         
         initChart();
-        await loadUserData();
         setupEventListeners();
         
-        // Настраиваем Telegram Web App
+        // Настройка Telegram Web App
         if (window.Telegram && Telegram.WebApp) {
             Telegram.WebApp.expand();
             Telegram.WebApp.setHeaderColor('#1a1a1a');
@@ -28,149 +23,67 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         
     } catch (error) {
-        console.error('Ошибка инициализации:', error);
-        showNotification('Ошибка загрузки данных', 'error');
+        console.error('Ошибка:', error);
+        showNotification('Ошибка загрузки', 'error');
     }
 });
 
 // Инициализация пользователя
-async function initTelegramUser() {
+async function initUser() {
+    let telegramId;
+    let username = '';
+    let firstName = 'Пользователь';
+    
     if (window.Telegram && Telegram.WebApp) {
-        const tg = Telegram.WebApp;
-        const user = tg.initDataUnsafe.user;
-        
+        const user = Telegram.WebApp.initDataUnsafe.user;
         if (user) {
-            const response = await fetch('/api/init', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    telegram_id: user.id,
-                    username: user.username,
-                    first_name: user.first_name
-                })
-            });
-            
-            const data = await response.json();
-            
-            if (data.error) throw new Error(data.error);
-            
-            currentUser = {
-                id: data.user_id,
-                telegramId: user.id,
-                username: user.username,
-                firstName: user.first_name,
-                currency: data.currency
-            };
-            
-            // Сохраняем данные
-            window.categories = data.categories;
-            window.currencies = data.currencies;
-            window.savings = data.savings;
-            
-            // Обновляем интерфейс
-            updateCurrencyDisplay(data.currency);
-            updateSummaryDisplay(data.summary);
-            updateRecentTransactions(data.recent_transactions);
-            updateSavingsList(data.savings);
-            
-            console.log('Пользователь инициализирован:', currentUser);
+            telegramId = user.id;
+            username = user.username || '';
+            firstName = user.first_name || 'Пользователь';
         }
-    } else {
-        // Тестовый режим
-        await initTestUser();
     }
-}
-
-async function initTestUser() {
-    const testId = Math.floor(Math.random() * 1000000);
+    
+    if (!telegramId) {
+        telegramId = Math.floor(Math.random() * 1000000);
+    }
     
     const response = await fetch('/api/init', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
-            telegram_id: testId,
-            username: 'test_user_' + testId,
-            first_name: 'Тестовый'
+            telegram_id: telegramId,
+            username: username,
+            first_name: firstName
         })
     });
     
     const data = await response.json();
     
+    if (data.error) {
+        throw new Error(data.error);
+    }
+    
     currentUser = {
         id: data.user_id,
-        telegramId: testId,
-        username: 'test_user_' + testId,
-        firstName: 'Тестовый',
-        currency: data.currency
+        telegramId: telegramId,
+        username: username,
+        firstName: firstName
     };
     
     window.categories = data.categories;
-    window.currencies = data.currencies;
-    window.savings = data.savings;
     
-    updateCurrencyDisplay(data.currency);
     updateSummaryDisplay(data.summary);
     updateRecentTransactions(data.recent_transactions);
-    updateSavingsList(data.savings);
-}
-
-// Загрузка данных пользователя
-async function loadUserData() {
-    if (!currentUser) await initTestUser();
-    
-    try {
-        const response = await fetch('/api/init', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                telegram_id: currentUser.telegramId,
-                username: currentUser.username,
-                first_name: currentUser.firstName
-            })
-        });
-        
-        const data = await response.json();
-        
-        updateCurrencyDisplay(data.currency);
-        updateSummaryDisplay(data.summary);
-        updateRecentTransactions(data.recent_transactions);
-        updateSavingsList(data.savings);
-        
-    } catch (error) {
-        console.error('Ошибка загрузки данных:', error);
-        showNotification('Ошибка загрузки данных', 'error');
-    }
-}
-
-// Обновление отображения валюты
-function updateCurrencyDisplay(currency) {
-    document.getElementById('current-currency').textContent = getCurrencySymbol(currency);
-    document.querySelectorAll('.currency-option').forEach(option => {
-        option.classList.toggle('active', option.dataset.currency === currency);
-    });
-}
-
-// Получение символа валюты
-function getCurrencySymbol(currency) {
-    const symbols = {
-        'RUB': '₽',
-        'USD': '$',
-        'EUR': '€',
-        'GEL': '₾'
-    };
-    return symbols[currency] || currency;
 }
 
 // Обновление сводки
 function updateSummaryDisplay(summary) {
-    const currencySymbol = getCurrencySymbol(currentUser?.currency || 'RUB');
-    
     document.getElementById('total-income').textContent = 
-        formatCurrency(summary.total_income) + ' ' + currencySymbol;
+        formatCurrency(summary.total_income) + ' ₽';
     document.getElementById('total-expense').textContent = 
-        formatCurrency(summary.total_expense) + ' ' + currencySymbol;
+        formatCurrency(summary.total_expense) + ' ₽';
     document.getElementById('balance').textContent = 
-        formatCurrency(summary.balance) + ' ' + currencySymbol;
+        formatCurrency(summary.balance) + ' ₽';
     
     if (financeChart) {
         updateChart(summary);
@@ -179,10 +92,7 @@ function updateSummaryDisplay(summary) {
 
 // Форматирование валюты
 function formatCurrency(amount) {
-    return new Intl.NumberFormat('ru-RU', {
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0
-    }).format(amount);
+    return new Intl.NumberFormat('ru-RU').format(amount);
 }
 
 // Инициализация диаграммы
@@ -195,16 +105,9 @@ function initChart() {
             labels: ['Доходы', 'Расходы'],
             datasets: [{
                 data: [0, 0],
-                backgroundColor: [
-                    'rgba(46, 204, 113, 0.8)',
-                    'rgba(231, 76, 60, 0.8)'
-                ],
-                borderColor: [
-                    'rgba(46, 204, 113, 1)',
-                    'rgba(231, 76, 60, 1)'
-                ],
+                backgroundColor: ['#2ecc71', '#e74c3c'],
+                borderColor: ['#27ae60', '#c0392b'],
                 borderWidth: 3,
-                hoverOffset: 10
             }]
         },
         options: {
@@ -216,7 +119,7 @@ function initChart() {
                 tooltip: {
                     callbacks: {
                         label: function(context) {
-                            return `${context.label}: ${formatCurrency(context.raw)} ${getCurrencySymbol(currentUser?.currency || 'RUB')}`;
+                            return `${context.label}: ${formatCurrency(context.raw)} ₽`;
                         }
                     }
                 }
@@ -256,244 +159,6 @@ function updateRecentTransactions(transactions) {
     });
 }
 
-// Обновление списка сбережений
-function updateSavingsList(savings) {
-    const container = document.getElementById('savings-list');
-    if (!container) return;
-    
-    container.innerHTML = '';
-    
-    savings.forEach(item => {
-        const progress = item.target_amount > 0 ? (item.current_amount / item.target_amount) * 100 : 0;
-        const progressColor = progress >= 100 ? '#2ecc71' : 
-                            progress >= 50 ? '#f39c12' : '#e74c3c';
-        
-        const div = document.createElement('div');
-        div.className = 'savings-item';
-        div.style.borderLeftColor = progressColor;
-        
-        div.innerHTML = `
-            <div class="savings-header">
-                <div class="savings-title">${item.category}</div>
-                <div class="savings-amount">${formatCurrency(item.current_amount)} ${getCurrencySymbol(item.currency)}</div>
-            </div>
-            <div class="savings-progress">
-                <div class="savings-progress-bar" style="width: ${Math.min(progress, 100)}%; background: ${progressColor};"></div>
-            </div>
-            ${item.target_amount > 0 ? `
-                <div class="savings-target">
-                    Цель: ${formatCurrency(item.target_amount)} ${getCurrencySymbol(item.currency)}
-                </div>
-            ` : ''}
-        `;
-        
-        container.appendChild(div);
-    });
-}
-
-// Загрузка истории по месяцам
-async function loadMonthlyHistory() {
-    if (!currentUser) return;
-    
-    try {
-        const response = await fetch(`/api/history/${currentUser.id}`);
-        const monthlyData = await response.json();
-        
-        updateMonthlyHistory(monthlyData);
-        
-    } catch (error) {
-        console.error('Ошибка загрузки истории:', error);
-        showNotification('Ошибка загрузки истории', 'error');
-    }
-}
-
-// Обновление истории по месяцам
-function updateMonthlyHistory(monthlyData) {
-    const container = document.getElementById('monthly-history');
-    if (!container) return;
-    
-    container.innerHTML = '';
-    
-    monthlyData.forEach(month => {
-        const balanceClass = month.balance >= 0 ? 'positive' : 'negative';
-        const balanceSign = month.balance >= 0 ? '+' : '';
-        
-        const div = document.createElement('div');
-        div.className = 'month-item';
-        
-        div.innerHTML = `
-            <div class="month-header" onclick="toggleMonthDetails(this)">
-                <div class="month-title">${formatMonth(month.month)}</div>
-                <div class="month-balance ${balanceClass}">
-                    ${balanceSign}${formatCurrency(month.balance)} ${getCurrencySymbol(currentUser?.currency || 'RUB')}
-                </div>
-            </div>
-            <div class="month-details">
-                <div class="month-stats">
-                    <div class="month-stat income">
-                        <div class="month-stat-label">Доходы</div>
-                        <div class="month-stat-value">${formatCurrency(month.income)}</div>
-                    </div>
-                    <div class="month-stat expense">
-                        <div class="month-stat-label">Расходы</div>
-                        <div class="month-stat-value">${formatCurrency(month.expense)}</div>
-                    </div>
-                    <div class="month-stat investment">
-                        <div class="month-stat-label">Инвестиции</div>
-                        <div class="month-stat-value">${formatCurrency(month.investment)}</div>
-                    </div>
-                    <div class="month-stat savings">
-                        <div class="month-stat-label">Накопления</div>
-                        <div class="month-stat-value">${formatCurrency(month.savings)}</div>
-                    </div>
-                </div>
-            </div>
-        `;
-        
-        container.appendChild(div);
-    });
-}
-
-// Форматирование месяца
-function formatMonth(monthStr) {
-    const [year, month] = monthStr.split('-');
-    const months = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
-                   'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
-    return `${months[parseInt(month) - 1]} ${year}`;
-}
-
-// Переключение деталей месяца
-function toggleMonthDetails(element) {
-    const details = element.nextElementSibling;
-    details.classList.toggle('active');
-}
-
-// Навигация по страницам
-function showPage(page) {
-    currentPage = page;
-    
-    // Скрываем все страницы
-    document.getElementById('main-page').style.display = 'none';
-    document.getElementById('history-page').style.display = 'none';
-    document.getElementById('savings-page').style.display = 'none';
-    
-    // Показываем нужную страницу
-    document.getElementById(`${page}-page`).style.display = 'block';
-    
-    // Обновляем активные кнопки
-    document.querySelectorAll('.menu-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.page === page);
-    });
-    
-    // Загружаем данные для страницы
-    if (page === 'history') {
-        loadMonthlyHistory();
-    } else if (page === 'savings') {
-        initSavingsChart();
-    }
-}
-
-// Инициализация диаграммы сбережений
-function initSavingsChart() {
-    if (!window.savings || window.savings.length === 0) return;
-    
-    const ctx = document.getElementById('savings-chart')?.getContext('2d');
-    if (!ctx) return;
-    
-    if (savingsChart) {
-        savingsChart.destroy();
-    }
-    
-    const labels = window.savings.map(s => s.category);
-    const data = window.savings.map(s => s.current_amount);
-    const colors = window.savings.map(s => {
-        const progress = s.target_amount > 0 ? (s.current_amount / s.target_amount) * 100 : 0;
-        return progress >= 100 ? '#2ecc71' : 
-               progress >= 50 ? '#f39c12' : '#e74c3c';
-    });
-    
-    savingsChart = new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-            labels: labels,
-            datasets: [{
-                data: data,
-                backgroundColor: colors,
-                borderWidth: 2,
-                hoverOffset: 15
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'bottom',
-                    labels: {
-                        color: '#fff',
-                        font: { size: 12 }
-                    }
-                },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            const saving = window.savings[context.dataIndex];
-                            const progress = saving.target_amount > 0 ? 
-                                ` (${Math.round((saving.current_amount / saving.target_amount) * 100)}%)` : '';
-                            return `${context.label}: ${formatCurrency(context.raw)} ${getCurrencySymbol(saving.currency)}${progress}`;
-                        }
-                    }
-                }
-            }
-        }
-    });
-}
-
-// Смена валюты
-async function changeCurrency(currency) {
-    if (!currentUser) return;
-    
-    try {
-        const response = await fetch('/api/currency/update', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                user_id: currentUser.id,
-                currency: currency
-            })
-        });
-        
-        const data = await response.json();
-        
-        if (data.error) throw new Error(data.error);
-        
-        currentUser.currency = currency;
-        updateCurrencyDisplay(currency);
-        updateSummaryDisplay(data.summary);
-        
-        showNotification(`Валюта изменена на ${currency}`, 'success');
-        
-        // Закрываем dropdown
-        document.getElementById('currency-dropdown').classList.remove('active');
-        
-    } catch (error) {
-        console.error('Ошибка смены валюты:', error);
-        showNotification('Ошибка смены валюты', 'error');
-    }
-}
-
-// Показать/скрыть выбор валюты
-function toggleCurrencyDropdown() {
-    document.getElementById('currency-dropdown').classList.toggle('active');
-}
-
-// Закрыть dropdown при клике вне его
-document.addEventListener('click', (e) => {
-    if (!e.target.closest('.currency-selector')) {
-        document.getElementById('currency-dropdown').classList.remove('active');
-    }
-});
-
 // Создание элемента транзакции
 function createTransactionElement(transaction) {
     const div = document.createElement('div');
@@ -507,7 +172,7 @@ function createTransactionElement(transaction) {
     div.innerHTML = `
         <div class="transaction-info">
             <div class="transaction-description">
-                ${icon} ${transaction.description}
+                ${icon} ${transaction.description || 'Без описания'}
             </div>
             <div class="transaction-meta">
                 <span class="transaction-category">${transaction.category}</span>
@@ -515,7 +180,7 @@ function createTransactionElement(transaction) {
             </div>
         </div>
         <div class="transaction-amount ${amountClass}">
-            ${amountSign}${formatCurrency(transaction.amount)} ${getCurrencySymbol(currentUser?.currency || 'RUB')}
+            ${amountSign}${formatCurrency(transaction.amount)} ₽
         </div>
     `;
     
@@ -540,7 +205,7 @@ function formatDate(dateString) {
 
 // Настройка обработчиков
 function setupEventListeners() {
-    // Кнопки добавления транзакций
+    // Кнопки добавления
     document.getElementById('income-btn').addEventListener('click', () => {
         currentTransactionType = 'income';
         showTransactionForm();
@@ -551,49 +216,43 @@ function setupEventListeners() {
         showTransactionForm();
     });
     
-    document.getElementById('investment-btn').addEventListener('click', () => {
-        currentTransactionType = 'investment';
-        showTransactionForm();
-    });
-    
-    // Кнопки навигации
-    document.querySelectorAll('.menu-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            showPage(btn.dataset.page);
-        });
-    });
-    
     // Кнопки формы
     document.getElementById('cancel-btn').addEventListener('click', hideTransactionForm);
     document.getElementById('submit-btn').addEventListener('click', submitTransaction);
     
-    // Кнопка пополнения копилки
-    document.getElementById('add-savings-btn')?.addEventListener('click', showAddSavingsModal);
+    // Кнопки навигации
+    document.getElementById('history-btn').addEventListener('click', showHistory);
+    document.getElementById('back-btn').addEventListener('click', showMain);
 }
 
-// Показать форму добавления транзакции
+// Показать форму транзакции
 function showTransactionForm() {
     const form = document.getElementById('transaction-form');
     const formTitle = document.getElementById('form-title');
     const categorySelect = document.getElementById('category');
     
-    formTitle.textContent = 
-        currentTransactionType === 'income' ? 'Добавить доход' :
-        currentTransactionType === 'expense' ? 'Добавить расход' :
-        currentTransactionType === 'investment' ? 'Добавить инвестицию' : 'Добавить в копилку';
+    formTitle.textContent = currentTransactionType === 'income' ? 'Добавить доход' : 'Добавить расход';
     
     categorySelect.innerHTML = '';
     
-    const categories = window.categories ? 
-        (window.categories[currentTransactionType] || []) : [];
+    const categories = window.categories ? window.categories[currentTransactionType] : [];
     
-    categories.forEach(cat => {
+    if (categories.length === 0) {
+        categories.push(currentTransactionType === 'income' ? 'Зарплата' : 'Продукты');
+    }
+    
+    categories.forEach(category => {
         const option = document.createElement('option');
-        option.value = cat.name;
-        option.textContent = cat.name;
-        option.style.color = cat.color;
+        option.value = category;
+        option.textContent = category;
         categorySelect.appendChild(option);
     });
+    
+    // Добавляем опцию для новой категории
+    const newOption = document.createElement('option');
+    newOption.value = '__new__';
+    newOption.textContent = '+ Добавить категорию';
+    categorySelect.appendChild(newOption);
     
     form.style.display = 'block';
     form.scrollIntoView({ behavior: 'smooth' });
@@ -601,32 +260,46 @@ function showTransactionForm() {
     setTimeout(() => {
         document.getElementById('amount').focus();
     }, 300);
+    
+    // Обработчик для новой категории
+    categorySelect.onchange = function() {
+        if (this.value === '__new__') {
+            const newCategory = prompt('Введите название новой категории:');
+            if (newCategory && newCategory.trim()) {
+                // Добавляем новую категорию
+                if (!window.categories) window.categories = { income: [], expense: [] };
+                if (!window.categories[currentTransactionType]) {
+                    window.categories[currentTransactionType] = [];
+                }
+                window.categories[currentTransactionType].push(newCategory.trim());
+                
+                // Обновляем select
+                showTransactionForm();
+                categorySelect.value = newCategory.trim();
+            }
+        }
+    };
 }
 
 // Скрыть форму
 function hideTransactionForm() {
     document.getElementById('transaction-form').style.display = 'none';
-    clearForm();
-}
-
-// Очистка формы
-function clearForm() {
     document.getElementById('amount').value = '';
     document.getElementById('description').value = '';
 }
 
-// Отправка транзакции
+// Отправить транзакцию
 async function submitTransaction() {
     const amount = document.getElementById('amount').value.trim();
     const category = document.getElementById('category').value;
     const description = document.getElementById('description').value.trim();
     
     if (!amount || parseFloat(amount) <= 0) {
-        showNotification('Введите корректную сумму', 'error');
+        showNotification('Введите сумму', 'error');
         return;
     }
     
-    if (!category) {
+    if (!category || category === '__new__') {
         showNotification('Выберите категорию', 'error');
         return;
     }
@@ -649,91 +322,129 @@ async function submitTransaction() {
         if (data.error) throw new Error(data.error);
         
         updateSummaryDisplay(data.summary);
-        await loadUserData(); // Обновляем все данные
+        await reloadUserData();
         
         hideTransactionForm();
         showNotification(
-            currentTransactionType === 'income' ? '💵 Доход добавлен!' :
-            currentTransactionType === 'expense' ? '💸 Расход добавлен!' :
-            currentTransactionType === 'investment' ? '📈 Инвестиция добавлена!' : '💰 Накопление добавлено!',
+            currentTransactionType === 'income' ? '💵 Доход добавлен!' : '💸 Расход добавлен!',
             'success'
         );
         
-        // Если мы на странице сбережений, обновляем график
-        if (currentTransactionType === 'savings' && currentPage === 'savings') {
-            initSavingsChart();
-        }
-        
     } catch (error) {
-        console.error('Ошибка добавления транзакции:', error);
-        showNotification('Ошибка добавления транзакции', 'error');
+        console.error('Ошибка:', error);
+        showNotification('Ошибка добавления', 'error');
     }
 }
 
-// Показать модальное окно пополнения копилки
-function showAddSavingsModal() {
-    const modal = document.getElementById('add-savings-modal');
-    const select = document.getElementById('savings-category');
-    
-    select.innerHTML = '';
-    
-    if (window.savings && window.savings.length > 0) {
-        window.savings.forEach(saving => {
-            const option = document.createElement('option');
-            option.value = saving.category;
-            option.textContent = `${saving.category} (${formatCurrency(saving.current_amount)}/${formatCurrency(saving.target_amount)})`;
-            select.appendChild(option);
-        });
-    }
-    
-    modal.classList.add('active');
-}
-
-// Закрыть модальное окно
-function closeModal(modalId) {
-    document.getElementById(modalId).classList.remove('active');
-}
-
-// Пополнение копилки
-async function addToSavings() {
-    const category = document.getElementById('savings-category').value;
-    const amount = document.getElementById('savings-amount').value.trim();
-    
-    if (!category || !amount || parseFloat(amount) <= 0) {
-        showNotification('Заполните все поля', 'error');
-        return;
-    }
-    
+// Перезагрузка данных пользователя
+async function reloadUserData() {
     try {
-        const response = await fetch('/api/savings/add', {
+        const response = await fetch('/api/init', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
-                user_id: currentUser.id,
-                category: category,
-                amount: parseFloat(amount)
+                telegram_id: currentUser.telegramId,
+                username: currentUser.username,
+                first_name: currentUser.firstName
             })
         });
         
         const data = await response.json();
         
-        if (data.error) throw new Error(data.error);
-        
-        window.savings = data.savings;
-        updateSavingsList(data.savings);
-        
-        closeModal('add-savings-modal');
-        showNotification('Копилка пополнена!', 'success');
-        
-        // Обновляем график сбережений
-        if (currentPage === 'savings') {
-            initSavingsChart();
+        if (!data.error) {
+            updateSummaryDisplay(data.summary);
+            updateRecentTransactions(data.recent_transactions);
         }
+    } catch (error) {
+        console.error('Ошибка обновления:', error);
+    }
+}
+
+// Показать историю
+async function showHistory() {
+    document.getElementById('main-page').style.display = 'none';
+    document.getElementById('history-page').style.display = 'block';
+    currentPage = 'history';
+    
+    try {
+        const response = await fetch(`/api/history/${currentUser.id}`);
+        const monthlyData = await response.json();
+        
+        updateMonthlyHistory(monthlyData);
         
     } catch (error) {
-        console.error('Ошибка пополнения копилки:', error);
-        showNotification('Ошибка пополнения копилки', 'error');
+        console.error('Ошибка загрузки истории:', error);
+        showNotification('Ошибка загрузки истории', 'error');
     }
+}
+
+// Обновление истории по месяцам
+function updateMonthlyHistory(monthlyData) {
+    const container = document.getElementById('monthly-history');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    
+    if (monthlyData.length === 0) {
+        container.innerHTML = `
+            <div style="text-align: center; color: #888; padding: 40px;">
+                📭 Нет данных
+            </div>
+        `;
+        return;
+    }
+    
+    monthlyData.forEach(month => {
+        const balanceClass = month.balance >= 0 ? 'positive' : 'negative';
+        const balanceSign = month.balance >= 0 ? '+' : '';
+        
+        const div = document.createElement('div');
+        div.className = 'month-item';
+        
+        div.innerHTML = `
+            <div class="month-header" onclick="toggleMonthDetails(this)">
+                <div class="month-title">${formatMonth(month.month)}</div>
+                <div class="month-balance ${balanceClass}">
+                    ${balanceSign}${formatCurrency(month.balance)} ₽
+                </div>
+            </div>
+            <div class="month-details">
+                <div class="month-stats">
+                    <div class="month-stat income">
+                        <div class="month-stat-label">Доходы</div>
+                        <div class="month-stat-value">${formatCurrency(month.income)}</div>
+                    </div>
+                    <div class="month-stat expense">
+                        <div class="month-stat-label">Расходы</div>
+                        <div class="month-stat-value">${formatCurrency(month.expense)}</div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        container.appendChild(div);
+    });
+}
+
+// Форматирование месяца
+function formatMonth(monthStr) {
+    const [year, month] = monthStr.split('-');
+    const months = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
+                   'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+    return `${months[parseInt(month) - 1]} ${year}`;
+}
+
+// Переключение деталей месяца
+function toggleMonthDetails(element) {
+    const details = element.nextElementSibling;
+    details.classList.toggle('active');
+}
+
+// Показать главную
+function showMain() {
+    document.getElementById('history-page').style.display = 'none';
+    document.getElementById('main-page').style.display = 'block';
+    currentPage = 'main';
 }
 
 // Показать уведомление
@@ -749,17 +460,6 @@ function showNotification(message, type = 'info') {
     }, 3000);
 }
 
-// Обработка ошибок
-window.addEventListener('error', (event) => {
-    console.error('Global error:', event.error);
-    showNotification('Произошла ошибка', 'error');
-});
-
-// Глобальные функции для HTML
-window.showPage = showPage;
+// Глобальные функции
 window.toggleMonthDetails = toggleMonthDetails;
-window.changeCurrency = changeCurrency;
-window.toggleCurrencyDropdown = toggleCurrencyDropdown;
-window.showAddSavingsModal = showAddSavingsModal;
-window.closeModal = closeModal;
-window.addToSavings = addToSavings;
+window.showMain = showMain;
