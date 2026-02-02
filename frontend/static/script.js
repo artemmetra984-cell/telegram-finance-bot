@@ -20,7 +20,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Инициализируем диаграмму
         initChart();
         
-        // Загружаем данные
+        // Загружаем данные пользователя
         await loadUserData();
         
         // Загружаем историю транзакций
@@ -89,14 +89,17 @@ async function initTelegramUser() {
 async function initTestUser() {
     console.log('Тестовый режим (вне Telegram)');
     
+    // Используем случайный ID для тестов
+    const testId = Math.floor(Math.random() * 1000000);
+    
     const response = await fetch('/api/init', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-            telegram_id: 123456789,
-            username: 'test_user',
+            telegram_id: testId,
+            username: 'test_user_' + testId,
             first_name: 'Тестовый'
         })
     });
@@ -109,8 +112,8 @@ async function initTestUser() {
     
     currentUser = {
         id: data.user_id,
-        telegramId: 123456789,
-        username: 'test_user',
+        telegramId: testId,
+        username: 'test_user_' + testId,
         firstName: 'Тестовый'
     };
     
@@ -122,19 +125,30 @@ async function loadUserData() {
     if (!currentUser) return;
     
     try {
-        // Загружаем сводку
-        const summaryResponse = await fetch(`/api/summary/${currentUser.id}`);
-        const summary = await summaryResponse.json();
+        // Загружаем сводку (из данных инициализации)
+        const summaryResponse = await fetch(`/api/init`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                telegram_id: currentUser.telegramId,
+                username: currentUser.username,
+                first_name: currentUser.firstName
+            })
+        });
         
-        if (summary.error) {
-            throw new Error(summary.error);
+        const data = await summaryResponse.json();
+        
+        if (data.error) {
+            throw new Error(data.error);
         }
         
         // Обновляем отображение
-        updateSummaryDisplay(summary);
+        updateSummaryDisplay(data.summary);
         
-        // Загружаем категории
-        await loadCategories();
+        // Сохраняем категории
+        window.categories = data.categories;
         
     } catch (error) {
         console.error('Ошибка загрузки данных:', error);
@@ -228,30 +242,6 @@ function updateChart(summary) {
     financeChart.update();
 }
 
-// Загрузка категорий
-async function loadCategories() {
-    if (!currentUser) return;
-    
-    try {
-        // Загружаем категории доходов
-        const incomeResponse = await fetch(`/api/categories/${currentUser.id}?type=income`);
-        const incomeCategories = await incomeResponse.json();
-        
-        // Загружаем категории расходов
-        const expenseResponse = await fetch(`/api/categories/${currentUser.id}?type=expense`);
-        const expenseCategories = await expenseResponse.json();
-        
-        // Сохраняем категории для использования в форме
-        window.categories = {
-            income: incomeCategories,
-            expense: expenseCategories
-        };
-        
-    } catch (error) {
-        console.error('Ошибка загрузки категорий:', error);
-    }
-}
-
 // Загрузка истории транзакций
 async function loadTransactions() {
     if (!currentUser) return;
@@ -290,8 +280,9 @@ function updateTransactionsList(transactions) {
     
     if (transactions.length === 0 && transactionsOffset === 0) {
         container.innerHTML = `
-            <div class="transaction-item" style="text-align: center; color: #7f8c8d;">
-                Нет операций. Добавьте первую!
+            <div class="transaction-item" style="text-align: center; color: #7f8c8d; padding: 30px;">
+                📭 Нет операций<br>
+                <small>Добавьте первую транзакцию!</small>
             </div>
         `;
         return;
@@ -336,7 +327,9 @@ function formatDate(dateString) {
     return date.toLocaleDateString('ru-RU', {
         day: '2-digit',
         month: '2-digit',
-        year: 'numeric'
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
     });
 }
 
@@ -385,28 +378,20 @@ function showTransactionForm() {
     
     // Заполняем категории
     categorySelect.innerHTML = '';
-    const categories = window.categories ? window.categories[currentTransactionType] : [];
     
-    if (categories && categories.length > 0) {
-        categories.forEach(category => {
-            const option = document.createElement('option');
-            option.value = category.name;
-            option.textContent = category.name;
-            categorySelect.appendChild(option);
-        });
-    } else {
-        // Стандартные категории, если не загружены
-        const defaultCategories = currentTransactionType === 'income' 
-            ? ['Зарплата', 'Фриланс', 'Инвестиции', 'Подарок']
-            : ['Продукты', 'Транспорт', 'Развлечения', 'Кафе', 'Аренда'];
-        
-        defaultCategories.forEach(category => {
-            const option = document.createElement('option');
-            option.value = category;
-            option.textContent = category;
-            categorySelect.appendChild(option);
-        });
-    }
+    // Используем категории из данных пользователя
+    const categories = window.categories ? 
+        window.categories[currentTransactionType] : 
+        (currentTransactionType === 'income' 
+            ? ['Зарплата', 'Фриланс', 'Инвестиции', 'Подарок'] 
+            : ['Продукты', 'Транспорт', 'Развлечения', 'Кафе', 'Аренда']);
+    
+    categories.forEach(category => {
+        const option = document.createElement('option');
+        option.value = category;
+        option.textContent = category;
+        categorySelect.appendChild(option);
+    });
     
     // Показываем форму
     form.style.display = 'block';
@@ -480,7 +465,7 @@ async function submitTransaction() {
         // Скрываем форму и показываем уведомление
         hideTransactionForm();
         showNotification(
-            currentTransactionType === 'income' ? 'Доход добавлен!' : 'Расход добавлен!',
+            currentTransactionType === 'income' ? '💵 Доход добавлен!' : '💸 Расход добавлен!',
             'success'
         );
         
