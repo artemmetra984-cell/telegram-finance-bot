@@ -1,6 +1,6 @@
 import os
 import sys
-from flask import Flask, render_template, jsonify, request, send_from_directory
+from flask import Flask, render_template, jsonify, request
 from flask_cors import CORS
 from dotenv import load_dotenv
 import requests
@@ -86,14 +86,12 @@ def init_user():
             summary = db.get_financial_summary(user_id)
             total_transactions = db.get_transactions_count(user_id)
             
-            # Категории
             categories = {'income': [], 'expense': []}
             all_categories = db.get_categories(user_id)
             for cat in all_categories:
                 if cat['type'] in categories:
                     categories[cat['type']].append(cat['name'])
             
-            # Последние 3 транзакции
             recent = db.get_transactions(user_id, limit=3)
             recent_transactions = []
             for trans in recent:
@@ -237,14 +235,6 @@ def update_currency():
     except Exception as e:
         print(f"Currency error: {e}")
         return jsonify({'error': str(e)}), 500
-
-@app.route('/manifest.json')
-def manifest():
-    return send_from_directory('static', 'manifest.json')
-
-@app.route('/service-worker.js')
-def service_worker():
-    return send_from_directory('static', 'service-worker.js')
 
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 10000))

@@ -14,7 +14,6 @@ class Database:
     def init_db(self):
         cursor = self.conn.cursor()
         
-        # Только основные таблицы
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS users (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -68,7 +67,6 @@ class Database:
             ''', (telegram_id, username, first_name))
             user_id = cursor.lastrowid
             
-            # Базовые категории (добавляем "Накопления")
             default_categories = [
                 (user_id, 'income', 'Зарплата'),
                 (user_id, 'income', 'Фриланс'),
@@ -77,7 +75,7 @@ class Database:
                 (user_id, 'expense', 'Транспорт'),
                 (user_id, 'expense', 'Развлечения'),
                 (user_id, 'expense', 'Аренда'),
-                (user_id, 'expense', 'Накопления'),  # Новая категория для копилки
+                (user_id, 'expense', 'Накопления'),
             ]
             
             cursor.executemany('''
