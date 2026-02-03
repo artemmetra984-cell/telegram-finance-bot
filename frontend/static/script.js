@@ -25,6 +25,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         initCharts();
         setupEventListeners();
+        setupNavigation();
+        loadPanelPage();
         setupSwipe();
         
         // Настройка Telegram Web App
@@ -93,6 +95,13 @@ async function initUser() {
     
     // Обновляем кнопку "Ещё"
     updateShowMoreButton();
+        // После успешной инициализации пользователя
+    // Загружаем статистику для панели
+    if (window.location.hash !== '#history' && window.location.hash !== '#report') {
+        setTimeout(() => {
+            updateCategoriesStats();
+        }, 1000);
+    }
 }
 
 // Обновление сводки
@@ -325,8 +334,1263 @@ function formatDate(dateString) {
     });
 }
 
+
+// ==================== //
+// НАВИГАЦИЯ ПО СТРАНИЦАМ //
+// ==================== //
+
+function setupNavigation() {
+    console.log('Настраиваю навигацию...');
+    
+    const navItems = document.querySelectorAll('.nav-item');
+    
+    navItems.forEach(item => {
+        item.addEventListener('click', function() {
+            const pageName = this.dataset.page;
+            
+            console.log('Переключаю на страницу:', pageName);
+            
+            // Убираем активный класс у всех кнопок
+            navItems.forEach(nav => nav.classList.remove('active'));
+            
+            // Добавляем активный класс нажатой кнопке
+            this.classList.add('active');
+            
+            // Скрываем все страницы
+            document.querySelectorAll('.page').forEach(pageEl => {
+                pageEl.classList.remove('active');
+            });
+            
+            // Показываем нужную страницу
+            const targetPage = document.getElementById(`${pageName}-page`);
+            if (targetPage) {
+                targetPage.classList.add('active');
+                
+                // Загружаем данные для страницы если нужно
+                if (pageName === 'history') {
+                    loadHistoryPage();
+                } else if (pageName === 'report') {
+                    loadReportPage();
+                } else if (pageName === 'panel') {
+                    loadPanelPage();
+                }
+            }
+        });
+    });
+    
+    console.log('Навигация настроена');
+}
+
+// ==================== //
+// ПАНЕЛЬ УПРАВЛЕНИЯ КАТЕГОРИЯМИ //
+// ==================== //
+
+function loadPanelPage() {
+    console.log('Загружаю панель управления...');
+    
+    // Загружаем статистику по категориям
+    updateCategoriesStats();
+    
+    // Настраиваем обработчики для кнопок "Добавить"
+    setupCategoryButtons();
+}
+
+// Обновление статистики по категориям
+async function updateCategoriesStats() {
+    if (!currentUser) return;
+    
+    try {
+        // Загружаем транзакции пользователя
+        const response = await fetch(`/api/transactions/${currentUser.id}`);
+        const transactions = await response.json();
+        
+        // Считаем суммы по категориям
+        const categoryStats = {};
+        
+        transactions.forEach(trans => {
+            const category = trans.category;
+            if (!categoryStats[category]) {
+                categoryStats[category] = {
+                    income: 0,
+                    expense: 0,
+                    total: 0
+                };
+            }
+            
+            if (trans.type === 'income') {
+                categoryStats[category].income += trans.amount;
+                categoryStats[category].total += trans.amount;
+            } else {
+                categoryStats[category].expense += trans.amount;
+                categoryStats[category].total -= trans.amount;
+            }
+        });
+        
+        // Обновляем отображение на категориях
+        updateCategoryDisplays(categoryStats);
+        
+    } catch (error) {
+        console.error('Ошибка загрузки статистики:', error);
+    }
+}
+
+// Обновление отображения категорий
+function updateCategoryDisplays(stats) {
+    const symbol = currencySymbols[currentCurrency] || '₽';
+    
+    // Обновляем все категории
+    document.querySelectorAll('.category-item').forEach(item => {
+        const categoryId = item.dataset.id;
+        if (categoryId && stats[categoryId]) {
+            const amountElement = item.querySelector('.category-amount');
+            if (amountElement) {
+                const amount = stats[categoryId].total;
+                amountElement.textContent = `${formatCurrency(Math.abs(amount))} ${symbol}`;
+                
+                // Цвет в зависимости от суммы
+                if (amount > 0) {
+                    amountElement.style.color = '#2ecc71';
+                } else if (amount < 0) {
+                    amountElement.style.color = '#e74c3c';
+                }
+            }
+        }
+    });
+}
+
+// Настройка кнопок добавления категорий
+function setupCategoryButtons() {
+    // Кнопки "Добавить" категорию
+    document.querySelectorAll('.category-item.add-new').forEach(button => {
+        button.addEventListener('click', function() {
+            const type = this.dataset.type;
+            showAddCategoryModal(type);
+        });
+    });
+    
+    // Существующие категории - можно редактировать по долгому нажатию
+    document.querySelectorAll('.category-item:not(.add-new)').forEach(item => {
+        item.addEventListener('click', function() {
+            // Показываем транзакции этой категории
+            const category = this.dataset.id;
+            const type = this.dataset.type;
+            showCategoryTransactions(category, type);
+        });
+        
+        // Долгое нажатие для редактирования
+        let pressTimer;
+        item.addEventListener('touchstart', function(e) {
+            pressTimer = setTimeout(() => {
+                showEditCategoryModal(this.dataset.id, this.dataset.type);
+            }, 1000);
+            e.preventDefault();
+        });
+        
+        item.addEventListener('touchend', function() {
+            clearTimeout(pressTimer);
+        });
+        
+        item.addEventListener('touchmove', function() {
+            clearTimeout(pressTimer);
+        });
+    });
+    
+    // Настройка модального окна
+    setupCategoryModal();
+}
+
+// Показать транзакции категории
+function showCategoryTransactions(category, type) {
+    // Переключаемся на вкладку истории и фильтруем
+    document.querySelector('[data-page="history"]').click();
+    
+    // TODO: Реализовать фильтрацию по категории
+    console.log('Показываю транзакции категории:', category, type);
+}
+
+// Показать модальное окно добавления категории
+function showAddCategoryModal(type) {
+    const modal = document.getElementById('category-modal');
+    const title = modal.querySelector('.modal-title');
+    
+    // Устанавливаем заголовок по типу
+    const typeNames = {
+        'income': 'дохода',
+        'expense': 'расхода', 
+        'wallet': 'кошелька',
+        'savings': 'накопления'
+    };
+    
+    title.textContent = `Добавить категорию ${typeNames[type] || ''}`;
+    
+    // Сохраняем тип в data-атрибут
+    modal.dataset.categoryType = type;
+    
+    // Заполняем иконки
+    fillIconsGrid();
+    
+    // Показываем модальное окно
+    modal.classList.add('active');
+    
+    // Фокус на поле ввода
+    setTimeout(() => {
+        document.getElementById('category-name').focus();
+    }, 300);
+}
+
+// Заполнение сетки иконок
+function fillIconsGrid() {
+    const iconsGrid = document.getElementById('icons-grid');
+    iconsGrid.innerHTML = '';
+    
+    const icons = ['💰', '💵', '💳', '🏠', '🛒', '🚗', '🍕', '🎬', '📈', '🐷', '✈️', '🎁', '🏥', '📱', '👕', '🎓', '⚽', '🍔', '☕', '📚'];
+    
+    icons.forEach(icon => {
+        const div = document.createElement('div');
+        div.className = 'icon-option';
+        div.textContent = icon;
+        div.dataset.icon = icon;
+        
+        div.addEventListener('click', function() {
+            // Убираем выделение у всех
+            document.querySelectorAll('.icon-option').forEach(opt => {
+                opt.classList.remove('selected');
+            });
+            // Выделяем текущую
+            this.classList.add('selected');
+        });
+        
+        iconsGrid.appendChild(div);
+    });
+    
+    // Выбираем первую иконку по умолчанию
+    if (iconsGrid.firstChild) {
+        iconsGrid.firstChild.classList.add('selected');
+    }
+}
+
+// Настройка модального окна категории
+function setupCategoryModal() {
+    const modal = document.getElementById('category-modal');
+    const form = modal.querySelector('.modal-form');
+    const cancelBtn = document.getElementById('modal-cancel');
+    
+    // Отмена
+    cancelBtn.addEventListener('click', function() {
+        modal.classList.remove('active');
+        form.reset();
+    });
+    
+    // Закрытие по клику вне окна
+    modal.addEventListener('click', function(e) {
+        if (e.target === modal) {
+            modal.classList.remove('active');
+            form.reset();
+        }
+    });
+    
+    // Сохранение
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const name = document.getElementById('category-name').value.trim();
+        const selectedIcon = document.querySelector('.icon-option.selected');
+        const icon = selectedIcon ? selectedIcon.dataset.icon : '💰';
+        const type = modal.dataset.categoryType;
+        
+        if (!name) {
+            showNotification('Введите название категории', 'error');
+            return;
+        }
+        
+        // Добавляем новую категорию
+        addNewCategory(name, icon, type);
+        
+        // Закрываем модальное окно
+        modal.classList.remove('active');
+        form.reset();
+    });
+}
+
+// Добавление новой категории
+function addNewCategory(name, icon, type) {
+    // Создаем элемент категории
+    const categoryGrid = document.getElementById(`${type}-categories`);
+    if (!categoryGrid) return;
+    
+    // Создаем уникальный ID
+    const id = `${type}_${Date.now()}`;
+    
+    const categoryItem = document.createElement('div');
+    categoryItem.className = 'category-item';
+    categoryItem.dataset.id = id;
+    categoryItem.dataset.type = type;
+    
+    categoryItem.innerHTML = `
+        <div class="category-icon">${icon}</div>
+        <div class="category-name">${name}</div>
+        <div class="category-amount">0 ${currencySymbols[currentCurrency] || '₽'}</div>
+    `;
+    
+    // Вставляем перед кнопкой "Добавить"
+    const addButton = categoryGrid.querySelector('.add-new');
+    if (addButton) {
+        categoryGrid.insertBefore(categoryItem, addButton);
+    } else {
+        categoryGrid.appendChild(categoryItem);
+    }
+    
+    // Добавляем обработчики
+    setupCategoryItemListeners(categoryItem);
+    
+    showNotification(`Категория "${name}" добавлена`, 'success');
+    
+    // TODO: Сохранить категорию на сервере
+    console.log('Добавлена категория:', { id, name, icon, type });
+}
+
+// Настройка обработчиков для новой категории
+function setupCategoryItemListeners(item) {
+    // Клик - показать транзакции
+    item.addEventListener('click', function() {
+        const category = this.dataset.id;
+        const type = this.dataset.type;
+        showCategoryTransactions(category, type);
+    });
+    
+    // Долгое нажатие - редактирование
+    let pressTimer;
+    item.addEventListener('touchstart', function(e) {
+        pressTimer = setTimeout(() => {
+            showEditCategoryModal(this.dataset.id, this.dataset.type);
+        }, 1000);
+        e.preventDefault();
+    });
+    
+    item.addEventListener('touchend', function() {
+        clearTimeout(pressTimer);
+    });
+    
+    item.addEventListener('touchmove', function() {
+        clearTimeout(pressTimer);
+    });
+}
+
+// Показать модальное окно редактирования категории
+function showEditCategoryModal(categoryId, type) {
+    // TODO: Реализовать редактирование категории
+    console.log('Редактировать категорию:', categoryId, type);
+    showNotification('Редактирование категорий будет доступно в следующем обновлении', 'info');
+}
+
+f// ==================== //
+// ИСТОРИЯ ТРАНЗАКЦИЙ ПО МЕСЯЦАМ //
+// ==================== //
+
+let currentHistoryMonth = new Date(); // Текущий отображаемый месяц
+let currentFilter = 'all';
+
+function loadHistoryPage() {
+    console.log('Загружаю историю...');
+    
+    // Устанавливаем текущий месяц
+    updateMonthDisplay();
+    
+    // Загружаем данные за месяц
+    loadMonthTransactions();
+    
+    // Настраиваем обработчики
+    setupHistoryControls();
+}
+
+// Обновление отображения месяца
+function updateMonthDisplay() {
+    const monthElement = document.getElementById('current-month');
+    const monthName = currentHistoryMonth.toLocaleDateString('ru-RU', {
+        month: 'long',
+        year: 'numeric'
+    });
+    
+    // Делаем первую букву заглавной
+    monthElement.textContent = monthName.charAt(0).toUpperCase() + monthName.slice(1);
+}
+
+// Загрузка транзакций за месяц
+async function loadMonthTransactions() {
+    if (!currentUser) return;
+    
+    const symbol = currencySymbols[currentCurrency] || '₽';
+    
+    try {
+        // Показываем загрузку
+        const container = document.getElementById('month-transactions');
+        container.innerHTML = `
+            <div style="text-align: center; padding: 20px; color: #888;">
+                <div class="spinner" style="width: 30px; height: 30px; margin: 0 auto 15px;"></div>
+                <p>Загрузка транзакций...</p>
+            </div>
+        `;
+        
+        // Получаем все транзакции пользователя
+        const response = await fetch(`/api/transactions/${currentUser.id}`);
+        const allTransactions = await response.json();
+        
+        // Фильтруем по месяцу
+        const monthStart = new Date(currentHistoryMonth.getFullYear(), currentHistoryMonth.getMonth(), 1);
+        const monthEnd = new Date(currentHistoryMonth.getFullYear(), currentHistoryMonth.getMonth() + 1, 0);
+        
+        const monthTransactions = allTransactions.filter(trans => {
+            const transDate = new Date(trans.date);
+            return transDate >= monthStart && transDate <= monthEnd;
+        });
+        
+        // Считаем статистику
+        let totalIncome = 0;
+        let totalExpense = 0;
+        let totalSavings = 0;
+        
+        monthTransactions.forEach(trans => {
+            if (trans.type === 'income') {
+                totalIncome += trans.amount;
+            } else {
+                totalExpense += trans.amount;
+                if (trans.category === 'Накопления') {
+                    totalSavings += trans.amount;
+                }
+            }
+        });
+        
+        const balance = totalIncome - totalExpense;
+        
+        // Обновляем статистику
+        document.getElementById('month-income').textContent = `${formatCurrency(totalIncome)} ${symbol}`;
+        document.getElementById('month-expense').textContent = `${formatCurrency(totalExpense)} ${symbol}`;
+        document.getElementById('month-savings').textContent = `${formatCurrency(totalSavings)} ${symbol}`;
+        document.getElementById('month-balance').textContent = `Баланс: ${formatCurrency(balance)} ${symbol}`;
+        
+        // Применяем фильтр
+        let filteredTransactions = monthTransactions;
+        if (currentFilter === 'income') {
+            filteredTransactions = monthTransactions.filter(t => t.type === 'income');
+        } else if (currentFilter === 'expense') {
+            filteredTransactions = monthTransactions.filter(t => t.type === 'expense');
+        }
+        
+        // Отображаем транзакции
+        displayMonthTransactions(filteredTransactions);
+        
+    } catch (error) {
+        console.error('Ошибка загрузки транзакций:', error);
+        
+        const container = document.getElementById('month-transactions');
+        container.innerHTML = `
+            <div style="text-align: center; padding: 40px; color: #888;">
+                <div style="font-size: 48px; margin-bottom: 20px;">😕</div>
+                <p>Не удалось загрузить транзакции</p>
+                <button onclick="loadMonthTransactions()" style="margin-top: 15px; padding: 10px 20px; background: #3498db; color: white; border: none; border-radius: 8px; cursor: pointer;">
+                    Попробовать снова
+                </button>
+            </div>
+        `;
+    }
+}
+
+// Отображение транзакций месяца
+function displayMonthTransactions(transactions) {
+    const container = document.getElementById('month-transactions');
+    const symbol = currencySymbols[currentCurrency] || '₽';
+    
+    if (transactions.length === 0) {
+        container.innerHTML = `
+            <div style="text-align: center; padding: 40px; color: #888;">
+                <div style="font-size: 48px; margin-bottom: 20px;">📭</div>
+                <p>Нет транзакций за этот месяц</p>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = '';
+    
+    transactions.forEach((trans, index) => {
+        const isIncome = trans.type === 'income';
+        const amountClass = isIncome ? 'transaction-income' : 'transaction-expense';
+        const amountSign = isIncome ? '+' : '-';
+        const icon = isIncome ? '💵' : '💸';
+        
+        // Форматируем дату
+        const transDate = new Date(trans.date);
+        const today = new Date();
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
+        
+        let dateDisplay = transDate.toLocaleDateString('ru-RU', {
+            day: '2-digit',
+            month: '2-digit'
+        });
+        
+        if (transDate.toDateString() === today.toDateString()) {
+            dateDisplay = 'Сегодня';
+        } else if (transDate.toDateString() === yesterday.toDateString()) {
+            dateDisplay = 'Вчера';
+        }
+        
+        html += `
+            <div class="transaction-item history-item" data-id="${trans.id}">
+                <div class="transaction-info">
+                    <div class="transaction-description">
+                        ${icon} ${trans.description || 'Без описания'}
+                    </div>
+                    <div class="transaction-meta">
+                        <span class="transaction-category">${trans.category}</span>
+                        <span>${dateDisplay}</span>
+                    </div>
+                </div>
+                <div class="transaction-amount ${amountClass}">
+                    ${amountSign}${formatCurrency(trans.amount)} ${symbol}
+                </div>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+    
+    // Добавляем обработчики для редактирования
+    setupTransactionEditHandlers();
+}
+
+// Настройка элементов управления историей
+function setupHistoryControls() {
+    // Кнопки переключения месяцев
+    document.getElementById('prev-month').addEventListener('click', () => {
+        currentHistoryMonth.setMonth(currentHistoryMonth.getMonth() - 1);
+        updateMonthDisplay();
+        loadMonthTransactions();
+    });
+    
+    document.getElementById('next-month').addEventListener('click', () => {
+        currentHistoryMonth.setMonth(currentHistoryMonth.getMonth() + 1);
+        updateMonthDisplay();
+        loadMonthTransactions();
+    });
+    
+    // Кнопки фильтрации
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            // Обновляем активную кнопку
+            document.querySelectorAll('.filter-btn').forEach(b => {
+                b.classList.remove('active');
+            });
+            this.classList.add('active');
+            
+            // Устанавливаем фильтр
+            currentFilter = this.dataset.filter;
+            
+            // Перезагружаем транзакции
+            loadMonthTransactions();
+        });
+    });
+}
+
+// Настройка обработчиков для редактирования транзакций
+function setupTransactionEditHandlers() {
+    document.querySelectorAll('.history-item').forEach(item => {
+        // Клик - показываем детали
+        item.addEventListener('click', function() {
+            const transactionId = this.dataset.id;
+            showTransactionDetails(transactionId);
+        });
+        
+        // Долгое нажатие - редактирование
+        let pressTimer;
+        item.addEventListener('touchstart', function(e) {
+            pressTimer = setTimeout(() => {
+                const transactionId = this.dataset.id;
+                editTransaction(transactionId);
+            }, 800);
+            e.preventDefault();
+        });
+        
+        item.addEventListener('touchend', function() {
+            clearTimeout(pressTimer);
+        });
+        
+        item.addEventListener('touchmove', function() {
+            clearTimeout(pressTimer);
+        });
+    });
+}
+
+// Показать детали транзакции
+function showTransactionDetails(transactionId) {
+    // TODO: Реализовать показ деталей
+    console.log('Детали транзакции:', transactionId);
+}
+
+// Редактировать транзакцию
+function editTransaction(transactionId) {
+    // TODO: Реализовать редактирование
+    console.log('Редактировать транзакцию:', transactionId);
+    showNotification('Редактирование транзакций будет доступно в следующем обновлении', 'info');
+}
+
+// ==================== //
+// ОТЧЁТЫ И СТАТИСТИКА //
+// ==================== //
+
+let reportCharts = {
+    overview: null,
+    income: null,
+    expense: null,
+    ratio: null,
+    savings: null,
+    balance: null
+};
+
+function loadReportPage() {
+    console.log('Загружаю отчёты...');
+    
+    // Настраиваем переключение подвкладок
+    setupReportTabs();
+    
+    // Загружаем данные для отчётов
+    loadReportData();
+    
+    // Настраиваем кнопку добавления транзакции
+    setupAddTransactionButton();
+}
+
+// Настройка подвкладок отчёта
+function setupReportTabs() {
+    const tabButtons = document.querySelectorAll('.tab-btn');
+    
+    tabButtons.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const tabId = this.dataset.tab;
+            
+            // Обновляем активную кнопку
+            tabButtons.forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            
+            // Показываем нужную подвкладку
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            document.getElementById(`tab-${tabId}`).classList.add('active');
+            
+            // Обновляем диаграмму если нужно
+            updateChartForTab(tabId);
+        });
+    });
+}
+
+// Загрузка данных для отчётов
+async function loadReportData() {
+    if (!currentUser) return;
+    
+    const symbol = currencySymbols[currentCurrency] || '₽';
+    
+    try {
+        // Загружаем все транзакции
+        const response = await fetch(`/api/transactions/${currentUser.id}`);
+        const transactions = await response.json();
+        
+        // Загружаем месячную историю
+        const historyResponse = await fetch(`/api/history/${currentUser.id}`);
+        const monthlyData = await historyResponse.json();
+        
+        // Считаем общую статистику
+        let totalIncome = 0;
+        let totalExpense = 0;
+        let totalSavings = 0;
+        let incomeByCategory = {};
+        let expenseByCategory = {};
+        
+        transactions.forEach(trans => {
+            if (trans.type === 'income') {
+                totalIncome += trans.amount;
+                
+                // Статистика по категориям доходов
+                if (!incomeByCategory[trans.category]) {
+                    incomeByCategory[trans.category] = 0;
+                }
+                incomeByCategory[trans.category] += trans.amount;
+            } else {
+                totalExpense += trans.amount;
+                
+                // Статистика по категориям расходов
+                if (!expenseByCategory[trans.category]) {
+                    expenseByCategory[trans.category] = 0;
+                }
+                expenseByCategory[trans.category] += trans.amount;
+                
+                // Накопления
+                if (trans.category === 'Накопления') {
+                    totalSavings += trans.amount;
+                }
+            }
+        });
+        
+        const totalBalance = totalIncome - totalExpense;
+        
+        // Обновляем общую статистику
+        document.getElementById('total-income-stat').textContent = `${formatCurrency(totalIncome)} ${symbol}`;
+        document.getElementById('total-expense-stat').textContent = `${formatCurrency(totalExpense)} ${symbol}`;
+        document.getElementById('total-savings-stat').textContent = `${formatCurrency(totalSavings)} ${symbol}`;
+        document.getElementById('total-balance-stat').textContent = `${formatCurrency(totalBalance)} ${symbol}`;
+        document.getElementById('total-balance-stat').style.color = totalBalance >= 0 ? '#2ecc71' : '#e74c3c';
+        
+        // Создаём диаграммы
+        createCharts({
+            totalIncome,
+            totalExpense,
+            totalSavings,
+            incomeByCategory,
+            expenseByCategory,
+            monthlyData
+        });
+        
+        // Обновляем детализацию по категориям
+        updateCategoryBreakdown(incomeByCategory, expenseByCategory);
+        
+        // Обновляем соотношение доходов/расходов
+        updateRatioChart(totalIncome, totalExpense);
+        
+        // Обновляем динамику баланса
+        updateBalanceTrend(monthlyData);
+        
+    } catch (error) {
+        console.error('Ошибка загрузки данных для отчёта:', error);
+    }
+}
+
+// Создание диаграмм
+function createCharts(data) {
+    const symbol = currencySymbols[currentCurrency] || '₽';
+    
+    // 1. Общая диаграмма
+    createOverviewChart(data.totalIncome, data.totalExpense, symbol);
+    
+    // 2. Диаграмма доходов по категориям
+    createIncomeChart(data.incomeByCategory, symbol);
+    
+    // 3. Диаграмма расходов по категориям
+    createExpenseChart(data.expenseByCategory, symbol);
+    
+    // 4. Диаграмма соотношения
+    createRatioChart(data.totalIncome, data.totalExpense);
+    
+    // 5. Диаграмма накоплений
+    createSavingsChart(data.totalSavings, data.totalExpense, symbol);
+    
+    // 6. Диаграмма баланса
+    createBalanceChart(data.monthlyData, symbol);
+}
+
+// Создание общей диаграммы
+function createOverviewChart(income, expense, symbol) {
+    const ctx = document.getElementById('overview-chart').getContext('2d');
+    
+    if (reportCharts.overview) {
+        reportCharts.overview.destroy();
+    }
+    
+    reportCharts.overview = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Доходы', 'Расходы'],
+            datasets: [{
+                data: [income, expense],
+                backgroundColor: ['#2ecc71', '#e74c3c'],
+                borderColor: ['#27ae60', '#c0392b'],
+                borderWidth: 2,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        color: '#ffffff',
+                        padding: 20,
+                        font: {
+                            size: 12
+                        }
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: (context) => {
+                            return `${context.label}: ${formatCurrency(context.raw)} ${symbol}`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Создание диаграммы доходов по категориям
+function createIncomeChart(incomeByCategory, symbol) {
+    const ctx = document.getElementById('income-chart').getContext('2d');
+    
+    const categories = Object.keys(incomeByCategory);
+    const amounts = Object.values(incomeByCategory);
+    
+    if (reportCharts.income) {
+        reportCharts.income.destroy();
+    }
+    
+    if (categories.length === 0) {
+        // Нет данных
+        ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+        ctx.fillStyle = '#888';
+        ctx.font = '14px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('Нет данных о доходах', ctx.canvas.width / 2, ctx.canvas.height / 2);
+        return;
+    }
+    
+    // Создаём цвета для категорий
+    const backgroundColors = categories.map((_, i) => {
+        const hue = (i * 137) % 360; // Золотое сечение для разных цветов
+        return `hsl(${hue}, 70%, 60%)`;
+    });
+    
+    reportCharts.income = new Chart(ctx, {
+        type: 'pie',
+        data: {
+            labels: categories,
+            datasets: [{
+                data: amounts,
+                backgroundColor: backgroundColors,
+                borderWidth: 2,
+                borderColor: '#1a1a1a'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        color: '#ffffff',
+                        padding: 15,
+                        font: {
+                            size: 11
+                        }
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: (context) => {
+                            const total = amounts.reduce((a, b) => a + b, 0);
+                            const percentage = ((context.raw / total) * 100).toFixed(1);
+                            return `${context.label}: ${formatCurrency(context.raw)} ${symbol} (${percentage}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Создание диаграммы расходов по категориям (аналогично доходам)
+function createExpenseChart(expenseByCategory, symbol) {
+    const ctx = document.getElementById('expense-chart').getContext('2d');
+    
+    const categories = Object.keys(expenseByCategory);
+    const amounts = Object.values(expenseByCategory);
+    
+    if (reportCharts.expense) {
+        reportCharts.expense.destroy();
+    }
+    
+    if (categories.length === 0) {
+        ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+        ctx.fillStyle = '#888';
+        ctx.font = '14px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('Нет данных о расходах', ctx.canvas.width / 2, ctx.canvas.height / 2);
+        return;
+    }
+    
+    const backgroundColors = categories.map((_, i) => {
+        const hue = 0 + (i * 50) % 60; // Оттенки красного
+        return `hsl(${hue}, 70%, 60%)`;
+    });
+    
+    reportCharts.expense = new Chart(ctx, {
+        type: 'pie',
+        data: {
+            labels: categories,
+            datasets: [{
+                data: amounts,
+                backgroundColor: backgroundColors,
+                borderWidth: 2,
+                borderColor: '#1a1a1a'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        color: '#ffffff',
+                        padding: 15,
+                        font: {
+                            size: 11
+                        }
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: (context) => {
+                            const total = amounts.reduce((a, b) => a + b, 0);
+                            const percentage = ((context.raw / total) * 100).toFixed(1);
+                            return `${context.label}: ${formatCurrency(context.raw)} ${symbol} (${percentage}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Создание диаграммы соотношения
+function createRatioChart(income, expense) {
+    const ctx = document.getElementById('ratio-chart').getContext('2d');
+    const total = income + expense;
+    const incomePercentage = total > 0 ? (income / total * 100) : 0;
+    const expensePercentage = total > 0 ? (expense / total * 100) : 0;
+    
+    if (reportCharts.ratio) {
+        reportCharts.ratio.destroy();
+    }
+    
+    reportCharts.ratio = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: ['Доходы', 'Расходы'],
+            datasets: [{
+                data: [incomePercentage, expensePercentage],
+                backgroundColor: ['#2ecc71', '#e74c3c'],
+                borderColor: ['#27ae60', '#c0392b'],
+                borderWidth: 1,
+                borderRadius: 6,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    ticks: {
+                        color: '#888',
+                        callback: (value) => `${value}%`
+                    },
+                    grid: {
+                        color: '#2d2d2d'
+                    }
+                },
+                x: {
+                    ticks: {
+                        color: '#ffffff'
+                    },
+                    grid: {
+                        display: false
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: (context) => {
+                            return `${context.label}: ${context.raw.toFixed(1)}%`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Создание диаграммы накоплений
+function createSavingsChart(savings, totalExpense, symbol) {
+    const ctx = document.getElementById('savings-chart').getContext('2d');
+    const percentage = totalExpense > 0 ? (savings / totalExpense * 100) : 0;
+    const remaining = 100 - percentage;
+    
+    if (reportCharts.savings) {
+        reportCharts.savings.destroy();
+    }
+    
+    reportCharts.savings = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Накопления', 'Остаток'],
+            datasets: [{
+                data: [percentage, remaining],
+                backgroundColor: ['#f39c12', '#2d2d2d'],
+                borderColor: ['#e67e22', '#1a1a1a'],
+                borderWidth: 2,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '70%',
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        color: '#ffffff',
+                        padding: 15
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: (context) => {
+                            if (context.label === 'Накопления') {
+                                return `Накопления: ${formatCurrency(savings)} ${symbol} (${context.raw.toFixed(1)}%)`;
+                            }
+                            return `${context.label}: ${context.raw.toFixed(1)}%`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Создание диаграммы баланса
+function createBalanceChart(monthlyData, symbol) {
+    const ctx = document.getElementById('balance-chart').getContext('2d');
+    
+    // Подготавливаем данные (последние 6 месяцев)
+    const last6Months = monthlyData.slice(0, 6).reverse();
+    const labels = last6Months.map(m => {
+        const [year, month] = m.month.split('-');
+        const monthNames = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
+        return `${monthNames[parseInt(month) - 1]} ${year}`;
+    });
+    
+    const balances = last6Months.map(m => m.balance);
+    
+    if (reportCharts.balance) {
+        reportCharts.balance.destroy();
+    }
+    
+    if (last6Months.length === 0) {
+        ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+        ctx.fillStyle = '#888';
+        ctx.font = '14px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('Нет данных о балансе', ctx.canvas.width / 2, ctx.canvas.height / 2);
+        return;
+    }
+    
+    reportCharts.balance = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Баланс',
+                data: balances,
+                borderColor: '#3498db',
+                backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                borderWidth: 3,
+                fill: true,
+                tension: 0.4,
+                pointBackgroundColor: '#3498db',
+                pointBorderColor: '#ffffff',
+                pointBorderWidth: 2,
+                pointRadius: 6,
+                pointHoverRadius: 8
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    ticks: {
+                        color: '#888',
+                        callback: (value) => `${formatCurrency(value)} ${symbol}`
+                    },
+                    grid: {
+                        color: '#2d2d2d'
+                    }
+                },
+                x: {
+                    ticks: {
+                        color: '#ffffff'
+                    },
+                    grid: {
+                        color: '#2d2d2d'
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    labels: {
+                        color: '#ffffff'
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: (context) => {
+                            return `Баланс: ${formatCurrency(context.raw)} ${symbol}`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+    
+    // Обновляем текущий баланс и изменение
+    if (last6Months.length > 0) {
+        const currentBalance = last6Months[last6Months.length - 1].balance;
+        const previousBalance = last6Months.length > 1 ? last6Months[last6Months.length - 2].balance : 0;
+        const change = currentBalance - previousBalance;
+        
+        document.getElementById('current-balance').textContent = `${formatCurrency(currentBalance)} ${symbol}`;
+        document.getElementById('month-change').textContent = `${change >= 0 ? '+' : ''}${formatCurrency(change)} ${symbol}`;
+        document.getElementById('month-change').className = `trend-value ${change >= 0 ? 'positive' : 'negative'}`;
+    }
+}
+
+// Обновление детализации по категориям
+function updateCategoryBreakdown(incomeByCategory, expenseByCategory) {
+    const symbol = currencySymbols[currentCurrency] || '₽';
+    
+    // Доходы
+    const incomeContainer = document.getElementById('income-breakdown');
+    let incomeHtml = '';
+    
+    const incomeCategories = Object.entries(incomeByCategory);
+    const totalIncome = incomeCategories.reduce((sum, [_, amount]) => sum + amount, 0);
+    
+    incomeCategories.forEach(([category, amount]) => {
+        const percentage = totalIncome > 0 ? ((amount / totalIncome) * 100).toFixed(1) : '0.0';
+        
+        incomeHtml += `
+            <div class="category-item-detailed">
+                <div class="category-info">
+                    <div class="category-icon-small">💰</div>
+                    <div>
+                        <div class="category-name-detailed">${category}</div>
+                        <div class="category-percentage">${percentage}%</div>
+                    </div>
+                </div>
+                <div class="category-amount-detailed income">
+                    ${formatCurrency(amount)} ${symbol}
+                </div>
+            </div>
+        `;
+    });
+    
+    incomeContainer.innerHTML = incomeHtml || '<div style="text-align: center; color: #888; padding: 20px;">Нет данных</div>';
+    
+    // Расходы
+    const expenseContainer = document.getElementById('expense-breakdown');
+    let expenseHtml = '';
+    
+    const expenseCategories = Object.entries(expenseByCategory);
+    const totalExpense = expenseCategories.reduce((sum, [_, amount]) => sum + amount, 0);
+    
+    expenseCategories.forEach(([category, amount]) => {
+        const percentage = totalExpense > 0 ? ((amount / totalExpense) * 100).toFixed(1) : '0.0';
+        
+        expenseHtml += `
+            <div class="category-item-detailed">
+                <div class="category-info">
+                    <div class="category-icon-small">📉</div>
+                    <div>
+                        <div class="category-name-detailed">${category}</div>
+                        <div class="category-percentage">${percentage}%</div>
+                    </div>
+                </div>
+                <div class="category-amount-detailed expense">
+                    ${formatCurrency(amount)} ${symbol}
+                </div>
+            </div>
+        `;
+    });
+    
+    expenseContainer.innerHTML = expenseHtml || '<div style="text-align: center; color: #888; padding: 20px;">Нет данных</div>';
+}
+
+// Обновление соотношения доходов/расходов
+function updateRatioChart(income, expense) {
+    const total = income + expense;
+    const incomePercentage = total > 0 ? (income / total * 100) : 0;
+    const expensePercentage = total > 0 ? (expense / total * 100) : 0;
+    
+    // Анимируем заполнение полосок
+    setTimeout(() => {
+        document.getElementById('income-ratio-bar').style.width = `${incomePercentage}%`;
+        document.getElementById('expense-ratio-bar').style.width = `${expensePercentage}%`;
+        
+        document.getElementById('income-ratio-value').textContent = `${incomePercentage.toFixed(1)}%`;
+        document.getElementById('expense-ratio-value').textContent = `${expensePercentage.toFixed(1)}%`;
+    }, 300);
+}
+
+// Обновление динамики баланса
+function updateBalanceTrend(monthlyData) {
+    // Уже обновлено в createBalanceChart
+}
+
+// Обновление диаграммы при переключении вкладок
+function updateChartForTab(tabId) {
+    // При необходимости перерисовываем диаграмму
+    if (reportCharts[tabId]) {
+        reportCharts[tabId].resize();
+    }
+}
+
+// Настройка кнопки добавления транзакции
+function setupAddTransactionButton() {
+    const addBtn = document.getElementById('add-transaction-btn');
+    
+    addBtn.addEventListener('click', function() {
+        // Показываем старую форму транзакции
+        currentTransactionType = 'income';
+        showTransactionForm();
+    });
+}
+
 // Настройка обработчиков
 function setupEventListeners() {
+    // Удаляем старые обработчики истории если есть
+    const oldHistoryBtn = document.getElementById('history-btn');
+    const oldBackBtn = document.getElementById('back-btn');
+    
+    if (oldHistoryBtn) oldHistoryBtn.remove();
+    if (oldBackBtn) oldBackBtn.remove();
+    
+    // Удаляем старые кнопки дохода/расхода если есть
+    const oldIncomeBtn = document.getElementById('income-btn');
+    const oldExpenseBtn = document.getElementById('expense-btn');
+    const oldSavingsBtn = document.getElementById('savings-btn');
+    
+    if (oldIncomeBtn) oldIncomeBtn.remove();
+    if (oldExpenseBtn) oldExpenseBtn.remove();
+    if (oldSavingsBtn) oldSavingsBtn.remove();
+    
+    // Остальные обработчики...
+    // [старый код оставляем]
     // Кнопки добавления
     document.getElementById('income-btn').addEventListener('click', () => {
         currentTransactionType = 'income';
