@@ -4,6 +4,7 @@ from flask import Flask, render_template, jsonify, request
 from flask_cors import CORS
 from dotenv import load_dotenv
 import requests
+import uuid
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 load_dotenv()
@@ -77,12 +78,34 @@ def init_user():
         telegram_id = data.get('telegram_id')
         username = data.get('username', '')
         first_name = data.get('first_name', 'Пользователь')
+        session_token = data.get('session_token')
+        
+        # Генерируем токен если нет
+        if not session_token:
+            session_token = str(uuid.uuid4())
         
         if not telegram_id:
-            return jsonify({'error': 'Telegram ID required'}), 400
+            # Пытаемся восстановить по сессии
+            if session_token and db:
+                user = db.get_user_by_session(session_token)
+                if user:
+                    user_id = user['id']
+                    currency = user['currency'] or 'RUB'
+                    telegram_id = user['telegram_id']
+                else:
+                    return jsonify({'error': 'User not found'}), 404
+            else:
+                return jsonify({'error': 'Telegram ID or session token required'}), 400
+        else:
+            # Новый или существующий пользователь
+            if db:
+                user_id, currency = db.get_or_create_user(telegram_id, username, first_name, session_token)
+            else:
+                user_id = telegram_id
+                currency = 'RUB'
         
+        # Получаем данные пользователя
         if db:
-            user_id, currency = db.get_or_create_user(telegram_id, username, first_name)
             summary = db.get_financial_summary(user_id)
             total_transactions = db.get_transactions_count(user_id)
             
@@ -90,7 +113,7 @@ def init_user():
             all_categories = db.get_categories(user_id)
             for cat in all_categories:
                 if cat['type'] in categories:
-                    categories[cat['type']].append(cat['name'])
+                    categories[cat['type']].append({'name': cat['name'], 'icon': cat['icon']})
             
             recent = db.get_transactions(user_id, limit=3)
             recent_transactions = []
@@ -108,8 +131,8 @@ def init_user():
             user_id = telegram_id
             summary = {'total_income': 0, 'total_expense': 0, 'balance': 0, 'total_savings': 0}
             categories = {
-                'income': ['Зарплата', 'Фриланс'],
-                'expense': ['Продукты', 'Транспорт', 'Накопления']
+                'income': [{'name': 'Зарплата', 'icon': '💰'}],
+                'expense': [{'name': 'Продукты', 'icon': '🛒'}]
             }
             recent_transactions = []
             total_transactions = 0
@@ -117,6 +140,8 @@ def init_user():
         
         return jsonify({
             'user_id': user_id,
+            'telegram_id': telegram_id,
+            'session_token': session_token,
             'summary': summary,
             'categories': categories,
             'recent_transactions': recent_transactions,
@@ -127,6 +152,7 @@ def init_user():
         print(f"Init error: {e}")
         return jsonify({'error': str(e)}), 500
 
+# Остальные эндпоинты остаются без изменений
 @app.route('/api/transaction', methods=['POST'])
 def add_transaction():
     try:

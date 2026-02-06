@@ -14,6 +14,7 @@ class Database:
     def init_db(self):
         cursor = self.conn.cursor()
         
+        # Добавляем поле session_token для сохранения сессии
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS users (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -21,6 +22,8 @@ class Database:
                 username TEXT,
                 first_name TEXT,
                 currency TEXT DEFAULT 'RUB',
+                session_token TEXT UNIQUE,
+                last_login TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
@@ -44,49 +47,78 @@ class Database:
                 user_id INTEGER NOT NULL,
                 type TEXT CHECK(type IN ('income', 'expense')) NOT NULL,
                 name TEXT NOT NULL,
+                icon TEXT DEFAULT '💰',
                 FOREIGN KEY (user_id) REFERENCES users (id)
             )
         ''')
         
+        # Индексы для оптимизации
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_transactions_user_id ON transactions(user_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions(date)')
+        
         self.conn.commit()
         print("✅ Tables ready")
     
-    def get_or_create_user(self, telegram_id, username, first_name):
+    def get_or_create_user(self, telegram_id, username, first_name, session_token=None):
         cursor = self.conn.cursor()
         
-        cursor.execute('SELECT id, currency FROM users WHERE telegram_id = ?', (telegram_id,))
+        cursor.execute('''
+            SELECT id, currency, session_token FROM users 
+            WHERE telegram_id = ? OR session_token = ?
+        ''', (telegram_id, session_token))
+        
         user = cursor.fetchone()
         
         if user:
             print(f"👤 User exists: {user['id']}")
+            # Обновляем сессию если пришла новая
+            if session_token and user['session_token'] != session_token:
+                cursor.execute('''
+                    UPDATE users SET session_token = ?, last_login = CURRENT_TIMESTAMP 
+                    WHERE id = ?
+                ''', (session_token, user['id']))
+                self.conn.commit()
+            
             return user['id'], user['currency'] or 'RUB'
         else:
             cursor.execute('''
-                INSERT INTO users (telegram_id, username, first_name) 
-                VALUES (?, ?, ?)
-            ''', (telegram_id, username, first_name))
+                INSERT INTO users (telegram_id, username, first_name, session_token, last_login) 
+                VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ''', (telegram_id, username, first_name, session_token))
             user_id = cursor.lastrowid
             
+            # Стандартные категории
             default_categories = [
-                (user_id, 'income', 'Зарплата'),
-                (user_id, 'income', 'Фриланс'),
-                (user_id, 'income', 'Инвестиции'),
-                (user_id, 'expense', 'Продукты'),
-                (user_id, 'expense', 'Транспорт'),
-                (user_id, 'expense', 'Развлечения'),
-                (user_id, 'expense', 'Аренда'),
-                (user_id, 'expense', 'Накопления'),
+                (user_id, 'income', 'Зарплата', '💰'),
+                (user_id, 'income', 'Фриланс', '💻'),
+                (user_id, 'income', 'Инвестиции', '📈'),
+                (user_id, 'expense', 'Продукты', '🛒'),
+                (user_id, 'expense', 'Транспорт', '🚗'),
+                (user_id, 'expense', 'Развлечения', '🎬'),
+                (user_id, 'expense', 'ЖКХ', '🏠'),
+                (user_id, 'expense', 'Связь', '📱'),
+                (user_id, 'expense', 'Еда', '🍕'),
+                (user_id, 'expense', 'Накопления', '🏦'),
             ]
             
             cursor.executemany('''
-                INSERT INTO categories (user_id, type, name) 
-                VALUES (?, ?, ?)
+                INSERT INTO categories (user_id, type, name, icon) 
+                VALUES (?, ?, ?, ?)
             ''', default_categories)
             
             self.conn.commit()
             print(f"👤 New user: {first_name} ({user_id})")
             return user_id, 'RUB'
     
+    def get_user_by_session(self, session_token):
+        cursor = self.conn.cursor()
+        cursor.execute('''
+            SELECT id, telegram_id, username, first_name, currency 
+            FROM users WHERE session_token = ?
+        ''', (session_token,))
+        return cursor.fetchone()
+    
+    # Остальные методы остаются как были...
     def update_user_currency(self, user_id, currency):
         cursor = self.conn.cursor()
         cursor.execute('''
@@ -180,13 +212,13 @@ class Database:
         
         if trans_type:
             cursor.execute('''
-                SELECT name FROM categories 
+                SELECT name, icon FROM categories 
                 WHERE user_id = ? AND type = ?
                 ORDER BY name
             ''', (user_id, trans_type))
         else:
             cursor.execute('''
-                SELECT name, type FROM categories 
+                SELECT name, type, icon FROM categories 
                 WHERE user_id = ?
                 ORDER BY type, name
             ''', (user_id,))
