@@ -157,7 +157,7 @@
                         <!-- Накопления -->
                         <div class="chart-container">
                             <div class="chart-title">Накопления</div>
-                            <div style="text-align: center; padding: 40px 20px;">
+                            <div style="text-align: center; padding: 30px 20px;">
                                 <div style="font-size: 48px; color: var(--ios-yellow); margin-bottom: 16px;">💰</div>
                                 <div class="overview-value" id="overview-savings">0 ₽</div>
                                 <div class="overview-label">Всего накоплено</div>
@@ -167,7 +167,7 @@
                         <!-- Общий баланс -->
                         <div class="chart-container">
                             <div class="chart-title">Общий баланс</div>
-                            <div style="text-align: center; padding: 40px 20px;">
+                            <div style="text-align: center; padding: 30px 20px;">
                                 <div class="overview-value" id="overview-balance">0 ₽</div>
                                 <div class="overview-label">Текущий остаток</div>
                             </div>
@@ -185,6 +185,14 @@
                                 <!-- Легенда диаграммы -->
                             </div>
                         </div>
+                        
+                        <!-- Статистика доходов -->
+                        <div class="chart-container">
+                            <div class="chart-title">Статистика доходов</div>
+                            <div id="income-stats" style="padding: 20px; text-align: center; color: var(--ios-text-secondary);">
+                                Данные загружаются...
+                            </div>
+                        </div>
                     </div>
 
                     <!-- ВКЛАДКА 3: РАСХОДЫ -->
@@ -196,6 +204,14 @@
                             </div>
                             <div class="chart-legend" id="expense-legend">
                                 <!-- Легенда диаграммы -->
+                            </div>
+                        </div>
+                        
+                        <!-- Статистика расходов -->
+                        <div class="chart-container">
+                            <div class="chart-title">Топ расходов</div>
+                            <div id="expense-top" style="padding: 20px; text-align: center; color: var(--ios-text-secondary);">
+                                Данные загружаются...
                             </div>
                         </div>
                     </div>
@@ -239,9 +255,9 @@
 
                         <!-- Выбор периода -->
                         <div class="period-selector">
+                            <button class="period-btn" data-period="day">День</button>
                             <button class="period-btn active" data-period="week">Неделя</button>
                             <button class="period-btn" data-period="month">Месяц</button>
-                            <button class="period-btn" data-period="year">Год</button>
                         </div>
 
                         <!-- Динамика баланса -->
@@ -344,10 +360,10 @@
             </div>
             
             <!-- Вкладки типа транзакции -->
-            <div class="modal-tabs" style="display: flex; gap: 4px; margin-bottom: 24px; background: var(--ios-tertiary); padding: 4px; border-radius: var(--border-radius-small);">
-                <button class="modal-tab income active" data-type="income" style="flex: 1; padding: 12px; border: none; border-radius: 10px; background: var(--ios-surface); color: var(--ios-green); font-weight: 600; cursor: pointer;">Доход</button>
-                <button class="modal-tab expense" data-type="expense" style="flex: 1; padding: 12px; border: none; border-radius: 10px; background: var(--ios-surface); color: var(--ios-red); font-weight: 600; cursor: pointer;">Расход</button>
-                <button class="modal-tab savings" data-type="savings" style="flex: 1; padding: 12px; border: none; border-radius: 10px; background: var(--ios-surface); color: var(--ios-yellow); font-weight: 600; cursor: pointer;">Накопление</button>
+            <div class="modal-tabs">
+                <button class="modal-tab income active" data-type="income">Доход</button>
+                <button class="modal-tab expense" data-type="expense">Расход</button>
+                <button class="modal-tab savings" data-type="savings">Накопление</button>
             </div>
             
             <form id="add-transaction-form">
@@ -358,6 +374,8 @@
                         <input type="number" class="form-input" id="transaction-amount" placeholder="0" min="1" step="1" required style="padding-left: 50px;">
                     </div>
                 </div>
+                
+                <!-- Для накоплений здесь будет добавлен выбор назначения -->
                 
                 <div class="form-group">
                     <label class="form-label">Категория</label>
@@ -570,9 +588,9 @@
                 </div>
                 
                 <div class="form-group">
-                    <label class="form-checkbox">
-                        <input type="checkbox" id="wallet-is-default">
-                        <span>Сделать кошельком по умолчанию</span>
+                    <label class="form-checkbox" style="display: flex; align-items: center; gap: 8px;">
+                        <input type="checkbox" id="wallet-is-default" style="width: 20px; height: 20px;">
+                        <span style="font-size: 15px; color: var(--ios-text-primary);">Сделать кошельком по умолчанию</span>
                     </label>
                 </div>
                 

@@ -72,7 +72,6 @@ def telegram_webhook():
 def health():
     return jsonify({'status': 'ok'})
 
-# НОВЫЙ ЭНДПОИНТ: Полная инициализация с оптимизированными данными
 @app.route('/api/init', methods=['POST'])
 def init_user():
     try:
@@ -106,12 +105,9 @@ def init_user():
                 currency = 'RUB'
                 default_wallet = 'Наличные'
         
-        # Получаем ВСЕ данные пользователя одним запросом
         if db:
-            # Полная статистика
             stats = db.get_user_stats(user_id)
             
-            # Категории с цветами
             categories = {'income': [], 'expense': [], 'savings': []}
             all_categories = db.get_categories(user_id)
             for cat in all_categories:
@@ -123,7 +119,6 @@ def init_user():
                         'color': cat['color']
                     })
             
-            # Кошельки
             wallets_data = []
             wallets = db.get_wallets(user_id)
             for wallet in wallets:
@@ -134,7 +129,6 @@ def init_user():
                     'is_default': bool(wallet['is_default'])
                 })
             
-            # Цели
             goals_data = []
             goals = db.get_goals(user_id)
             for goal in goals:
@@ -149,7 +143,6 @@ def init_user():
                     'progress': goal['progress']
                 })
             
-            # Последние транзакции (только нужные поля)
             recent = db.get_recent_transactions(user_id, limit=10)
             recent_transactions = []
             for trans in recent:
@@ -166,7 +159,6 @@ def init_user():
             total_transactions = db.get_transactions_count(user_id)
             
         else:
-            # Заглушка для тестов
             user_id = telegram_id
             stats = {'summary': {'total_income': 0, 'total_expense': 0, 'balance': 0, 'total_savings': 0},
                     'income': {}, 'expense': {}, 'wallets': {}}
@@ -207,7 +199,6 @@ def init_user():
         print(f"Init error: {e}")
         return jsonify({'error': str(e)}), 500
 
-# НОВЫЙ ЭНДПОИНТ: Добавить транзакцию с автоматическим созданием кошелька
 @app.route('/api/transaction', methods=['POST'])
 def add_transaction():
     try:
@@ -222,7 +213,7 @@ def add_transaction():
         if not all([user_id, trans_type, amount, category]):
             return jsonify({'error': 'Missing fields'}), 400
         
-        if trans_type not in ['income', 'expense', 'savings']:
+        if trans_type not in ['income', 'expense']:
             return jsonify({'error': 'Invalid type'}), 400
         
         try:
@@ -233,17 +224,8 @@ def add_transaction():
             return jsonify({'error': 'Invalid amount'}), 400
         
         if db:
-            # Для накоплений используем тип expense с категорией Накопления
-            if trans_type == 'savings':
-                trans_type = 'expense'
-                if category != 'Накопления':
-                    # Если категория не "Накопления", добавляем её
-                    db.add_category(user_id, 'savings', 'Накопления', '💰', '#FFD60A')
-                    category = 'Накопления'
-            
             transaction_id = db.add_transaction(user_id, trans_type, amount, category, wallet, description)
             
-            # Получаем обновлённую статистику
             stats = db.get_user_stats(user_id)
             wallets = db.get_wallets(user_id)
             recent = db.get_recent_transactions(user_id, limit=5)
@@ -275,7 +257,6 @@ def add_transaction():
         print(f"Transaction error: {e}")
         return jsonify({'error': str(e)}), 500
 
-# НОВЫЙ ЭНДПОИНТ: Установить кошелёк по умолчанию
 @app.route('/api/set_default_wallet', methods=['POST'])
 def set_default_wallet():
     try:
@@ -295,7 +276,6 @@ def set_default_wallet():
         print(f"Set default wallet error: {e}")
         return jsonify({'error': str(e)}), 500
 
-# НОВЫЙ ЭНДПОИНТ: Добавить цель
 @app.route('/api/add_goal', methods=['POST'])
 def add_goal():
     try:
@@ -329,7 +309,45 @@ def add_goal():
         print(f"Add goal error: {e}")
         return jsonify({'error': str(e)}), 500
 
-# НОВЫЙ ЭНДПОИНТ: Добавить категорию
+# НОВЫЙ ЭНДПОИНТ: Добавить накопления в цель
+@app.route('/api/add_to_goal', methods=['POST'])
+def add_to_goal():
+    try:
+        data = request.json
+        user_id = data.get('user_id')
+        goal_id = data.get('goal_id')
+        amount = data.get('amount')
+        
+        if not all([user_id, goal_id, amount]):
+            return jsonify({'error': 'Missing fields'}), 400
+        
+        try:
+            amount = float(amount)
+            if amount <= 0:
+                return jsonify({'error': 'Amount must be positive'}), 400
+        except ValueError:
+            return jsonify({'error': 'Invalid amount'}), 400
+        
+        if db:
+            # Обновляем прогресс цели
+            success = db.update_goal_progress(goal_id, amount)
+            if success:
+                # Также добавляем транзакцию накопления
+                transaction_id = db.add_transaction(user_id, 'expense', amount, 'Накопления', 'Копилка', f'Накопления в цель ID: {goal_id}')
+                
+                return jsonify({
+                    'success': True,
+                    'transaction_id': transaction_id,
+                    'goal_updated': True
+                })
+            else:
+                return jsonify({'error': 'Failed to update goal'}), 500
+        else:
+            return jsonify({'error': 'Database error'}), 500
+    except Exception as e:
+        print(f"Add to goal error: {e}")
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/add_category', methods=['POST'])
 def add_category():
     try:
@@ -358,13 +376,12 @@ def add_category():
         print(f"Add category error: {e}")
         return jsonify({'error': str(e)}), 500
 
-# НОВЫЙ ЭНДПОИНТ: Получить динамику баланса
 @app.route('/api/balance_dynamics/<int:user_id>')
 def get_balance_dynamics(user_id):
     try:
         period = request.args.get('period', 'week')
         
-        if period not in ['week', 'month', 'year']:
+        if period not in ['day', 'week', 'month']:
             period = 'week'
         
         if db:
@@ -376,7 +393,6 @@ def get_balance_dynamics(user_id):
         print(f"Balance dynamics error: {e}")
         return jsonify({'error': str(e)}), 500
 
-# НОВЫЙ ЭНДПОИНТ: Получить все транзакции
 @app.route('/api/all_transactions/<int:user_id>')
 def get_all_transactions(user_id):
     try:
@@ -403,7 +419,6 @@ def get_all_transactions(user_id):
         print(f"All transactions error: {e}")
         return jsonify({'error': str(e)}), 500
 
-# Существующие эндпоинты (адаптированные)
 @app.route('/api/transactions/<int:user_id>')
 def get_transactions(user_id):
     try:
@@ -481,15 +496,85 @@ def update_currency():
         print(f"Currency error: {e}")
         return jsonify({'error': str(e)}), 500
 
-# НОВЫЙ ЭНДПОИНТ: Экспорт данных
+# НОВЫЙ ЭНДПОИНТ: Добавить кошелёк
+@app.route('/api/add_wallet', methods=['POST'])
+def add_wallet():
+    try:
+        data = request.json
+        user_id = data.get('user_id')
+        name = data.get('name')
+        icon = data.get('icon', '💳')
+        is_default = data.get('is_default', False)
+        
+        if not all([user_id, name]):
+            return jsonify({'error': 'Missing fields'}), 400
+        
+        if db:
+            # Проверяем, существует ли уже кошелёк
+            cursor = db.conn.cursor()
+            cursor.execute('SELECT name FROM wallets WHERE user_id = ? AND name = ?', (user_id, name))
+            if cursor.fetchone():
+                return jsonify({'error': 'Wallet already exists'}), 400
+            
+            # Если устанавливаем как дефолтный, сбрасываем другие
+            if is_default:
+                cursor.execute('UPDATE wallets SET is_default = 0 WHERE user_id = ?', (user_id,))
+            
+            cursor.execute('''
+                INSERT INTO wallets (user_id, name, icon, balance, is_default)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (user_id, name, icon, 0, 1 if is_default else 0))
+            
+            if is_default:
+                cursor.execute('UPDATE users SET default_wallet = ? WHERE id = ?', (name, user_id))
+            
+            db.conn.commit()
+            
+            return jsonify({
+                'success': True,
+                'wallet_id': cursor.lastrowid
+            })
+        else:
+            return jsonify({'error': 'Database error'}), 500
+    except Exception as e:
+        print(f"Add wallet error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/goals')
+def get_goals():
+    try:
+        user_id = request.args.get('user_id', type=int)
+        
+        if not user_id:
+            return jsonify({'error': 'Missing user_id'}), 400
+        
+        if db:
+            goals = db.get_goals(user_id)
+            result = []
+            for goal in goals:
+                result.append({
+                    'id': goal['id'],
+                    'name': goal['name'],
+                    'target_amount': goal['target_amount'],
+                    'current_amount': goal['current_amount'],
+                    'icon': goal['icon'],
+                    'color': goal['color'],
+                    'deadline': goal['deadline'],
+                    'progress': goal['progress']
+                })
+            return jsonify(result)
+        else:
+            return jsonify([])
+    except Exception as e:
+        print(f"Get goals error: {e}")
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/export/<int:user_id>')
 def export_data(user_id):
     try:
         if db:
-            # Получаем все транзакции
             transactions = db.get_transactions(user_id, limit=1000)
             
-            # Формируем CSV
             csv_data = "Дата,Тип,Категория,Сумма,Кошелёк,Описание\n"
             for trans in transactions:
                 date = datetime.strptime(trans['date'], '%Y-%m-%d %H:%M:%S').strftime('%d.%m.%Y')

@@ -169,11 +169,9 @@ class Database:
         ''', (session_token,))
         return cursor.fetchone()
     
-    # НОВЫЙ МЕТОД: Получить полную статистику пользователя
     def get_user_stats(self, user_id):
         cursor = self.conn.cursor()
         
-        # Базовая статистика
         cursor.execute('''
             SELECT 
                 COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END), 0) as total_income,
@@ -190,7 +188,6 @@ class Database:
             'balance': float((result['total_income'] or 0) - (result['total_expense'] or 0))
         }
         
-        # Статистика по категориям доходов
         cursor.execute('''
             SELECT category, SUM(amount) as total 
             FROM transactions 
@@ -199,7 +196,6 @@ class Database:
         ''', (user_id,))
         income_stats = {row['category']: float(row['total']) for row in cursor.fetchall()}
         
-        # Статистика по категориям расходов
         cursor.execute('''
             SELECT category, SUM(amount) as total 
             FROM transactions 
@@ -208,7 +204,6 @@ class Database:
         ''', (user_id,))
         expense_stats = {row['category']: float(row['total']) for row in cursor.fetchall()}
         
-        # Кошельки
         cursor.execute('''
             SELECT name, balance FROM wallets WHERE user_id = ?
         ''', (user_id,))
@@ -221,32 +216,27 @@ class Database:
             'wallets': wallet_balances
         }
     
-    # ИСПРАВЛЕННЫЙ МЕТОД: Добавить транзакцию
     def add_transaction(self, user_id, trans_type, amount, category, wallet, description):
         cursor = self.conn.cursor()
         
-        # Проверяем существование кошелька
         cursor.execute('SELECT name FROM wallets WHERE user_id = ? AND name = ?', (user_id, wallet))
         if not cursor.fetchone():
-            # Создаем кошелёк если не существует
             cursor.execute('''
                 INSERT INTO wallets (user_id, name, icon, balance, is_default)
                 VALUES (?, ?, ?, ?, ?)
             ''', (user_id, wallet, '💳', 0, 0))
         
-        # Добавляем транзакцию
         cursor.execute('''
             INSERT INTO transactions (user_id, type, amount, category, wallet, description)
             VALUES (?, ?, ?, ?, ?, ?)
         ''', (user_id, trans_type, amount, category, wallet, description or ''))
         
-        # Обновляем баланс кошелька
         if trans_type == 'income':
             cursor.execute('''
                 UPDATE wallets SET balance = balance + ? 
                 WHERE user_id = ? AND name = ?
             ''', (amount, user_id, wallet))
-        else:  # expense
+        else:
             cursor.execute('''
                 UPDATE wallets SET balance = balance - ? 
                 WHERE user_id = ? AND name = ?
@@ -255,7 +245,6 @@ class Database:
         self.conn.commit()
         return cursor.lastrowid
     
-    # НОВЫЙ МЕТОД: Получить последние транзакции
     def get_recent_transactions(self, user_id, limit=5):
         cursor = self.conn.cursor()
         cursor.execute('''
@@ -277,18 +266,15 @@ class Database:
     def set_default_wallet(self, user_id, wallet_name):
         cursor = self.conn.cursor()
         
-        # Сбрасываем все кошельки
         cursor.execute('''
             UPDATE wallets SET is_default = 0 WHERE user_id = ?
         ''', (user_id,))
         
-        # Устанавливаем новый
         cursor.execute('''
             UPDATE wallets SET is_default = 1 
             WHERE user_id = ? AND name = ?
         ''', (user_id, wallet_name))
         
-        # Обновляем в пользователе
         cursor.execute('''
             UPDATE users SET default_wallet = ? WHERE id = ?
         ''', (wallet_name, user_id))
@@ -296,7 +282,6 @@ class Database:
         self.conn.commit()
         return True
     
-    # НОВЫЙ МЕТОД: Получить цели пользователя
     def get_goals(self, user_id):
         cursor = self.conn.cursor()
         cursor.execute('''
@@ -306,7 +291,6 @@ class Database:
         ''', (user_id,))
         return cursor.fetchall()
     
-    # НОВЫЙ МЕТОД: Добавить цель
     def add_goal(self, user_id, name, target_amount, icon, color, deadline=None):
         cursor = self.conn.cursor()
         cursor.execute('''
@@ -316,7 +300,6 @@ class Database:
         self.conn.commit()
         return cursor.lastrowid
     
-    # НОВЫЙ МЕТОД: Обновить прогресс цели
     def update_goal_progress(self, goal_id, amount):
         cursor = self.conn.cursor()
         cursor.execute('''
@@ -336,7 +319,6 @@ class Database:
             self.conn.commit()
             return cursor.lastrowid
         except sqlite3.IntegrityError:
-            # Категория уже существует
             return None
     
     def get_categories(self, user_id, trans_type=None):
@@ -457,21 +439,19 @@ class Database:
         
         return months
     
-    # НОВЫЙ МЕТОД: Получить динамику баланса за период
     def get_balance_dynamics(self, user_id, period='week'):
         cursor = self.conn.cursor()
         
-        # Определяем дату начала периода
         end_date = datetime.now()
-        if period == 'week':
+        if period == 'day':
+            start_date = end_date - timedelta(days=1)
+            group_format = '%Y-%m-%d %H:00'
+        elif period == 'week':
             start_date = end_date - timedelta(days=7)
             group_format = '%Y-%m-%d'
         elif period == 'month':
             start_date = end_date - timedelta(days=30)
             group_format = '%Y-%m-%d'
-        elif period == 'year':
-            start_date = end_date - timedelta(days=365)
-            group_format = '%Y-%m'
         else:
             start_date = end_date - timedelta(days=7)
             group_format = '%Y-%m-%d'
