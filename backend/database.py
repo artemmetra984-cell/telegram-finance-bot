@@ -1,3 +1,4 @@
+# backend/database.py
 import sqlite3
 import os
 from datetime import datetime, timedelta
@@ -58,7 +59,7 @@ class Database:
             )
         ''')
         
-        # Таблица кошельков - ФИКС: добавлена проверка на уникальность
+        # Таблица кошельков
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS wallets (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -67,7 +68,6 @@ class Database:
                 icon TEXT DEFAULT '💳',
                 balance REAL DEFAULT 0,
                 is_default INTEGER DEFAULT 0,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (user_id) REFERENCES users (id),
                 UNIQUE(user_id, name)
             )
@@ -89,7 +89,7 @@ class Database:
             )
         ''')
         
-        # Индексы
+        # Индексы для быстрого поиска
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_transactions_user_id ON transactions(user_id)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions(date)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_transactions_type ON transactions(type)')
@@ -100,7 +100,6 @@ class Database:
         self.conn.commit()
         print("✅ Tables ready")
     
-    # ФИКС: Получение или создание пользователя
     def get_or_create_user(self, telegram_id, username, first_name, session_token=None):
         cursor = self.conn.cursor()
         
@@ -128,7 +127,7 @@ class Database:
             ''', (telegram_id, username, first_name, session_token))
             user_id = cursor.lastrowid
             
-            # Стандартные категории
+            # Стандартные категории с цветами iOS
             default_categories = [
                 (user_id, 'income', 'Зарплата', '💰', '#34C759'),
                 (user_id, 'income', 'Фриланс', '💻', '#007AFF'),
@@ -136,6 +135,9 @@ class Database:
                 (user_id, 'expense', 'Продукты', '🛒', '#FF9500'),
                 (user_id, 'expense', 'Транспорт', '🚗', '#FF5E3A'),
                 (user_id, 'expense', 'Развлечения', '🎬', '#FF2D55'),
+                (user_id, 'expense', 'ЖКХ', '🏠', '#AF52DE'),
+                (user_id, 'expense', 'Связь', '📱', '#FF3B30'),
+                (user_id, 'expense', 'Еда вне дома', '🍕', '#FF9500'),
                 (user_id, 'savings', 'Накопления', '💰', '#FFD60A'),
             ]
             
@@ -167,7 +169,7 @@ class Database:
         ''', (session_token,))
         return cursor.fetchone()
     
-    # ФИКС: Полная статистика
+    # НОВЫЙ МЕТОД: Получить полную статистику пользователя
     def get_user_stats(self, user_id):
         cursor = self.conn.cursor()
         
@@ -219,13 +221,14 @@ class Database:
             'wallets': wallet_balances
         }
     
-    # ФИКС: Добавление транзакции с обновлением целей
+    # ИСПРАВЛЕННЫЙ МЕТОД: Добавить транзакцию
     def add_transaction(self, user_id, trans_type, amount, category, wallet, description):
         cursor = self.conn.cursor()
         
         # Проверяем существование кошелька
         cursor.execute('SELECT name FROM wallets WHERE user_id = ? AND name = ?', (user_id, wallet))
         if not cursor.fetchone():
+            # Создаем кошелёк если не существует
             cursor.execute('''
                 INSERT INTO wallets (user_id, name, icon, balance, is_default)
                 VALUES (?, ?, ?, ?, ?)
@@ -248,18 +251,21 @@ class Database:
                 UPDATE wallets SET balance = balance - ? 
                 WHERE user_id = ? AND name = ?
             ''', (amount, user_id, wallet))
-            
-            # Если это накопление в цель
-            if category.isdigit():  # Если category это ID цели
-                cursor.execute('''
-                    UPDATE goals SET current_amount = current_amount + ?
-                    WHERE id = ? AND user_id = ?
-                ''', (amount, int(category), user_id))
         
         self.conn.commit()
         return cursor.lastrowid
     
-    # ФИКС: Получение кошельков
+    # НОВЫЙ МЕТОД: Получить последние транзакции
+    def get_recent_transactions(self, user_id, limit=5):
+        cursor = self.conn.cursor()
+        cursor.execute('''
+            SELECT * FROM transactions 
+            WHERE user_id = ? 
+            ORDER BY date DESC 
+            LIMIT ?
+        ''', (user_id, limit))
+        return cursor.fetchall()
+    
     def get_wallets(self, user_id):
         cursor = self.conn.cursor()
         cursor.execute('''
@@ -268,32 +274,21 @@ class Database:
         ''', (user_id,))
         return cursor.fetchall()
     
-    # НОВЫЙ: Добавление кошелька
-    def add_wallet(self, user_id, name, icon='💳', balance=0):
-        cursor = self.conn.cursor()
-        try:
-            cursor.execute('''
-                INSERT INTO wallets (user_id, name, icon, balance) 
-                VALUES (?, ?, ?, ?)
-            ''', (user_id, name, icon, balance))
-            self.conn.commit()
-            return cursor.lastrowid
-        except sqlite3.IntegrityError:
-            # Кошелёк уже существует
-            return None
-    
     def set_default_wallet(self, user_id, wallet_name):
         cursor = self.conn.cursor()
         
+        # Сбрасываем все кошельки
         cursor.execute('''
             UPDATE wallets SET is_default = 0 WHERE user_id = ?
         ''', (user_id,))
         
+        # Устанавливаем новый
         cursor.execute('''
             UPDATE wallets SET is_default = 1 
             WHERE user_id = ? AND name = ?
         ''', (user_id, wallet_name))
         
+        # Обновляем в пользователе
         cursor.execute('''
             UPDATE users SET default_wallet = ? WHERE id = ?
         ''', (wallet_name, user_id))
@@ -301,17 +296,18 @@ class Database:
         self.conn.commit()
         return True
     
-    # Цели
+    # НОВЫЙ МЕТОД: Получить цели пользователя
     def get_goals(self, user_id):
         cursor = self.conn.cursor()
         cursor.execute('''
             SELECT id, name, target_amount, current_amount, icon, color, deadline,
-                   ROUND((current_amount / target_amount * 100), 1) as progress
+                   (current_amount / target_amount * 100) as progress
             FROM goals WHERE user_id = ? ORDER BY created_at DESC
         ''', (user_id,))
         return cursor.fetchall()
     
-    def add_goal(self, user_id, name, target_amount, icon='🎯', color='#FF9500', deadline=None):
+    # НОВЫЙ МЕТОД: Добавить цель
+    def add_goal(self, user_id, name, target_amount, icon, color, deadline=None):
         cursor = self.conn.cursor()
         cursor.execute('''
             INSERT INTO goals (user_id, name, target_amount, icon, color, deadline)
@@ -320,8 +316,17 @@ class Database:
         self.conn.commit()
         return cursor.lastrowid
     
-    # Категории
-    def add_category(self, user_id, category_type, name, icon='💰', color='#007AFF'):
+    # НОВЫЙ МЕТОД: Обновить прогресс цели
+    def update_goal_progress(self, goal_id, amount):
+        cursor = self.conn.cursor()
+        cursor.execute('''
+            UPDATE goals SET current_amount = current_amount + ? 
+            WHERE id = ?
+        ''', (amount, goal_id))
+        self.conn.commit()
+        return True
+    
+    def add_category(self, user_id, category_type, name, icon, color):
         cursor = self.conn.cursor()
         try:
             cursor.execute('''
@@ -331,6 +336,7 @@ class Database:
             self.conn.commit()
             return cursor.lastrowid
         except sqlite3.IntegrityError:
+            # Категория уже существует
             return None
     
     def get_categories(self, user_id, trans_type=None):
@@ -451,27 +457,19 @@ class Database:
         
         return months
     
-    def get_recent_transactions(self, user_id, limit=5):
-        cursor = self.conn.cursor()
-        cursor.execute('''
-            SELECT * FROM transactions 
-            WHERE user_id = ? 
-            ORDER BY date DESC 
-            LIMIT ?
-        ''', (user_id, limit))
-        return cursor.fetchall()
-    
+    # НОВЫЙ МЕТОД: Получить динамику баланса за период
     def get_balance_dynamics(self, user_id, period='week'):
         cursor = self.conn.cursor()
         
+        # Определяем дату начала периода
         end_date = datetime.now()
-        if period == 'days':
+        if period == 'week':
             start_date = end_date - timedelta(days=7)
             group_format = '%Y-%m-%d'
-        elif period == 'weeks':
-            start_date = end_date - timedelta(days=7*8)
-            group_format = '%Y-%W'
-        elif period == 'months':
+        elif period == 'month':
+            start_date = end_date - timedelta(days=30)
+            group_format = '%Y-%m-%d'
+        elif period == 'year':
             start_date = end_date - timedelta(days=365)
             group_format = '%Y-%m'
         else:
@@ -487,7 +485,7 @@ class Database:
             WHERE user_id = ? AND date >= ?
             GROUP BY strftime(?, date)
             ORDER BY period
-        ''', (group_format, user_id, start_date.isoformat(), group_format))
+        ''', (group_format, user_id, start_date, group_format))
         
         dynamics = []
         cumulative_balance = 0
@@ -498,18 +496,8 @@ class Database:
             balance_change = income - expense
             cumulative_balance += balance_change
             
-            # Форматируем период для отображения
-            if period == 'weeks':
-                period_label = f"Неделя {row['period'].split('-')[1]}"
-            elif period == 'months':
-                month_num = int(row['period'].split('-')[1])
-                month_names = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек']
-                period_label = month_names[month_num - 1]
-            else:
-                period_label = row['period'].split('-')[2] + '/' + row['period'].split('-')[1]
-            
             dynamics.append({
-                'period': period_label,
+                'period': row['period'],
                 'income': income,
                 'expense': expense,
                 'balance': cumulative_balance
