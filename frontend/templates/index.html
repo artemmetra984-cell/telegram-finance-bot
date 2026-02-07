@@ -31,62 +31,62 @@
             <!-- === PAGE 1: PANEL === -->
             <div id="panel-page" class="page active">
                 <!-- Balance Card -->
-                <div class="balance-card" style="background: linear-gradient(135deg, var(--ios-blue) 0%, var(--ios-accent) 100%); border-radius: var(--border-radius-large); margin: var(--spacing-md); padding: var(--spacing-xl); text-align: center; box-shadow: var(--shadow-medium);">
-                    <div style="font-size: 13px; opacity: 0.9; margin-bottom: var(--spacing-xs); font-weight: 500;">Общий баланс</div>
-                    <div style="font-size: 42px; font-weight: 800; margin-bottom: var(--spacing-sm); letter-spacing: -1px;" id="balance">0 ₽</div>
-                    <div style="font-size: 12px; opacity: 0.8;">Все ваши активы</div>
+                <div class="balance-card">
+                    <div class="balance-label">Общий баланс</div>
+                    <div class="balance-amount" id="balance">0 ₽</div>
+                    <div class="balance-subtitle">Все ваши активы</div>
                 </div>
 
                 <!-- Incomes (Compact) -->
-                <div class="category-section" style="margin: var(--spacing-md);">
-                    <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-sm); padding: 0 var(--spacing-xs);">
-                        <div class="section-title" style="font-size: 17px; font-weight: 600; color: var(--ios-text-primary);">Доходы</div>
-                        <button class="section-action" onclick="showAllCategories('income')" style="font-size: 15px; color: var(--ios-accent); background: none; border: none; cursor: pointer;">Все</button>
+                <div class="category-section">
+                    <div class="section-header">
+                        <div class="section-title">Доходы</div>
+                        <button class="section-action" onclick="showAllCategories('income')">Все</button>
                     </div>
                     <div class="compact-category-grid" id="compact-income-categories">
                         <!-- Dynamic (3 max) -->
                     </div>
-                    <button class="add-category-btn" onclick="showAddCategoryModal('income')" style="width: 100%; padding: 12px; background: var(--ios-surface); border: 1px dashed rgba(255, 255, 255, 0.2); border-radius: var(--border-radius); color: var(--ios-text-secondary); font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 4px; transition: all var(--transition-fast);">
+                    <button class="add-category-btn" onclick="showAddCategoryModal('income')">
                         <span>+</span>
                         <span>Добавить категорию</span>
                     </button>
                 </div>
 
                 <!-- Expenses (Compact) -->
-                <div class="category-section" style="margin: var(--spacing-md);">
-                    <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-sm); padding: 0 var(--spacing-xs);">
-                        <div class="section-title" style="font-size: 17px; font-weight: 600; color: var(--ios-text-primary);">Расходы</div>
-                        <button class="section-action" onclick="showAllCategories('expense')" style="font-size: 15px; color: var(--ios-accent); background: none; border: none; cursor: pointer;">Все</button>
+                <div class="category-section">
+                    <div class="section-header">
+                        <div class="section-title">Расходы</div>
+                        <button class="section-action" onclick="showAllCategories('expense')">Все</button>
                     </div>
                     <div class="compact-category-grid" id="compact-expense-categories">
                         <!-- Dynamic (3 max) -->
                     </div>
-                    <button class="add-category-btn" onclick="showAddCategoryModal('expense')" style="width: 100%; padding: 12px; background: var(--ios-surface); border: 1px dashed rgba(255, 255, 255, 0.2); border-radius: var(--border-radius); color: var(--ios-text-secondary); font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 4px; transition: all var(--transition-fast);">
+                    <button class="add-category-btn" onclick="showAddCategoryModal('expense')">
                         <span>+</span>
                         <span>Добавить категорию</span>
                     </button>
                 </div>
 
                 <!-- Wallets (Compact) -->
-                <div class="category-section" style="margin: var(--spacing-md);">
-                    <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-sm); padding: 0 var(--spacing-xs);">
-                        <div class="section-title" style="font-size: 17px; font-weight: 600; color: var(--ios-text-primary);">Кошельки</div>
-                        <button class="section-action" onclick="showAllWallets()" style="font-size: 15px; color: var(--ios-accent); background: none; border: none; cursor: pointer;">Все</button>
+                <div class="category-section">
+                    <div class="section-header">
+                        <div class="section-title">Кошельки</div>
+                        <button class="section-action" onclick="showAllWallets()">Все</button>
                     </div>
                     <div class="compact-category-grid" id="compact-wallet-categories">
                         <!-- Dynamic (3 max) -->
                     </div>
-                    <button class="add-category-btn" onclick="showAddWalletModal()" style="width: 100%; padding: 12px; background: var(--ios-surface); border: 1px dashed rgba(255, 255, 255, 0.2); border-radius: var(--border-radius); color: var(--ios-text-secondary); font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 4px; transition: all var(--transition-fast);">
+                    <button class="add-category-btn" onclick="showAddWalletModal()">
                         <span>+</span>
                         <span>Добавить кошелёк</span>
                     </button>
                 </div>
 
                 <!-- Recent Transactions -->
-                <div class="recent-transactions" style="margin: var(--spacing-md);">
-                    <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-sm); padding: 0 var(--spacing-xs);">
-                        <div class="section-title" style="font-size: 17px; font-weight: 600; color: var(--ios-text-primary);">Последние операции</div>
-                        <button class="section-action" onclick="showAllTransactions()" style="font-size: 15px; color: var(--ios-accent); background: none; border: none; cursor: pointer;">Все</button>
+                <div class="recent-transactions">
+                    <div class="section-header">
+                        <div class="section-title">Последние операции</div>
+                        <button class="section-action" onclick="showAllTransactions()">Все</button>
                     </div>
                     <div id="recent-transactions-list">
                         <!-- Dynamic -->
@@ -97,14 +97,21 @@
             <!-- === PAGE 2: HISTORY === -->
             <div id="history-page" class="page">
                 <!-- Month Selector -->
-                <div class="month-selector" style="display: flex; align-items: center; justify-content: space-between; padding: var(--spacing-md); background: var(--ios-surface); margin: var(--spacing-md); border-radius: var(--border-radius); border: 0.5px solid rgba(255, 255, 255, 0.05);">
-                    <button class="month-nav" id="prev-month" style="width: 40px; height: 40px; border-radius: 20px; background: var(--ios-elevated); border: none; color: var(--ios-text-primary); font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background var(--transition-fast);">←</button>
-                    <div class="month-display" id="current-month" onclick="showCalendar()" style="font-size: 17px; font-weight: 600; color: var(--ios-text-primary); cursor: pointer; padding: 8px 16px; border-radius: var(--border-radius-small); transition: background var(--transition-fast);">февраль 2026</div>
-                    <button class="month-nav" id="next-month" style="width: 40px; height: 40px; border-radius: 20px; background: var(--ios-elevated); border: none; color: var(--ios-text-primary); font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background var(--transition-fast);">→</button>
+                <div class="month-selector">
+                    <button class="month-nav" id="prev-month">←</button>
+                    <div class="month-display" id="current-month" onclick="showCalendar()">февраль 2026</div>
+                    <button class="month-nav" id="next-month">→</button>
+                </div>
+
+                <!-- Filters -->
+                <div class="history-filters">
+                    <button class="filter-btn active" data-filter="all">Все</button>
+                    <button class="filter-btn" data-filter="income">Доходы</button>
+                    <button class="filter-btn" data-filter="expense">Расходы</button>
                 </div>
 
                 <!-- Transactions List -->
-                <div class="transactions-list" id="month-transactions" style="margin: 0 var(--spacing-md);">
+                <div class="transactions-list" id="month-transactions">
                     <!-- Dynamic -->
                 </div>
             </div>
@@ -129,15 +136,15 @@
                         <!-- Total Balance -->
                         <div class="chart-container-ios">
                             <div class="chart-title-ios">Общий баланс</div>
-                            <div style="text-align: center; padding: var(--spacing-lg);">
-                                <div style="font-size: 48px; font-weight: 800; color: white; margin-bottom: var(--spacing-xs);" id="overview-balance">0 ₽</div>
-                                <div style="font-size: 14px; color: var(--ios-text-secondary);">Ваш текущий баланс</div>
+                            <div class="balance-overview">
+                                <div class="balance-amount-large" id="overview-balance">0 ₽</div>
+                                <div class="balance-subtitle">Ваш текущий баланс</div>
                             </div>
                         </div>
 
                         <!-- Ratio Chart -->
                         <div class="chart-container-ios">
-                            <div class="chart-title-ios">Соотношение</div>
+                            <div class="chart-title-ios">Соотношение доходов и расходов</div>
                             <div class="chart-wrapper-ios">
                                 <canvas id="ratio-chart"></canvas>
                             </div>
@@ -186,10 +193,10 @@
                         </div>
 
                         <!-- Goals List -->
-                        <div style="margin: var(--spacing-md);">
-                            <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-sm); padding: 0 var(--spacing-xs);">
-                                <div class="section-title" style="font-size: 17px; font-weight: 600; color: var(--ios-text-primary);">Мои цели</div>
-                                <button class="section-action" onclick="showAddGoalModal()" style="font-size: 15px; color: var(--ios-accent); background: none; border: none; cursor: pointer;">+</button>
+                        <div class="goals-section">
+                            <div class="section-header">
+                                <div class="section-title">Мои цели</div>
+                                <button class="section-action" onclick="showAddGoalModal()">+</button>
                             </div>
                             <div id="goals-list">
                                 <!-- Dynamic -->
@@ -230,33 +237,45 @@
 
             <!-- === PAGE 4: SERVICES === -->
             <div id="services-page" class="page">
-                <div class="services-section" style="margin: var(--spacing-md);">
+                <div class="services-section">
                     <!-- Currency -->
-                    <div class="service-card" style="background: var(--ios-surface); border-radius: var(--border-radius); padding: var(--spacing-lg); margin-bottom: var(--spacing-md); border: 0.5px solid rgba(255, 255, 255, 0.05);">
-                        <div class="service-title" style="font-size: 17px; font-weight: 600; margin-bottom: var(--spacing-md); color: var(--ios-text-primary);">Валюта</div>
-                        <div class="currency-options" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--spacing-sm);">
-                            <button class="currency-option active" data-currency="RUB" onclick="selectCurrency('RUB')" style="padding: var(--spacing-md); border: 1.5px solid var(--ios-elevated); border-radius: var(--border-radius-small); background: var(--ios-accent); color: white; font-size: 15px; font-weight: 500; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                    <div class="service-card">
+                        <div class="service-title">Валюта</div>
+                        <div class="currency-options">
+                            <button class="currency-option active" data-currency="RUB" onclick="selectCurrency('RUB')">
                                 <span>₽</span> RUB
                             </button>
-                            <button class="currency-option" data-currency="USD" onclick="selectCurrency('USD')" style="padding: var(--spacing-md); border: 1.5px solid var(--ios-elevated); border-radius: var(--border-radius-small); background: none; color: var(--ios-text-primary); font-size: 15px; font-weight: 500; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                            <button class="currency-option" data-currency="USD" onclick="selectCurrency('USD')">
                                 <span>$</span> USD
                             </button>
-                            <button class="currency-option" data-currency="EUR" onclick="selectCurrency('EUR')" style="padding: var(--spacing-md); border: 1.5px solid var(--ios-elevated); border-radius: var(--border-radius-small); background: none; color: var(--ios-text-primary); font-size: 15px; font-weight: 500; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                            <button class="currency-option" data-currency="EUR" onclick="selectCurrency('EUR')">
                                 <span>€</span> EUR
                             </button>
-                            <button class="currency-option" data-currency="GEL" onclick="selectCurrency('GEL')" style="padding: var(--spacing-md); border: 1.5px solid var(--ios-elevated); border-radius: var(--border-radius-small); background: none; color: var(--ios-text-primary); font-size: 15px; font-weight: 500; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                            <button class="currency-option" data-currency="GEL" onclick="selectCurrency('GEL')">
                                 <span>₾</span> GEL
                             </button>
                         </div>
                     </div>
 
                     <!-- Export -->
-                    <div class="service-card" style="background: var(--ios-surface); border-radius: var(--border-radius); padding: var(--spacing-lg); margin-bottom: var(--spacing-md); border: 0.5px solid rgba(255, 255, 255, 0.05);">
-                        <div class="service-title" style="font-size: 17px; font-weight: 600; margin-bottom: var(--spacing-md); color: var(--ios-text-primary);">Экспорт данных</div>
-                        <div style="text-align: center; padding: 20px 0;">
-                            <button class="modal-btn secondary" onclick="exportData()" style="width: 100%; padding: var(--spacing-md); border-radius: var(--border-radius); font-size: 16px; font-weight: 600; cursor: pointer; border: none; background: var(--ios-elevated); color: var(--ios-text-primary); transition: all var(--transition-fast);">
+                    <div class="service-card">
+                        <div class="service-title">Экспорт данных</div>
+                        <div class="export-actions">
+                            <button class="modal-btn secondary" onclick="exportData()">
                                 <i class="fas fa-download"></i> Экспорт в CSV
                             </button>
+                        </div>
+                    </div>
+
+                    <!-- About -->
+                    <div class="service-card">
+                        <div class="service-title">О приложении</div>
+                        <div class="about-content">
+                            <div class="app-icon">💰</div>
+                            <div class="app-info">
+                                <div class="app-name">Финансовый помощник</div>
+                                <div class="app-version">Версия 2.2 • iOS 26</div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -284,12 +303,12 @@
         </nav>
 
         <!-- Add Button (+) -->
-        <button id="add-transaction-btn" class="add-button" style="position: fixed; bottom: 90px; right: 20px; width: 56px; height: 56px; background: var(--ios-accent); color: white; border: none; border-radius: 28px; font-size: 28px; font-weight: 300; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 20px rgba(10, 132, 255, 0.4); z-index: 900; transition: all var(--transition-normal);">
+        <button id="add-transaction-btn" class="add-button">
             <i class="fas fa-plus"></i>
         </button>
 
         <!-- Notification -->
-        <div id="notification" class="notification" style="position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-100px); background: var(--ios-surface); border: 0.5px solid rgba(255, 255, 255, 0.1); border-radius: var(--border-radius); padding: var(--spacing-md) var(--spacing-lg); color: var(--ios-text-primary); font-weight: 500; box-shadow: var(--shadow-floating); z-index: 3000; backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); transition: transform var(--transition-normal);"></div>
+        <div id="notification" class="notification"></div>
     </div>
 
     <!-- === MODALS === -->
@@ -297,8 +316,8 @@
     <!-- Add Transaction Modal -->
     <div id="add-transaction-modal" class="modal-overlay">
         <div class="modal-content">
-            <div class="modal-header" style="margin-bottom: var(--spacing-lg);">
-                <div class="modal-title" id="transaction-modal-title" style="font-size: 22px; font-weight: 700; color: var(--ios-text-primary); text-align: center;">Добавить доход</div>
+            <div class="modal-header">
+                <div class="modal-title" id="transaction-modal-title">Добавить доход</div>
             </div>
             
             <!-- Type Tabs (One Line) -->
@@ -317,49 +336,49 @@
                 </button>
             </div>
             
-            <!-- Savings Target Selection (Hidden by Default) -->
-            <div id="savings-target-container" style="display: none; margin-bottom: var(--spacing-lg);">
-                <label class="form-label" style="display: block; margin-bottom: var(--spacing-sm); font-size: 15px; font-weight: 500; color: var(--ios-text-primary);">Куда накапливать?</label>
-                <div style="display: flex; gap: 8px;">
-                    <button id="savings-to-category" class="modal-btn secondary" style="flex: 1; padding: 12px; border: none; border-radius: var(--border-radius-small); background: var(--ios-accent); color: white; font-size: 14px; font-weight: 600; cursor: pointer;">В категорию</button>
-                    <button id="savings-to-goal" class="modal-btn secondary" style="flex: 1; padding: 12px; border: none; border-radius: var(--border-radius-small); background: var(--ios-elevated); color: var(--ios-text-primary); font-size: 14px; font-weight: 600; cursor: pointer;">В цель</button>
+            <!-- Savings Target Selection -->
+            <div id="savings-target-container" style="display: none;">
+                <label class="form-label">Куда накапливать?</label>
+                <div class="savings-target-buttons">
+                    <button id="savings-to-category" class="savings-target-btn active">В категорию</button>
+                    <button id="savings-to-goal" class="savings-target-btn">В цель</button>
                 </div>
             </div>
             
             <form id="add-transaction-form">
-                <div class="form-group" style="margin-bottom: var(--spacing-lg);">
-                    <label class="form-label" style="display: block; margin-bottom: var(--spacing-sm); font-size: 15px; font-weight: 500; color: var(--ios-text-primary);">Сумма</label>
-                    <div style="position: relative;">
-                        <span style="position: absolute; left: 16px; top: 50%; transform: translateY(-50%); font-size: 17px; color: var(--ios-text-secondary);" id="modal-currency-symbol">₽</span>
-                        <input type="number" class="form-input" id="transaction-amount" placeholder="0" min="1" step="1" required style="width: 100%; padding: var(--spacing-md); background: var(--ios-elevated); border: 1px solid var(--ios-elevated); border-radius: var(--border-radius-small); font-size: 17px; color: var(--ios-text-primary); transition: border-color var(--transition-fast); padding-left: 50px;">
+                <div class="form-group">
+                    <label class="form-label">Сумма</label>
+                    <div class="amount-input">
+                        <span class="currency-symbol" id="modal-currency-symbol">₽</span>
+                        <input type="number" class="form-input" id="transaction-amount" placeholder="0" min="1" step="1" required>
                     </div>
                 </div>
                 
                 <!-- Category/Goal Select -->
-                <div class="form-group" style="margin-bottom: var(--spacing-lg);">
+                <div class="form-group">
                     <label class="form-label" id="transaction-target-label">Категория</label>
-                    <select class="form-select" id="transaction-category" required style="width: 100%; padding: var(--spacing-md); background: var(--ios-elevated); border: 1px solid var(--ios-elevated); border-radius: var(--border-radius-small); font-size: 17px; color: var(--ios-text-primary); cursor: pointer;">
+                    <select class="form-select" id="transaction-category" required>
                         <!-- Dynamic -->
                     </select>
                 </div>
                 
-                <div class="form-group" style="margin-bottom: var(--spacing-lg);">
+                <div class="form-group">
                     <label class="form-label">Кошелёк</label>
-                    <select class="form-select" id="transaction-wallet" style="width: 100%; padding: var(--spacing-md); background: var(--ios-elevated); border: 1px solid var(--ios-elevated); border-radius: var(--border-radius-small); font-size: 17px; color: var(--ios-text-primary); cursor: pointer;">
+                    <select class="form-select" id="transaction-wallet">
                         <!-- Dynamic -->
                     </select>
                 </div>
                 
-                <div class="form-group" style="margin-bottom: var(--spacing-lg);">
+                <div class="form-group">
                     <label class="form-label">Примечание (необязательно)</label>
-                    <input type="text" class="form-input" id="transaction-description" placeholder="Например: Зарплата за февраль" style="width: 100%; padding: var(--spacing-md); background: var(--ios-elevated); border: 1px solid var(--ios-elevated); border-radius: var(--border-radius-small); font-size: 17px; color: var(--ios-text-primary); transition: border-color var(--transition-fast);">
+                    <input type="text" class="form-input" id="transaction-description" placeholder="Например: Зарплата за февраль">
                 </div>
                 
-                <div class="modal-actions" style="display: flex; gap: var(--spacing-md); margin-top: var(--spacing-xl);">
-                    <button type="button" class="modal-btn secondary" onclick="closeModal('add-transaction-modal')" style="flex: 1; padding: var(--spacing-md); border-radius: var(--border-radius); font-size: 16px; font-weight: 600; cursor: pointer; border: none; background: var(--ios-elevated); color: var(--ios-text-primary); transition: all var(--transition-fast);">
+                <div class="modal-actions">
+                    <button type="button" class="modal-btn secondary" onclick="closeModal('add-transaction-modal')">
                         Отмена
                     </button>
-                    <button type="submit" class="modal-btn primary" style="flex: 1; padding: var(--spacing-md); border-radius: var(--border-radius); font-size: 16px; font-weight: 600; cursor: pointer; border: none; background: var(--ios-accent); color: white; transition: all var(--transition-fast);">
+                    <button type="submit" class="modal-btn primary">
                         Добавить
                     </button>
                 </div>
@@ -370,28 +389,35 @@
     <!-- Add Category Modal -->
     <div id="add-category-modal" class="modal-overlay">
         <div class="modal-content">
-            <div class="modal-header" style="margin-bottom: var(--spacing-lg);">
-                <div class="modal-title" id="category-modal-title" style="font-size: 22px; font-weight: 700; color: var(--ios-text-primary); text-align: center;">Добавить категорию</div>
+            <div class="modal-header">
+                <div class="modal-title" id="category-modal-title">Добавить категорию</div>
             </div>
             
             <form id="add-category-form">
-                <div class="form-group" style="margin-bottom: var(--spacing-lg);">
-                    <label class="form-label" style="display: block; margin-bottom: var(--spacing-sm); font-size: 15px; font-weight: 500; color: var(--ios-text-primary);">Название категории</label>
-                    <input type="text" class="form-input" id="category-name-input" placeholder="Например: Кафе" maxlength="20" required style="width: 100%; padding: var(--spacing-md); background: var(--ios-elevated); border: 1px solid var(--ios-elevated); border-radius: var(--border-radius-small); font-size: 17px; color: var(--ios-text-primary); transition: border-color var(--transition-fast);">
+                <div class="form-group">
+                    <label class="form-label">Название категории</label>
+                    <input type="text" class="form-input" id="category-name-input" placeholder="Например: Кафе" maxlength="20" required>
                 </div>
                 
-                <div class="form-group" style="margin-bottom: var(--spacing-lg);">
-                    <label class="form-label" style="display: block; margin-bottom: var(--spacing-sm); font-size: 15px; font-weight: 500; color: var(--ios-text-primary);">Иконка</label>
-                    <div class="icon-picker" id="icons-grid" style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: var(--spacing-lg);">
+                <div class="form-group">
+                    <label class="form-label">Иконка</label>
+                    <div class="icon-picker" id="icons-grid">
                         <!-- Dynamic -->
                     </div>
                 </div>
                 
-                <div class="modal-actions" style="display: flex; gap: var(--spacing-md); margin-top: var(--spacing-xl);">
-                    <button type="button" class="modal-btn secondary" onclick="closeModal('add-category-modal')" style="flex: 1; padding: var(--spacing-md); border-radius: var(--border-radius); font-size: 16px; font-weight: 600; cursor: pointer; border: none; background: var(--ios-elevated); color: var(--ios-text-primary); transition: all var(--transition-fast);">
+                <div class="form-group">
+                    <label class="form-label">Цвет</label>
+                    <div class="color-picker" id="color-grid">
+                        <!-- Dynamic -->
+                    </div>
+                </div>
+                
+                <div class="modal-actions">
+                    <button type="button" class="modal-btn secondary" onclick="closeModal('add-category-modal')">
                         Отмена
                     </button>
-                    <button type="submit" class="modal-btn primary" style="flex: 1; padding: var(--spacing-md); border-radius: var(--border-radius); font-size: 16px; font-weight: 600; cursor: pointer; border: none; background: var(--ios-accent); color: white; transition: all var(--transition-fast);">
+                    <button type="submit" class="modal-btn primary">
                         Сохранить
                     </button>
                 </div>
@@ -402,29 +428,29 @@
     <!-- Add Wallet Modal -->
     <div id="add-wallet-modal" class="modal-overlay">
         <div class="modal-content">
-            <div class="modal-header" style="margin-bottom: var(--spacing-lg);">
-                <div class="modal-title" style="font-size: 22px; font-weight: 700; color: var(--ios-text-primary); text-align: center;">Добавить кошелёк</div>
+            <div class="modal-header">
+                <div class="modal-title">Добавить кошелёк</div>
             </div>
             
             <form id="add-wallet-form">
-                <div class="form-group" style="margin-bottom: var(--spacing-lg);">
-                    <label class="form-label" style="display: block; margin-bottom: var(--spacing-sm); font-size: 15px; font-weight: 500; color: var(--ios-text-primary);">Название кошелька</label>
-                    <input type="text" class="form-input" id="wallet-name-input" placeholder="Например: Тинькофф" maxlength="20" required style="width: 100%; padding: var(--spacing-md); background: var(--ios-elevated); border: 1px solid var(--ios-elevated); border-radius: var(--border-radius-small); font-size: 17px; color: var(--ios-text-primary); transition: border-color var(--transition-fast);">
+                <div class="form-group">
+                    <label class="form-label">Название кошелька</label>
+                    <input type="text" class="form-input" id="wallet-name-input" placeholder="Например: Тинькофф" maxlength="20" required>
                 </div>
                 
-                <div class="form-group" style="margin-bottom: var(--spacing-lg);">
-                    <label class="form-label" style="display: block; margin-bottom: var(--spacing-sm); font-size: 15px; font-weight: 500; color: var(--ios-text-primary);">Начальный баланс</label>
-                    <div style="position: relative;">
-                        <span style="position: absolute; left: 16px; top: 50%; transform: translateY(-50%); font-size: 17px; color: var(--ios-text-secondary);" id="wallet-currency-symbol">₽</span>
-                        <input type="number" class="form-input" id="wallet-balance-input" placeholder="0" min="0" step="1" value="0" style="width: 100%; padding: var(--spacing-md); background: var(--ios-elevated); border: 1px solid var(--ios-elevated); border-radius: var(--border-radius-small); font-size: 17px; color: var(--ios-text-primary); transition: border-color var(--transition-fast); padding-left: 50px;">
+                <div class="form-group">
+                    <label class="form-label">Начальный баланс</label>
+                    <div class="amount-input">
+                        <span class="currency-symbol" id="wallet-currency-symbol">₽</span>
+                        <input type="number" class="form-input" id="wallet-balance-input" placeholder="0" min="0" step="1" value="0">
                     </div>
                 </div>
                 
-                <div class="modal-actions" style="display: flex; gap: var(--spacing-md); margin-top: var(--spacing-xl);">
-                    <button type="button" class="modal-btn secondary" onclick="closeModal('add-wallet-modal')" style="flex: 1; padding: var(--spacing-md); border-radius: var(--border-radius); font-size: 16px; font-weight: 600; cursor: pointer; border: none; background: var(--ios-elevated); color: var(--ios-text-primary); transition: all var(--transition-fast);">
+                <div class="modal-actions">
+                    <button type="button" class="modal-btn secondary" onclick="closeModal('add-wallet-modal')">
                         Отмена
                     </button>
-                    <button type="submit" class="modal-btn primary" style="flex: 1; padding: var(--spacing-md); border-radius: var(--border-radius); font-size: 16px; font-weight: 600; cursor: pointer; border: none; background: var(--ios-accent); color: white; transition: all var(--transition-fast);">
+                    <button type="submit" class="modal-btn primary">
                         Добавить
                     </button>
                 </div>
@@ -435,33 +461,67 @@
     <!-- Add Goal Modal -->
     <div id="add-goal-modal" class="modal-overlay">
         <div class="modal-content">
-            <div class="modal-header" style="margin-bottom: var(--spacing-lg);">
-                <div class="modal-title" style="font-size: 22px; font-weight: 700; color: var(--ios-text-primary); text-align: center;">Новая цель</div>
+            <div class="modal-header">
+                <div class="modal-title">Новая цель</div>
             </div>
             
             <form id="add-goal-form">
-                <div class="form-group" style="margin-bottom: var(--spacing-lg);">
-                    <label class="form-label" style="display: block; margin-bottom: var(--spacing-sm); font-size: 15px; font-weight: 500; color: var(--ios-text-primary);">Название цели</label>
-                    <input type="text" class="form-input" id="goal-name-input" placeholder="Например: Новый телефон" maxlength="30" required style="width: 100%; padding: var(--spacing-md); background: var(--ios-elevated); border: 1px solid var(--ios-elevated); border-radius: var(--border-radius-small); font-size: 17px; color: var(--ios-text-primary); transition: border-color var(--transition-fast);">
+                <div class="form-group">
+                    <label class="form-label">Название цели</label>
+                    <input type="text" class="form-input" id="goal-name-input" placeholder="Например: Новый телефон" maxlength="30" required>
                 </div>
                 
-                <div class="form-group" style="margin-bottom: var(--spacing-lg);">
-                    <label class="form-label" style="display: block; margin-bottom: var(--spacing-sm); font-size: 15px; font-weight: 500; color: var(--ios-text-primary);">Целевая сумма</label>
-                    <div style="position: relative;">
-                        <span style="position: absolute; left: 16px; top: 50%; transform: translateY(-50%); font-size: 17px; color: var(--ios-text-secondary);" id="goal-currency-symbol">₽</span>
-                        <input type="number" class="form-input" id="goal-target-amount" placeholder="0" min="1" step="1" required style="width: 100%; padding: var(--spacing-md); background: var(--ios-elevated); border: 1px solid var(--ios-elevated); border-radius: var(--border-radius-small); font-size: 17px; color: var(--ios-text-primary); transition: border-color var(--transition-fast); padding-left: 50px;">
+                <div class="form-group">
+                    <label class="form-label">Целевая сумма</label>
+                    <div class="amount-input">
+                        <span class="currency-symbol" id="goal-currency-symbol">₽</span>
+                        <input type="number" class="form-input" id="goal-target-amount" placeholder="0" min="1" step="1" required>
                     </div>
                 </div>
                 
-                <div class="modal-actions" style="display: flex; gap: var(--spacing-md); margin-top: var(--spacing-xl);">
-                    <button type="button" class="modal-btn secondary" onclick="closeModal('add-goal-modal')" style="flex: 1; padding: var(--spacing-md); border-radius: var(--border-radius); font-size: 16px; font-weight: 600; cursor: pointer; border: none; background: var(--ios-elevated); color: var(--ios-text-primary); transition: all var(--transition-fast);">
+                <div class="form-group">
+                    <label class="form-label">Срок</label>
+                    <select class="form-select" id="goal-deadline">
+                        <option value="none">Бессрочная</option>
+                        <option value="1month">1 месяц</option>
+                        <option value="3months">3 месяца</option>
+                        <option value="6months">6 месяцев</option>
+                        <option value="1year">1 год</option>
+                        <option value="custom">Указать дату</option>
+                    </select>
+                </div>
+                
+                <div class="form-group" id="custom-date-container" style="display: none;">
+                    <label class="form-label">Дата окончания</label>
+                    <input type="date" class="form-input" id="goal-custom-date">
+                </div>
+                
+                <div class="modal-actions">
+                    <button type="button" class="modal-btn secondary" onclick="closeModal('add-goal-modal')">
                         Отмена
                     </button>
-                    <button type="submit" class="modal-btn primary" style="flex: 1; padding: var(--spacing-md); border-radius: var(--border-radius); font-size: 16px; font-weight: 600; cursor: pointer; border: none; background: var(--ios-accent); color: white; transition: all var(--transition-fast);">
+                    <button type="submit" class="modal-btn primary">
                         Создать цель
                     </button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- All Transactions Modal -->
+    <div id="all-transactions-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">Все операции</div>
+            </div>
+            <div id="all-transactions-list">
+                <!-- Dynamic -->
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="modal-btn secondary" onclick="closeModal('all-transactions-modal')">
+                    Закрыть
+                </button>
+            </div>
         </div>
     </div>
 
