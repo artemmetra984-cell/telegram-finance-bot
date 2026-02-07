@@ -1,4 +1,3 @@
-# backend/database.py
 import sqlite3
 import os
 from datetime import datetime, timedelta
@@ -127,7 +126,7 @@ class Database:
             ''', (telegram_id, username, first_name, session_token))
             user_id = cursor.lastrowid
             
-            # Стандартные категории с цветами iOS
+            # Стандартные категории с плавными цветами как на референсе
             default_categories = [
                 (user_id, 'income', 'Зарплата', '💰', '#34C759'),
                 (user_id, 'income', 'Фриланс', '💻', '#007AFF'),
@@ -169,7 +168,7 @@ class Database:
         ''', (session_token,))
         return cursor.fetchone()
     
-    # НОВЫЙ МЕТОД: Получить полную статистику пользователя
+    # ПОЛНАЯ СТАТИСТИКА ПОЛЬЗОВАТЕЛЯ
     def get_user_stats(self, user_id):
         cursor = self.conn.cursor()
         
@@ -221,7 +220,7 @@ class Database:
             'wallets': wallet_balances
         }
     
-    # ИСПРАВЛЕННЫЙ МЕТОД: Добавить транзакцию
+    # ДОБАВЛЕНИЕ ТРАНЗАКЦИИ С ПРОВЕРКОЙ КОШЕЛЬКА
     def add_transaction(self, user_id, trans_type, amount, category, wallet, description):
         cursor = self.conn.cursor()
         
@@ -255,7 +254,7 @@ class Database:
         self.conn.commit()
         return cursor.lastrowid
     
-    # НОВЫЙ МЕТОД: Получить последние транзакции
+    # ПОСЛЕДНИЕ ТРАНЗАКЦИИ
     def get_recent_transactions(self, user_id, limit=5):
         cursor = self.conn.cursor()
         cursor.execute('''
@@ -296,17 +295,17 @@ class Database:
         self.conn.commit()
         return True
     
-    # НОВЫЙ МЕТОД: Получить цели пользователя
+    # НОВЫЙ: ПОЛУЧИТЬ ЦЕЛИ ПОЛЬЗОВАТЕЛЯ
     def get_goals(self, user_id):
         cursor = self.conn.cursor()
         cursor.execute('''
             SELECT id, name, target_amount, current_amount, icon, color, deadline,
-                   (current_amount / target_amount * 100) as progress
+                   ROUND((current_amount / target_amount * 100), 1) as progress
             FROM goals WHERE user_id = ? ORDER BY created_at DESC
         ''', (user_id,))
         return cursor.fetchall()
     
-    # НОВЫЙ МЕТОД: Добавить цель
+    # НОВЫЙ: ДОБАВИТЬ ЦЕЛЬ
     def add_goal(self, user_id, name, target_amount, icon, color, deadline=None):
         cursor = self.conn.cursor()
         cursor.execute('''
@@ -316,16 +315,7 @@ class Database:
         self.conn.commit()
         return cursor.lastrowid
     
-    # НОВЫЙ МЕТОД: Обновить прогресс цели
-    def update_goal_progress(self, goal_id, amount):
-        cursor = self.conn.cursor()
-        cursor.execute('''
-            UPDATE goals SET current_amount = current_amount + ? 
-            WHERE id = ?
-        ''', (amount, goal_id))
-        self.conn.commit()
-        return True
-    
+    # НОВЫЙ: ДОБАВИТЬ КАТЕГОРИЮ
     def add_category(self, user_id, category_type, name, icon, color):
         cursor = self.conn.cursor()
         try:
@@ -457,7 +447,7 @@ class Database:
         
         return months
     
-    # НОВЫЙ МЕТОД: Получить динамику баланса за период
+    # НОВЫЙ: ДИНАМИКА БАЛАНСА ЗА ПЕРИОД
     def get_balance_dynamics(self, user_id, period='week'):
         cursor = self.conn.cursor()
         
@@ -485,7 +475,7 @@ class Database:
             WHERE user_id = ? AND date >= ?
             GROUP BY strftime(?, date)
             ORDER BY period
-        ''', (group_format, user_id, start_date, group_format))
+        ''', (group_format, user_id, start_date.isoformat(), group_format))
         
         dynamics = []
         cumulative_balance = 0

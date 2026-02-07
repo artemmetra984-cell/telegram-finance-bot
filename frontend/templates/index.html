@@ -34,48 +34,64 @@
                     <div class="balance-subtitle">Общий баланс</div>
                 </div>
 
-                <!-- Доходы -->
+                <!-- Доходы (компактные) -->
                 <div class="category-section">
                     <div class="section-header">
                         <div class="section-title">Доходы</div>
                         <button class="section-action" onclick="showAllCategories('income')">Все</button>
                     </div>
-                    <div class="category-grid" id="income-categories">
-                        <!-- Динамически заполняется -->
+                    <div class="compact-category-grid" id="compact-income-categories">
+                        <!-- Динамически заполняются первые 3 -->
                     </div>
+                    <button class="add-category-btn" onclick="showAddCategoryModal('income')">
+                        <span>+</span>
+                        <span>Добавить категорию</span>
+                    </button>
                 </div>
 
-                <!-- Расходы -->
+                <!-- Расходы (компактные) -->
                 <div class="category-section">
                     <div class="section-header">
                         <div class="section-title">Расходы</div>
                         <button class="section-action" onclick="showAllCategories('expense')">Все</button>
                     </div>
-                    <div class="category-grid" id="expense-categories">
-                        <!-- Динамически заполняется -->
+                    <div class="compact-category-grid" id="compact-expense-categories">
+                        <!-- Динамически заполняются первые 3 -->
                     </div>
+                    <button class="add-category-btn" onclick="showAddCategoryModal('expense')">
+                        <span>+</span>
+                        <span>Добавить категорию</span>
+                    </button>
                 </div>
 
-                <!-- Кошельки -->
+                <!-- Кошельки (компактные) -->
                 <div class="category-section">
                     <div class="section-header">
                         <div class="section-title">Кошельки</div>
-                        <button class="section-action" onclick="showAddWalletModal()">+</button>
+                        <button class="section-action" onclick="showAllWallets()">Все</button>
                     </div>
-                    <div class="category-grid" id="wallet-categories">
-                        <!-- Динамически заполняется -->
+                    <div class="compact-category-grid" id="compact-wallet-categories">
+                        <!-- Динамически заполняются первые 3 -->
                     </div>
+                    <button class="add-category-btn" onclick="showAddWalletModal()">
+                        <span>+</span>
+                        <span>Добавить кошелёк</span>
+                    </button>
                 </div>
 
-                <!-- Накопления -->
+                <!-- Накопления (компактные) -->
                 <div class="category-section">
                     <div class="section-header">
                         <div class="section-title">Накопления</div>
-                        <button class="section-action" onclick="showAllCategories('savings')">Все</button>
+                        <button class="section-action" onclick="showAllSavings()">Все</button>
                     </div>
-                    <div class="category-grid" id="savings-categories">
-                        <!-- Динамически заполняется -->
+                    <div class="compact-category-grid" id="compact-savings-categories">
+                        <!-- Динамически заполняются первые 3 -->
                     </div>
+                    <button class="add-category-btn" onclick="showAddCategoryModal('savings')">
+                        <span>+</span>
+                        <span>Добавить категорию</span>
+                    </button>
                 </div>
 
                 <!-- Последние операции -->
@@ -87,10 +103,6 @@
                     <div id="recent-transactions-list">
                         <!-- Динамически заполняется -->
                     </div>
-                    <button class="view-more-btn" onclick="showAllTransactions()">
-                        <span>Ещё</span>
-                        <span>⋯</span>
-                    </button>
                 </div>
             </div>
 
@@ -101,15 +113,15 @@
                 <!-- Выбор месяца -->
                 <div class="month-selector">
                     <button class="month-nav" id="prev-month">←</button>
-                    <div class="month-display" id="current-month">февраль 2026</div>
+                    <div class="month-display" id="current-month" onclick="showCalendar()">февраль 2026</div>
                     <button class="month-nav" id="next-month">→</button>
                 </div>
 
                 <!-- Фильтры -->
-                <div class="history-filters">
-                    <button class="filter-btn all active" data-filter="all">Все</button>
-                    <button class="filter-btn income" data-filter="income">Доходы</button>
-                    <button class="filter-btn expense" data-filter="expense">Расходы</button>
+                <div class="period-filters">
+                    <button class="period-filter active" data-filter="all">Все</button>
+                    <button class="period-filter" data-filter="income">Доходы</button>
+                    <button class="period-filter" data-filter="expense">Расходы</button>
                 </div>
 
                 <!-- Список транзакций -->
@@ -123,65 +135,65 @@
             <!-- ==================== -->
             <div id="report-page" class="page">
                 <!-- Вкладки отчёта -->
-                <div class="report-tabs">
-                    <button class="report-tab active" data-tab="overview">Обзор</button>
-                    <button class="report-tab" data-tab="income">Доходы</button>
-                    <button class="report-tab" data-tab="expense">Расходы</button>
-                    <button class="report-tab" data-tab="savings">Накопления</button>
-                    <button class="report-tab" data-tab="balance">Баланс</button>
+                <div class="report-tabs-container">
+                    <div class="report-tabs-scroll">
+                        <button class="report-tab-ios active" data-tab="overview">Обзор</button>
+                        <button class="report-tab-ios" data-tab="income">Доходы</button>
+                        <button class="report-tab-ios" data-tab="expense">Расходы</button>
+                        <button class="report-tab-ios" data-tab="savings">Накопления</button>
+                        <button class="report-tab-ios" data-tab="balance">Баланс</button>
+                    </div>
                 </div>
 
                 <!-- Контент вкладок -->
                 <div class="report-content">
                     <!-- ВКЛАДКА 1: ОБЗОР -->
                     <div id="tab-overview" class="report-section active">
-                        <div class="chart-container">
-                            <div class="chart-title">Финансовый обзор</div>
-                            <div class="chart-wrapper">
-                                <canvas id="overview-chart"></canvas>
+                        <!-- Заголовок и сумма как на референсе -->
+                        <div class="reference-summary">
+                            <div class="reference-summary-amount" id="reference-balance">0 ₽</div>
+                            <div class="reference-summary-label">Общий баланс</div>
+                        </div>
+
+                        <!-- Фильтры периода -->
+                        <div class="period-filters">
+                            <button class="period-filter active" data-period="week">Неделя</button>
+                            <button class="period-filter" data-period="month">Месяц</button>
+                            <button class="period-filter" data-period="year">Год</button>
+                        </div>
+
+                        <!-- График трат -->
+                        <div class="reference-chart-container">
+                            <div class="reference-chart-title">Траты</div>
+                            <div class="reference-chart-wrapper">
+                                <canvas id="reference-expense-chart"></canvas>
                             </div>
-                            
-                            <!-- Числовые показатели -->
-                            <div class="overview-numbers">
-                                <div class="overview-item">
-                                    <div class="overview-label">Доходы</div>
-                                    <div class="overview-value income" id="overview-income">0 ₽</div>
-                                </div>
-                                <div class="overview-item">
-                                    <div class="overview-label">Расходы</div>
-                                    <div class="overview-value expense" id="overview-expense">0 ₽</div>
-                                </div>
+                            <div class="reference-chart-legend" id="reference-expense-legend">
+                                <!-- Легенда диаграммы -->
                             </div>
                         </div>
 
-                        <!-- Накопления -->
-                        <div class="chart-container">
-                            <div class="chart-title">Накопления</div>
-                            <div style="text-align: center; padding: 40px 20px;">
-                                <div style="font-size: 48px; color: var(--ios-yellow); margin-bottom: 16px;">💰</div>
-                                <div class="overview-value" id="overview-savings">0 ₽</div>
-                                <div class="overview-label">Всего накоплено</div>
+                        <!-- Быстрая статистика -->
+                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--spacing-md); margin: var(--spacing-md);">
+                            <div style="background: var(--ios-surface); border-radius: var(--border-radius); padding: var(--spacing-md); text-align: center;">
+                                <div style="font-size: 13px; color: var(--ios-text-secondary); margin-bottom: 4px;">Доходы</div>
+                                <div style="font-size: 22px; font-weight: 700; color: var(--ios-green);" id="quick-income">0 ₽</div>
                             </div>
-                        </div>
-
-                        <!-- Общий баланс -->
-                        <div class="chart-container">
-                            <div class="chart-title">Общий баланс</div>
-                            <div style="text-align: center; padding: 40px 20px;">
-                                <div class="overview-value" id="overview-balance">0 ₽</div>
-                                <div class="overview-label">Текущий остаток</div>
+                            <div style="background: var(--ios-surface); border-radius: var(--border-radius); padding: var(--spacing-md); text-align: center;">
+                                <div style="font-size: 13px; color: var(--ios-text-secondary); margin-bottom: 4px;">Расходы</div>
+                                <div style="font-size: 22px; font-weight: 700; color: var(--ios-red);" id="quick-expense">0 ₽</div>
                             </div>
                         </div>
                     </div>
 
                     <!-- ВКЛАДКА 2: ДОХОДЫ -->
                     <div id="tab-income" class="report-section">
-                        <div class="chart-container">
-                            <div class="chart-title">Доходы по категориям</div>
-                            <div class="chart-wrapper">
-                                <canvas id="income-chart"></canvas>
+                        <div class="reference-chart-container">
+                            <div class="reference-chart-title">Доходы по категориям</div>
+                            <div class="reference-chart-wrapper">
+                                <canvas id="reference-income-chart"></canvas>
                             </div>
-                            <div class="chart-legend" id="income-legend">
+                            <div class="reference-chart-legend" id="reference-income-legend">
                                 <!-- Легенда диаграммы -->
                             </div>
                         </div>
@@ -189,12 +201,12 @@
 
                     <!-- ВКЛАДКА 3: РАСХОДЫ -->
                     <div id="tab-expense" class="report-section">
-                        <div class="chart-container">
-                            <div class="chart-title">Расходы по категориям</div>
-                            <div class="chart-wrapper">
-                                <canvas id="expense-chart"></canvas>
+                        <div class="reference-chart-container">
+                            <div class="reference-chart-title">Расходы по категориям</div>
+                            <div class="reference-chart-wrapper">
+                                <canvas id="reference-expense-chart-tab"></canvas>
                             </div>
-                            <div class="chart-legend" id="expense-legend">
+                            <div class="reference-chart-legend" id="reference-expense-legend-tab">
                                 <!-- Легенда диаграммы -->
                             </div>
                         </div>
@@ -202,12 +214,12 @@
 
                     <!-- ВКЛАДКА 4: НАКОПЛЕНИЯ -->
                     <div id="tab-savings" class="report-section">
-                        <div class="chart-container">
-                            <div class="chart-title">Накопления</div>
-                            <div class="chart-wrapper">
-                                <canvas id="savings-chart"></canvas>
+                        <div class="reference-chart-container">
+                            <div class="reference-chart-title">Накопления</div>
+                            <div class="reference-chart-wrapper">
+                                <canvas id="reference-savings-chart"></canvas>
                             </div>
-                            <div class="chart-legend" id="savings-legend">
+                            <div class="reference-chart-legend" id="reference-savings-legend">
                                 <!-- Легенда диаграммы -->
                             </div>
                         </div>
@@ -227,28 +239,21 @@
                     <!-- ВКЛАДКА 5: БАЛАНС -->
                     <div id="tab-balance" class="report-section">
                         <!-- Распределение -->
-                        <div class="chart-container">
-                            <div class="chart-title">Распределение средств</div>
-                            <div class="chart-wrapper">
-                                <canvas id="distribution-chart"></canvas>
+                        <div class="reference-chart-container">
+                            <div class="reference-chart-title">Распределение средств</div>
+                            <div class="reference-chart-wrapper">
+                                <canvas id="reference-distribution-chart"></canvas>
                             </div>
-                            <div class="chart-legend" id="distribution-legend">
+                            <div class="reference-chart-legend" id="reference-distribution-legend">
                                 <!-- Легенда диаграммы -->
                             </div>
                         </div>
 
-                        <!-- Выбор периода -->
-                        <div class="period-selector">
-                            <button class="period-btn active" data-period="week">Неделя</button>
-                            <button class="period-btn" data-period="month">Месяц</button>
-                            <button class="period-btn" data-period="year">Год</button>
-                        </div>
-
                         <!-- Динамика баланса -->
-                        <div class="chart-container">
-                            <div class="chart-title">Динамика баланса</div>
-                            <div class="chart-wrapper">
-                                <canvas id="dynamics-chart"></canvas>
+                        <div class="reference-chart-container">
+                            <div class="reference-chart-title">Динамика баланса</div>
+                            <div class="reference-chart-wrapper">
+                                <canvas id="reference-dynamics-chart"></canvas>
                             </div>
                         </div>
                     </div>
@@ -296,7 +301,7 @@
                             <div style="font-size: 48px; margin-bottom: 16px;">💰</div>
                             <div style="font-size: 15px; color: var(--ios-text-secondary); line-height: 1.5;">
                                 Финансовый помощник<br>
-                                Версия 2.0<br>
+                                Версия 2.1<br>
                                 iOS 26 / Telegram стиль
                             </div>
                         </div>
@@ -344,10 +349,19 @@
             </div>
             
             <!-- Вкладки типа транзакции -->
-            <div class="modal-tabs" style="display: flex; gap: 4px; margin-bottom: 24px; background: var(--ios-tertiary); padding: 4px; border-radius: var(--border-radius-small);">
-                <button class="modal-tab income active" data-type="income" style="flex: 1; padding: 12px; border: none; border-radius: 10px; background: var(--ios-surface); color: var(--ios-green); font-weight: 600; cursor: pointer;">Доход</button>
-                <button class="modal-tab expense" data-type="expense" style="flex: 1; padding: 12px; border: none; border-radius: 10px; background: var(--ios-surface); color: var(--ios-red); font-weight: 600; cursor: pointer;">Расход</button>
-                <button class="modal-tab savings" data-type="savings" style="flex: 1; padding: 12px; border: none; border-radius: 10px; background: var(--ios-surface); color: var(--ios-yellow); font-weight: 600; cursor: pointer;">Накопление</button>
+            <div class="modal-tabs">
+                <button class="modal-tab income active" data-type="income">
+                    <span class="modal-tab-icon">⬆️</span>
+                    <span>Доход</span>
+                </button>
+                <button class="modal-tab expense" data-type="expense">
+                    <span class="modal-tab-icon">⬇️</span>
+                    <span>Расход</span>
+                </button>
+                <button class="modal-tab savings" data-type="savings">
+                    <span class="modal-tab-icon">💰</span>
+                    <span>Накопление</span>
+                </button>
             </div>
             
             <form id="add-transaction-form">
@@ -423,6 +437,63 @@
                     </button>
                     <button type="submit" class="modal-btn primary">
                         Сохранить
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Модальное окно всех категорий -->
+    <div id="all-categories-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title" id="all-categories-title">Все категории</div>
+            </div>
+            <div id="all-categories-list" style="max-height: 400px; overflow-y: auto; margin: -16px;">
+                <!-- Динамически заполняется -->
+            </div>
+            <div class="modal-actions" style="margin-top: 16px;">
+                <button type="button" class="modal-btn secondary" onclick="closeModal('all-categories-modal')" style="width: 100%;">
+                    Закрыть
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно добавления кошелька -->
+    <div id="add-wallet-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">Добавить кошелёк</div>
+            </div>
+            
+            <form id="add-wallet-form">
+                <div class="form-group">
+                    <label class="form-label">Название кошелька</label>
+                    <input type="text" class="form-input" id="wallet-name-input" placeholder="Например: Тинькофф" maxlength="20" required>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Иконка</label>
+                    <div class="icon-picker" id="wallet-icons-grid">
+                        <!-- Динамически заполняется -->
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Начальный баланс</label>
+                    <div style="position: relative;">
+                        <span style="position: absolute; left: 16px; top: 50%; transform: translateY(-50%); font-size: 17px; color: var(--ios-text-secondary);" id="wallet-currency-symbol">₽</span>
+                        <input type="number" class="form-input" id="wallet-balance-input" placeholder="0" min="0" step="1" value="0" style="padding-left: 50px;">
+                    </div>
+                </div>
+                
+                <div class="modal-actions">
+                    <button type="button" class="modal-btn secondary" onclick="closeModal('add-wallet-modal')">
+                        Отмена
+                    </button>
+                    <button type="submit" class="modal-btn primary">
+                        Добавить
                     </button>
                 </div>
             </form>
@@ -510,23 +581,6 @@
         </div>
     </div>
 
-    <!-- Модальное окно всех категорий -->
-    <div id="all-categories-modal" class="modal-overlay">
-        <div class="modal-content">
-            <div class="modal-header">
-                <div class="modal-title" id="all-categories-title">Все категории</div>
-            </div>
-            <div id="all-categories-list" style="max-height: 400px; overflow-y: auto; margin: -16px;">
-                <!-- Динамически заполняется -->
-            </div>
-            <div class="modal-actions" style="margin-top: 16px;">
-                <button type="button" class="modal-btn secondary" onclick="closeModal('all-categories-modal')" style="width: 100%;">
-                    Закрыть
-                </button>
-            </div>
-        </div>
-    </div>
-
     <!-- Календарь выбора месяца -->
     <div id="calendar-modal" class="modal-overlay">
         <div class="modal-content">
@@ -546,45 +600,6 @@
                     Отмена
                 </button>
             </div>
-        </div>
-    </div>
-
-    <!-- Модальное окно добавления кошелька -->
-    <div id="add-wallet-modal" class="modal-overlay">
-        <div class="modal-content">
-            <div class="modal-header">
-                <div class="modal-title">Добавить кошелёк</div>
-            </div>
-            
-            <form id="add-wallet-form">
-                <div class="form-group">
-                    <label class="form-label">Название кошелька</label>
-                    <input type="text" class="form-input" id="wallet-name-input" placeholder="Например: Тинькофф" maxlength="20" required>
-                </div>
-                
-                <div class="form-group">
-                    <label class="form-label">Иконка</label>
-                    <div class="icon-picker" id="wallet-icons-grid">
-                        <!-- Динамически заполняется -->
-                    </div>
-                </div>
-                
-                <div class="form-group">
-                    <label class="form-checkbox">
-                        <input type="checkbox" id="wallet-is-default">
-                        <span>Сделать кошельком по умолчанию</span>
-                    </label>
-                </div>
-                
-                <div class="modal-actions">
-                    <button type="button" class="modal-btn secondary" onclick="closeModal('add-wallet-modal')">
-                        Отмена
-                    </button>
-                    <button type="submit" class="modal-btn primary">
-                        Добавить
-                    </button>
-                </div>
-            </form>
         </div>
     </div>
 
