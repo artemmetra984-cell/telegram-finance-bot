@@ -38,7 +38,7 @@
                 <div class="category-section">
                     <div class="section-header">
                         <div class="section-title">Доходы</div>
-                        <button class="section-action">Все</button>
+                        <button class="section-action" onclick="showAllCategories('income')">Все</button>
                     </div>
                     <div class="category-grid" id="income-categories">
                         <!-- Динамически заполняется -->
@@ -49,7 +49,7 @@
                 <div class="category-section">
                     <div class="section-header">
                         <div class="section-title">Расходы</div>
-                        <button class="section-action">Все</button>
+                        <button class="section-action" onclick="showAllCategories('expense')">Все</button>
                     </div>
                     <div class="category-grid" id="expense-categories">
                         <!-- Динамически заполняется -->
@@ -60,7 +60,7 @@
                 <div class="category-section">
                     <div class="section-header">
                         <div class="section-title">Кошельки</div>
-                        <button class="section-action">+</button>
+                        <button class="section-action" onclick="showAddWalletModal()">+</button>
                     </div>
                     <div class="category-grid" id="wallet-categories">
                         <!-- Динамически заполняется -->
@@ -71,7 +71,7 @@
                 <div class="category-section">
                     <div class="section-header">
                         <div class="section-title">Накопления</div>
-                        <button class="section-action">Все</button>
+                        <button class="section-action" onclick="showAllCategories('savings')">Все</button>
                     </div>
                     <div class="category-grid" id="savings-categories">
                         <!-- Динамически заполняется -->
@@ -82,12 +82,12 @@
                 <div class="recent-transactions">
                     <div class="section-header">
                         <div class="section-title">Последние операции</div>
-                        <button class="section-action" id="view-all-transactions">Все</button>
+                        <button class="section-action" onclick="showAllTransactions()">Все</button>
                     </div>
                     <div id="recent-transactions-list">
                         <!-- Динамически заполняется -->
                     </div>
-                    <button class="view-more-btn" id="show-more-transactions">
+                    <button class="view-more-btn" onclick="showAllTransactions()">
                         <span>Ещё</span>
                         <span>⋯</span>
                     </button>
@@ -216,7 +216,7 @@
                         <div class="goals-section">
                             <div class="section-header">
                                 <div class="section-title">Мои цели</div>
-                                <button class="section-action" id="add-goal-btn">+</button>
+                                <button class="section-action" onclick="showAddGoalModal()">+</button>
                             </div>
                             <div id="goals-list">
                                 <!-- Динамически заполняется -->
@@ -510,6 +510,23 @@
         </div>
     </div>
 
+    <!-- Модальное окно всех категорий -->
+    <div id="all-categories-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title" id="all-categories-title">Все категории</div>
+            </div>
+            <div id="all-categories-list" style="max-height: 400px; overflow-y: auto; margin: -16px;">
+                <!-- Динамически заполняется -->
+            </div>
+            <div class="modal-actions" style="margin-top: 16px;">
+                <button type="button" class="modal-btn secondary" onclick="closeModal('all-categories-modal')" style="width: 100%;">
+                    Закрыть
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Календарь выбора месяца -->
     <div id="calendar-modal" class="modal-overlay">
         <div class="modal-content">
@@ -529,6 +546,45 @@
                     Отмена
                 </button>
             </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно добавления кошелька -->
+    <div id="add-wallet-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">Добавить кошелёк</div>
+            </div>
+            
+            <form id="add-wallet-form">
+                <div class="form-group">
+                    <label class="form-label">Название кошелька</label>
+                    <input type="text" class="form-input" id="wallet-name-input" placeholder="Например: Тинькофф" maxlength="20" required>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Иконка</label>
+                    <div class="icon-picker" id="wallet-icons-grid">
+                        <!-- Динамически заполняется -->
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-checkbox">
+                        <input type="checkbox" id="wallet-is-default">
+                        <span>Сделать кошельком по умолчанию</span>
+                    </label>
+                </div>
+                
+                <div class="modal-actions">
+                    <button type="button" class="modal-btn secondary" onclick="closeModal('add-wallet-modal')">
+                        Отмена
+                    </button>
+                    <button type="submit" class="modal-btn primary">
+                        Добавить
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 

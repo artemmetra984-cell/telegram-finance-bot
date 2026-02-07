@@ -1,3 +1,4 @@
+// frontend/static/script.js
 /* ==================== */
 /* TELEGRAM FINANCE - iOS 26 STYLE */
 /* Полная переработка с исправлением всех багов */
