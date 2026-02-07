@@ -57,8 +57,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             Telegram.WebApp.setHeaderColor('#000000');
             Telegram.WebApp.setBackgroundColor('#000000');
             Telegram.WebApp.ready();
-            Telegram.WebApp.setupClosingBehavior();
-            Telegram.WebApp.enableClosingConfirmation();
         }
         
         // Инициализация пользователя с retry логикой
