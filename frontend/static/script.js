@@ -1,7 +1,9 @@
 // frontend/static/script.js
 /* ==================== */
 /* TELEGRAM FINANCE - iOS 26 STYLE */
-/* Полная переработка с исправлением всех багов */
+/* ИСПРАВЛЕНИЯ: */
+/* 1. Навигация - мгновенное переключение без задержки */
+/* 2. Кошельки - убраны звёздочки, выбор основного в сервисах */
 /* ==================== */
 
 // Глобальные переменные
@@ -78,7 +80,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         
     } catch (error) {
         console.error('❌ Ошибка загрузки:', error);
-        // Убрали красное предупреждение, показываем информативное сообщение
         document.getElementById('loading').innerHTML = `
             <div style="text-align: center; padding: 40px;">
                 <div style="font-size: 48px; margin-bottom: 20px;">📱</div>
@@ -206,6 +207,7 @@ function formatCurrency(amount) {
 
 // ==================== //
 // ВКЛАДКА ПАНЕЛЬ - ПОЛНАЯ ПЕРЕРАБОТКА //
+/* ИСПРАВЛЕНО: убраны звёздочки из кошельков */
 // ==================== //
 
 async function loadPanelData() {
@@ -312,8 +314,6 @@ function updateWalletsDisplay() {
         const balance = wallet.balance || 0;
         const isDefault = wallet.is_default;
         const icon = wallet.icon || '💳';
-        const starIcon = isDefault ? '★' : '☆';
-        const starClass = isDefault ? 'active' : '';
         
         html += `
             <button class="category-card" onclick="showWalletTransactions('${wallet.name}')">
@@ -321,9 +321,6 @@ function updateWalletsDisplay() {
                 <div class="category-info">
                     <div class="category-name">
                         <span class="category-name-text">${wallet.name}</span>
-                        <button class="wallet-star ${starClass}" onclick="setDefaultWallet('${wallet.name}', event)">
-                            ${starIcon}
-                        </button>
                     </div>
                     <div class="category-stats">Кошелёк</div>
                 </div>
@@ -345,41 +342,6 @@ function updateWalletsDisplay() {
     }
     
     container.innerHTML = html;
-}
-
-async function setDefaultWallet(walletName, event) {
-    if (event) {
-        event.stopPropagation(); // Предотвращаем клик по карточке
-    }
-    
-    if (!currentUser) return;
-    
-    try {
-        const response = await fetch('/api/set_default_wallet', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                user_id: currentUser.id,
-                wallet_name: walletName
-            })
-        });
-        
-        const data = await response.json();
-        if (data.success) {
-            // Обновляем локальные данные
-            walletsData.forEach(wallet => {
-                wallet.is_default = wallet.name === walletName;
-            });
-            defaultWallet = walletName;
-            
-            // Обновляем отображение
-            updateWalletsDisplay();
-            showNotification(`Кошелёк "${walletName}" выбран по умолчанию`, 'success');
-        }
-    } catch (error) {
-        console.error('❌ Ошибка установки кошелька:', error);
-        showNotification('Ошибка установки кошелька', 'error');
-    }
 }
 
 function updateRecentTransactions(transactions) {
@@ -1521,6 +1483,136 @@ async function selectCurrency(currency) {
 }
 
 // ==================== //
+// ВЫБОР ОСНОВНОГО КОШЕЛЬКА //
+/* ИСПРАВЛЕНО: перенесён в сервисы */
+// ==================== //
+
+async function loadDefaultWallet() {
+    if (!currentUser) return;
+    
+    try {
+        const response = await fetch(`/api/init`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                user_id: currentUser.id,
+                session_token: sessionToken
+            })
+        });
+        
+        const data = await response.json();
+        if (data.error) throw new Error(data.error);
+        
+        defaultWallet = data.default_wallet || 'Наличные';
+        walletsData = data.wallets || [];
+        
+        // Обновляем отображение основного кошелька в сервисах
+        updateDefaultWalletDisplay();
+        
+    } catch (error) {
+        console.error('❌ Ошибка загрузки основного кошелька:', error);
+    }
+}
+
+function updateDefaultWalletDisplay() {
+    const defaultWalletDisplay = document.querySelector('.default-wallet-display');
+    const defaultWalletName = document.querySelector('.default-wallet-name');
+    const defaultWalletIcon = document.querySelector('.default-wallet-icon');
+    
+    if (!defaultWalletDisplay || !defaultWalletName || !defaultWalletIcon) return;
+    
+    // Находим текущий основной кошелёк
+    const defaultWalletData = walletsData.find(w => w.name === defaultWallet);
+    
+    if (defaultWalletData) {
+        defaultWalletName.textContent = defaultWalletData.name;
+        defaultWalletIcon.textContent = defaultWalletData.icon || '💳';
+    } else {
+        defaultWalletName.textContent = defaultWallet;
+        defaultWalletIcon.textContent = '💳';
+    }
+    
+    // Обновляем выпадающий список
+    updateWalletDropdown();
+}
+
+function updateWalletDropdown() {
+    const walletDropdown = document.getElementById('wallet-dropdown');
+    if (!walletDropdown) return;
+    
+    const symbol = currencySymbols[currentCurrency] || '₽';
+    let html = '';
+    
+    walletsData.forEach(wallet => {
+        const isDefault = wallet.name === defaultWallet;
+        
+        html += `
+            <div class="wallet-option ${isDefault ? 'active' : ''}" onclick="selectDefaultWallet('${wallet.name}')">
+                <div class="wallet-option-info">
+                    <div class="wallet-option-icon">${wallet.icon || '💳'}</div>
+                    <div class="wallet-option-text">
+                        <div class="wallet-option-name">${wallet.name}</div>
+                        <div class="wallet-option-balance">${formatCurrency(wallet.balance || 0)} ${symbol}</div>
+                    </div>
+                </div>
+                <div class="wallet-option-check">
+                    ${isDefault ? '✓' : ''}
+                </div>
+            </div>
+        `;
+    });
+    
+    walletDropdown.innerHTML = html;
+}
+
+function toggleWalletDropdown() {
+    const dropdown = document.getElementById('wallet-dropdown');
+    const display = document.querySelector('.default-wallet-display');
+    
+    if (dropdown && display) {
+        dropdown.classList.toggle('active');
+        display.classList.toggle('active');
+    }
+}
+
+async function selectDefaultWallet(walletName) {
+    if (!currentUser || !walletName) return;
+    
+    try {
+        const response = await fetch('/api/set_default_wallet', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                user_id: currentUser.id,
+                wallet_name: walletName
+            })
+        });
+        
+        const data = await response.json();
+        if (data.error) throw new Error(data.error);
+        
+        // Обновляем локальные данные
+        walletsData.forEach(wallet => {
+            wallet.is_default = wallet.name === walletName;
+        });
+        defaultWallet = walletName;
+        
+        // Обновляем отображение
+        updateDefaultWalletDisplay();
+        updateWalletsDisplay();
+        
+        // Закрываем выпадающий список
+        toggleWalletDropdown();
+        
+        showNotification(`Кошелёк "${walletName}" выбран по умолчанию`, 'success');
+        
+    } catch (error) {
+        console.error('❌ Ошибка установки кошелька:', error);
+        showNotification('Ошибка установки кошелька', 'error');
+    }
+}
+
+// ==================== //
 // МОДАЛЬНЫЕ ОКНА И ФОРМЫ //
 // ==================== //
 
@@ -1614,8 +1706,8 @@ function populateWallets() {
     walletsData.forEach(wallet => {
         const option = document.createElement('option');
         option.value = wallet.name;
-        option.textContent = `${wallet.name} ${wallet.is_default ? '★' : ''}`;
-        if (wallet.is_default || wallet.name === defaultWallet) {
+        option.textContent = `${wallet.name} ${wallet.name === defaultWallet ? '(по умолчанию)' : ''}`;
+        if (wallet.name === defaultWallet) {
             option.selected = true;
         }
         select.appendChild(option);
@@ -2141,6 +2233,7 @@ async function addNewGoal(e) {
 
 // ==================== //
 // НАВИГАЦИЯ - ОБНОВЛЁННАЯ //
+/* ИСПРАВЛЕНО: мгновенное переключение без задержки */
 // ==================== //
 
 function initNavigation() {
@@ -2157,14 +2250,17 @@ function initNavigation() {
 function switchPage(pageName) {
     console.log('🔄 Переключаем на страницу:', pageName);
     
-    // Обновляем активную вкладку
+    // ИСПРАВЛЕНО: мгновенное переключение активной вкладки
     document.querySelectorAll('.nav-item').forEach(nav => {
         nav.classList.remove('active');
     });
     
     const activeNav = document.querySelector(`.nav-item[data-page="${pageName}"]`);
     if (activeNav) {
-        activeNav.classList.add('active');
+        // Используем requestAnimationFrame для мгновенного переключения
+        requestAnimationFrame(() => {
+            activeNav.classList.add('active');
+        });
     }
     
     // Показываем страницу
@@ -2174,7 +2270,10 @@ function switchPage(pageName) {
     
     const targetPage = document.getElementById(`${pageName}-page`);
     if (targetPage) {
-        targetPage.classList.add('active');
+        // Мгновенное отображение страницы без задержки
+        requestAnimationFrame(() => {
+            targetPage.classList.add('active');
+        });
         currentPage = pageName;
         
         // Загружаем данные для страницы
@@ -2189,7 +2288,8 @@ function switchPage(pageName) {
                 loadReportPage();
                 break;
             case 'services':
-                // Сервисы уже загружены
+                // Загружаем данные об основном кошельке
+                loadDefaultWallet();
                 break;
         }
     }
@@ -2197,6 +2297,7 @@ function switchPage(pageName) {
 
 // ==================== //
 // ОБРАБОТЧИКИ СОБЫТИЙ //
+/* ИСПРАВЛЕНО: добавлены обработчики для выбора кошелька */
 // ==================== //
 
 function initEventListeners() {
@@ -2296,6 +2397,26 @@ function initEventListeners() {
                 this.classList.remove('active');
             }
         };
+    });
+    
+    // Обработчик для выбора основного кошелька
+    const defaultWalletDisplay = document.querySelector('.default-wallet-display');
+    if (defaultWalletDisplay) {
+        defaultWalletDisplay.onclick = toggleWalletDropdown;
+    }
+    
+    // Закрытие выпадающего списка кошельков при клике вне его
+    document.addEventListener('click', function(e) {
+        const defaultWalletDisplay = document.querySelector('.default-wallet-display');
+        const walletDropdown = document.getElementById('wallet-dropdown');
+        
+        if (defaultWalletDisplay && walletDropdown && 
+            !defaultWalletDisplay.contains(e.target) && 
+            !walletDropdown.contains(e.target)) {
+            
+            walletDropdown.classList.remove('active');
+            defaultWalletDisplay.classList.remove('active');
+        }
     });
 }
 
@@ -2491,14 +2612,15 @@ async function addNewWallet() {
         if (data.error) throw new Error(data.error);
         
         // Добавляем кошелёк в данные
-        walletsData.push({
+        const newWallet = {
             name: name,
             icon: icon,
             balance: 0,
             is_default: isDefault
-        });
+        };
+        walletsData.push(newWallet);
         
-        // Если установлен как дефолтный, обновляем все кошельки
+        // Если установлен как дефолтный, обновляем все кошельки и основной
         if (isDefault) {
             walletsData.forEach(wallet => {
                 if (wallet.name !== name) {
@@ -2506,6 +2628,9 @@ async function addNewWallet() {
                 }
             });
             defaultWallet = name;
+            
+            // Обновляем отображение в сервисах
+            updateDefaultWalletDisplay();
         }
         
         // Обновляем интерфейс
@@ -2631,7 +2756,8 @@ window.changeCalendarYear = changeCalendarYear;
 window.showCalendar = showCalendar;
 window.showAddTransactionForCategory = showAddTransactionForCategory;
 window.showWalletTransactions = showWalletTransactions;
-window.setDefaultWallet = setDefaultWallet;
+window.selectDefaultWallet = selectDefaultWallet;
+window.toggleWalletDropdown = toggleWalletDropdown;
 window.showAllTransactions = showAllTransactions;
 window.showAllCategories = showAllCategories;
 window.selectSavingsDestination = selectSavingsDestination;

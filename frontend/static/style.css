@@ -1,6 +1,9 @@
 /* frontend/static/style.css */
 /* ==================== */
 /* TELEGRAM FINANCE - iOS 26 STYLE UPDATED */
+/* ИСПРАВЛЕНИЯ: */
+/* 1. Навигация - мгновенное переключение без задержки */
+/* 2. Кошельки - убраны звёздочки, улучшено центрирование */
 /* ==================== */
 
 :root {
@@ -105,6 +108,7 @@ body {
 
 /* ==================== */
 /* BOTTOM NAVIGATION - iOS 26 STYLE REDESIGNED */
+/* ИСПРАВЛЕНО: мгновенное переключение без задержки */
 /* ==================== */
 
 .bottom-nav {
@@ -137,7 +141,7 @@ body {
   cursor: pointer;
   position: relative;
   -webkit-tap-highlight-color: transparent;
-  transition: color var(--transition-fast);
+  /* Убраны transition для мгновенного переключения */
   height: 60px;
   border-radius: var(--border-radius-large);
 }
@@ -146,8 +150,10 @@ body {
   color: var(--ios-text-primary);
 }
 
+/* ИСПРАВЛЕНО: мгновенное переключение активного состояния */
 .nav-item.active {
   color: var(--ios-accent);
+  transition: none !important;
 }
 
 /* Навигационные иконки - векторные */
@@ -161,16 +167,18 @@ body {
   height: 28px;
   margin-bottom: 4px;
   filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.15));
-  transition: all var(--transition-normal);
+  /* Убраны transition для мгновенного переключения */
 }
 
 .nav-item:hover .nav-icon {
   filter: drop-shadow(0 0 12px rgba(255, 255, 255, 0.25));
 }
 
+/* ИСПРАВЛЕНО: мгновенное переключение активной иконки */
 .nav-item.active .nav-icon {
   filter: drop-shadow(0 0 15px var(--ios-accent-glow));
   transform: translateY(-2px);
+  transition: none !important;
 }
 
 /* Векторные иконки */
@@ -182,13 +190,14 @@ body {
   fill: none;
   stroke-linecap: round;
   stroke-linejoin: round;
-  transition: all var(--transition-normal);
+  /* Убраны transition для мгновенного переключения */
 }
 
 .nav-item.active .nav-icon svg {
   stroke: white;
   stroke-width: 2;
   filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.5));
+  transition: none !important;
 }
 
 .nav-label {
@@ -198,7 +207,7 @@ body {
   opacity: 0.9;
   position: relative;
   z-index: 2;
-  transition: all var(--transition-normal);
+  /* Убраны transition для мгновенного переключения */
   text-align: center;
   line-height: 1.2;
 }
@@ -207,12 +216,10 @@ body {
   opacity: 1;
   font-weight: 600;
   color: var(--ios-accent);
+  transition: none !important;
 }
 
-/* УБРАН синий кружок и связанные анимации */
-/* Активный индикатор - только белая иконка */
-
-/* Свечение для активной иконки */
+/* Свечение для активной иконки (без transition) */
 .nav-item.active .nav-icon::after {
   content: '';
   position: absolute;
@@ -395,6 +402,9 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  /* ИСПРАВЛЕНО: центрирование текста */
+  text-align: left;
+  padding-right: 8px;
 }
 
 .category-stats {
@@ -419,28 +429,9 @@ body {
   color: var(--ios-red);
 }
 
-/* Wallet Star - Исправлено: справа от названия */
+/* ИСПРАВЛЕНО: убраны звёздочки выбора основного кошелька */
 .wallet-star {
-  background: none;
-  border: none;
-  color: var(--ios-yellow);
-  font-size: 18px;
-  cursor: pointer;
-  padding: 0 4px;
-  opacity: 0.7;
-  transition: opacity var(--transition-fast);
-  flex-shrink: 0;
-  margin-left: 8px;
-}
-
-.wallet-star:hover {
-  opacity: 1;
-}
-
-.wallet-star.active {
-  opacity: 1;
-  color: #FFD700;
-  text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+  display: none;
 }
 
 /* Add category button in grid */
@@ -947,7 +938,8 @@ body {
 }
 
 /* ==================== */
-/* SERVICES PAGE */
+/* SERVICES PAGE UPDATED */
+/* ДОБАВЛЕН: выбор основного кошелька */
 /* ==================== */
 
 .services-section {
@@ -967,6 +959,152 @@ body {
   font-weight: 600;
   margin-bottom: var(--spacing-md);
   color: var(--ios-text-primary);
+}
+
+/* Основной кошелёк - новая секция */
+.default-wallet-section {
+  margin-bottom: var(--spacing-lg);
+}
+
+.default-wallet-display {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-md);
+  background: var(--ios-elevated);
+  border-radius: var(--border-radius-small);
+  border: 1px solid var(--ios-tertiary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.default-wallet-display:hover {
+  border-color: var(--ios-accent);
+}
+
+.default-wallet-info {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.default-wallet-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--ios-accent)20;
+  color: var(--ios-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+}
+
+.default-wallet-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.default-wallet-label {
+  font-size: 13px;
+  color: var(--ios-text-secondary);
+}
+
+.default-wallet-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ios-text-primary);
+}
+
+.default-wallet-arrow {
+  font-size: 20px;
+  color: var(--ios-text-secondary);
+  transition: transform var(--transition-fast);
+}
+
+.default-wallet-display.active .default-wallet-arrow {
+  transform: rotate(180deg);
+}
+
+/* Выпадающий список кошельков */
+.wallet-dropdown {
+  margin-top: var(--spacing-sm);
+  background: var(--ios-elevated);
+  border-radius: var(--border-radius-small);
+  border: 1px solid var(--ios-tertiary);
+  overflow: hidden;
+  max-height: 0;
+  transition: max-height var(--transition-fast);
+}
+
+.wallet-dropdown.active {
+  max-height: 300px;
+}
+
+.wallet-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-md);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+  border-bottom: 1px solid var(--ios-tertiary);
+}
+
+.wallet-option:last-child {
+  border-bottom: none;
+}
+
+.wallet-option:hover {
+  background: var(--ios-tertiary);
+}
+
+.wallet-option.active {
+  background: var(--ios-accent)20;
+}
+
+.wallet-option-info {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.wallet-option-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--ios-accent)20;
+  color: var(--ios-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+}
+
+.wallet-option-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.wallet-option-name {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--ios-text-primary);
+}
+
+.wallet-option-balance {
+  font-size: 13px;
+  color: var(--ios-text-secondary);
+}
+
+.wallet-option-check {
+  color: var(--ios-accent);
+  font-size: 18px;
+  opacity: 0;
+}
+
+.wallet-option.active .wallet-option-check {
+  opacity: 1;
 }
 
 /* Currency Selector */

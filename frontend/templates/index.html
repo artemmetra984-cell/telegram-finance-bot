@@ -273,9 +273,30 @@
 
             <!-- ==================== -->
             <!-- СТРАНИЦА 4: СЕРВИСЫ -->
+            <!-- ДОБАВЛЕН: выбор основного кошелька -->
             <!-- ==================== -->
             <div id="services-page" class="page">
                 <div class="services-section">
+                    <!-- Основной кошелёк -->
+                    <div class="service-card">
+                        <div class="service-title">Основной кошелёк</div>
+                        <div class="default-wallet-section">
+                            <div class="default-wallet-display">
+                                <div class="default-wallet-info">
+                                    <div class="default-wallet-icon">💳</div>
+                                    <div class="default-wallet-text">
+                                        <div class="default-wallet-label">Используется по умолчанию</div>
+                                        <div class="default-wallet-name">Наличные</div>
+                                    </div>
+                                </div>
+                                <div class="default-wallet-arrow">▼</div>
+                            </div>
+                            <div class="wallet-dropdown" id="wallet-dropdown">
+                                <!-- Динамически заполняется -->
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Выбор валюты -->
                     <div class="service-card">
                         <div class="service-title">Валюта</div>
@@ -322,6 +343,7 @@
         </div>
 
         <!-- Нижняя панель навигации - ОБНОВЛЁННАЯ -->
+        <!-- ИСПРАВЛЕНО: мгновенное переключение без задержки -->
         <nav class="bottom-nav">
             <button class="nav-item active" data-page="panel">
                 <span class="nav-icon">
