@@ -2,8 +2,12 @@
 /* ==================== */
 /* TELEGRAM FINANCE - iOS 26 STYLE */
 /* ИСПРАВЛЕНИЯ: */
-/* 1. Навигация - мгновенное переключение без задержки */
-/* 2. Кошельки - убраны звёздочки, выбор основного в сервисах */
+/* 1. Центрирование текста категорий */
+/* 2. Уведомления на 1 секунду */
+/* 3. Работа накоплений исправлена */
+/* 4. Цели добавлены на панель */
+/* 5. Новые иконки для доходов/расходов */
+/* 6. Улучшенные светящиеся цвета */
 /* ==================== */
 
 // Глобальные переменные
@@ -24,20 +28,25 @@ let allTransactions = [];
 let currentSavingsDestination = 'piggybank';
 let selectedGoalId = null;
 
-// Константы
+// Константы с новыми иконками
 const currencySymbols = { 'RUB': '₽', 'USD': '$', 'EUR': '€', 'GEL': '₾' };
 const monthNames = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
 const colorPalette = ['#FF9500', '#FF5E3A', '#FF2D55', '#5856D6', '#007AFF', '#34C759', '#AF52DE', '#FF3B30'];
 const colorPaletteGlow = [
-  'rgba(255, 149, 0, 0.3)',
-  'rgba(255, 94, 58, 0.3)',
-  'rgba(255, 45, 85, 0.3)',
-  'rgba(88, 86, 214, 0.3)',
-  'rgba(0, 122, 255, 0.3)',
-  'rgba(52, 199, 89, 0.3)',
-  'rgba(175, 82, 222, 0.3)',
-  'rgba(255, 59, 48, 0.3)'
+  'rgba(255, 149, 0, 0.5)',
+  'rgba(255, 94, 58, 0.5)',
+  'rgba(255, 45, 85, 0.5)',
+  'rgba(88, 86, 214, 0.5)',
+  'rgba(0, 122, 255, 0.5)',
+  'rgba(52, 199, 89, 0.5)',
+  'rgba(175, 82, 222, 0.5)',
+  'rgba(255, 59, 48, 0.5)'
 ];
+
+// Новые иконки (вместо стрелочек)
+const incomeIcon = '📈'; // Растущий график
+const expenseIcon = '📉'; // Падающий график
+const savingsIcon = '💰'; // Копилка
 
 // ==================== //
 // ОСНОВНАЯ ИНИЦИАЛИЗАЦИЯ //
@@ -73,9 +82,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             Telegram.WebApp.setupClosingBehavior();
         }
         
-        // Проверяем все анимации
-        setupSmoothAnimations();
-        
         console.log('✅ Приложение загружено в стиле iOS 26');
         
     } catch (error) {
@@ -83,8 +89,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('loading').innerHTML = `
             <div style="text-align: center; padding: 40px;">
                 <div style="font-size: 48px; margin-bottom: 20px;">📱</div>
-                <div style="font-size: 18px; font-weight: 600; margin-bottom: 10px; color: var(--ios-text-primary);">Загрузка приложения</div>
-                <div style="font-size: 14px; color: var(--ios-text-secondary); margin-bottom: 20px;">Пожалуйста, подождите...</div>
+                <div style="font-size: 18px; font-weight: 600; margin-bottom: 10px; color: var(--ios-text-primary);">Ошибка загрузки</div>
+                <div style="font-size: 14px; color: var(--ios-text-secondary); margin-bottom: 20px;">Пожалуйста, обновите страницу</div>
                 <button onclick="location.reload()" style="background: var(--ios-accent); color: white; border: none; padding: 12px 24px; border-radius: var(--border-radius); font-size: 16px; cursor: pointer; margin-top: 10px;">Обновить</button>
             </div>
         `;
@@ -161,18 +167,6 @@ async function initUser() {
     }
 }
 
-function setupSmoothAnimations() {
-    // Отключаем грубые анимации
-    document.body.style.willChange = 'transform';
-    
-    // Исправляем дёргания при скролле
-    const pagesContainer = document.querySelector('.pages-container');
-    if (pagesContainer) {
-        pagesContainer.style.webkitOverflowScrolling = 'touch';
-        pagesContainer.style.overflowScrolling = 'touch';
-    }
-}
-
 // ==================== //
 // ОБНОВЛЕНИЕ ИНТЕРФЕЙСА //
 // ==================== //
@@ -206,8 +200,9 @@ function formatCurrency(amount) {
 }
 
 // ==================== //
-// ВКЛАДКА ПАНЕЛЬ - ПОЛНАЯ ПЕРЕРАБОТКА //
-/* ИСПРАВЛЕНО: убраны звёздочки из кошельков */
+// ВКЛАДКА ПАНЕЛЬ - ОБНОВЛЁННАЯ //
+/* ИСПРАВЛЕНО: центрирование текста, добавлены цели */
+/* ИСПРАВЛЕНО: накопления корректно отображают баланс */
 // ==================== //
 
 async function loadPanelData() {
@@ -236,18 +231,20 @@ async function loadPanelData() {
         // Обновляем отображение
         updatePanelCategories();
         updateWalletsDisplay();
+        updateSavingsDisplay(); // ИСПРАВЛЕНО: отдельная функция для накоплений
+        updatePanelGoals(); // НОВОЕ: цели на панели
         updateRecentTransactions(allTransactions.slice(0, 3));
         updateBalanceDisplay(data.summary);
         
     } catch (error) {
         console.error('❌ Ошибка загрузки данных:', error);
+        showNotification('Ошибка загрузки данных', 'error');
     }
 }
 
 function updatePanelCategories() {
     updateCategorySection('income', 'Доходы', true);
     updateCategorySection('expense', 'Расходы', true);
-    updateCategorySection('savings', 'Накопления', true);
 }
 
 function updateCategorySection(type, title, showLimited = true) {
@@ -266,19 +263,19 @@ function updateCategorySection(type, title, showLimited = true) {
     displayCategories.forEach(cat => {
         const amount = stats[cat.name] || 0;
         const isPositive = type !== 'expense';
-        const icon = cat.icon || (type === 'income' ? '⬆️' : type === 'expense' ? '⬇️' : '💰');
-        const color = cat.color || '#007AFF';
+        const icon = cat.icon || (type === 'income' ? incomeIcon : expenseIcon);
+        const color = cat.color || (type === 'income' ? '#34C759' : '#FF9500');
         
         html += `
             <button class="category-card" onclick="showAddTransactionForCategory('${type}', '${cat.name}')">
-                <div class="category-icon" style="background: ${color}20; color: ${color};">
+                <div class="category-icon" style="background: ${color}20; color: ${color}; box-shadow: 0 0 20px ${color}50;">
                     ${icon}
                 </div>
                 <div class="category-info">
                     <div class="category-name">
                         <span class="category-name-text">${cat.name}</span>
                     </div>
-                    <div class="category-stats">${type === 'income' ? 'Доходы' : type === 'expense' ? 'Расходы' : 'Накопления'}</div>
+                    <div class="category-stats">${type === 'income' ? 'Доходы' : 'Расходы'}</div>
                 </div>
                 <div class="category-amount ${isPositive ? 'amount-positive' : 'amount-negative'}">
                     ${isPositive ? '+' : '−'}${formatCurrency(amount)} ${symbol}
@@ -300,6 +297,132 @@ function updateCategorySection(type, title, showLimited = true) {
     container.innerHTML = html;
 }
 
+// ИСПРАВЛЕНО: отдельная функция для накоплений
+function updateSavingsDisplay() {
+    const container = document.getElementById('savings-categories');
+    if (!container) return;
+    
+    const categories = categoriesData.savings || [];
+    const stats = categoryStats.expense || {}; // Накопления считаются как расходы
+    const symbol = currencySymbols[currentCurrency] || '₽';
+    
+    let html = '';
+    
+    // Показываем только накопления из категорий
+    categories.forEach(cat => {
+        const amount = stats[cat.name] || 0;
+        const icon = cat.icon || savingsIcon;
+        const color = cat.color || '#FFD60A';
+        
+        html += `
+            <button class="category-card" onclick="showAddTransactionForCategory('savings', '${cat.name}')">
+                <div class="category-icon" style="background: ${color}20; color: ${color}; box-shadow: 0 0 20px ${color}50;">
+                    ${icon}
+                </div>
+                <div class="category-info">
+                    <div class="category-name">
+                        <span class="category-name-text">${cat.name}</span>
+                    </div>
+                    <div class="category-stats">Накопления</div>
+                </div>
+                <div class="category-amount" style="color: ${color};">
+                    ${formatCurrency(amount)} ${symbol}
+                </div>
+            </button>
+        `;
+    });
+    
+    // Если нет категорий накоплений, показываем общие накопления
+    if (categories.length === 0) {
+        const totalSavings = categoryStats.expense?.['Накопления'] || 0;
+        html += `
+            <button class="category-card" onclick="showAddTransactionForCategory('savings', 'Накопления')">
+                <div class="category-icon" style="background: var(--ios-yellow)20; color: var(--ios-yellow); box-shadow: 0 0 20px var(--ios-yellow-glow);">
+                    ${savingsIcon}
+                </div>
+                <div class="category-info">
+                    <div class="category-name">
+                        <span class="category-name-text">Накопления</span>
+                    </div>
+                    <div class="category-stats">Общий баланс</div>
+                </div>
+                <div class="category-amount" style="color: var(--ios-yellow);">
+                    ${formatCurrency(totalSavings)} ${symbol}
+                </div>
+            </button>
+        `;
+    }
+    
+    // Добавляем кнопку "Добавить категорию" если есть 3 или больше категорий
+    if (categories.length >= 3) {
+        html += `
+            <button class="add-category-btn" onclick="showAddCategoryModal('savings')">
+                <span>+</span>
+                <span>Добавить категорию</span>
+            </button>
+        `;
+    }
+    
+    container.innerHTML = html;
+}
+
+// НОВОЕ: цели на панели
+function updatePanelGoals() {
+    const container = document.getElementById('panel-goals');
+    if (!container) return;
+    
+    if (!goalsData || goalsData.length === 0) {
+        container.innerHTML = `
+            <button class="add-category-btn" onclick="showAddGoalModal()" style="padding: 20px;">
+                <span>🎯</span>
+                <span>Добавить первую цель</span>
+            </button>
+        `;
+        return;
+    }
+    
+    let html = '';
+    const symbol = currencySymbols[currentCurrency] || '₽';
+    
+    // Показываем только первые 3 цели
+    const displayGoals = goalsData.slice(0, 3);
+    
+    displayGoals.forEach(goal => {
+        const progress = Math.min((goal.current_amount / goal.target_amount) * 100, 100);
+        const color = goal.color || '#FF9500';
+        const icon = goal.icon || '🎯';
+        
+        html += `
+            <button class="category-card" onclick="addToGoal(${goal.id})">
+                <div class="category-icon" style="background: ${color}20; color: ${color}; box-shadow: 0 0 20px ${color}50;">
+                    ${icon}
+                </div>
+                <div class="category-info">
+                    <div class="category-name">
+                        <span class="category-name-text">${goal.name}</span>
+                    </div>
+                    <div class="category-stats">Цель: ${formatCurrency(goal.current_amount)} / ${formatCurrency(goal.target_amount)} ${symbol}</div>
+                </div>
+                <div class="category-amount" style="color: ${color};">
+                    ${progress.toFixed(0)}%
+                </div>
+            </button>
+        `;
+    });
+    
+    // Добавляем кнопку "Добавить цель" если есть 3 или больше целей
+    if (goalsData.length >= 3) {
+        html += `
+            <button class="add-category-btn" onclick="showAddGoalModal()">
+                <span>+</span>
+                <span>Добавить цель</span>
+            </button>
+        `;
+    }
+    
+    container.innerHTML = html;
+}
+
 function updateWalletsDisplay() {
     const container = document.getElementById('wallet-categories');
     if (!container) return;
@@ -314,10 +437,13 @@ function updateWalletsDisplay() {
         const balance = wallet.balance || 0;
         const isDefault = wallet.is_default;
         const icon = wallet.icon || '💳';
+        const color = isDefault ? 'var(--ios-accent)' : 'var(--ios-text-secondary)';
         
         html += `
             <button class="category-card" onclick="showWalletTransactions('${wallet.name}')">
-                <div class="category-icon" style="background: var(--ios-blue)20; color: var(--ios-blue);">${icon}</div>
+                <div class="category-icon" style="background: ${color}20; color: ${color}; box-shadow: 0 0 20px ${color}50;">
+                    ${icon}
+                </div>
                 <div class="category-info">
                     <div class="category-name">
                         <span class="category-name-text">${wallet.name}</span>
@@ -367,8 +493,8 @@ function updateRecentTransactions(transactions) {
         const isIncome = trans.type === 'income';
         const amountClass = isIncome ? 'amount-positive' : 'amount-negative';
         const amountSign = isIncome ? '+' : '−';
-        const icon = isIncome ? '⬆️' : '⬇️';
-        const iconColor = isIncome ? 'var(--ios-green)' : 'var(--ios-red)';
+        const icon = isIncome ? incomeIcon : expenseIcon; // НОВЫЕ ИКОНКИ
+        const iconClass = isIncome ? 'income' : 'expense';
         const date = new Date(trans.date).toLocaleDateString('ru-RU', {
             day: 'numeric',
             month: 'short'
@@ -376,7 +502,7 @@ function updateRecentTransactions(transactions) {
         
         html += `
             <div class="transaction-item">
-                <div class="transaction-icon" style="background: ${iconColor}20; color: ${iconColor};">${icon}</div>
+                <div class="transaction-icon ${iconClass}">${icon}</div>
                 <div class="transaction-info">
                     <div class="transaction-title">${trans.description || 'Без описания'}</div>
                     <div class="transaction-details">${trans.category} • ${date}</div>
@@ -460,8 +586,8 @@ function displayMonthTransactions(transactions) {
         const isIncome = trans.type === 'income';
         const amountClass = isIncome ? 'amount-positive' : 'amount-negative';
         const amountSign = isIncome ? '+' : '−';
-        const icon = isIncome ? '⬆️' : '⬇️';
-        const iconColor = isIncome ? 'var(--ios-green)' : 'var(--ios-red)';
+        const icon = isIncome ? incomeIcon : expenseIcon; // НОВЫЕ ИКОНКИ
+        const iconClass = isIncome ? 'income' : 'expense';
         const date = new Date(trans.date).toLocaleDateString('ru-RU', {
             day: 'numeric',
             month: 'short',
@@ -471,7 +597,7 @@ function displayMonthTransactions(transactions) {
         
         html += `
             <div class="transaction-item">
-                <div class="transaction-icon" style="background: ${iconColor}20; color: ${iconColor};">${icon}</div>
+                <div class="transaction-icon ${iconClass}">${icon}</div>
                 <div class="transaction-info">
                     <div class="transaction-title">${trans.description || trans.category}</div>
                     <div class="transaction-details">${trans.category} • ${date} • ${trans.wallet}</div>
@@ -536,7 +662,7 @@ function setupHistoryControls() {
 }
 
 // ==================== //
-// ВКЛАДКА ОТЧЁТ - ПОЛНАЯ ПЕРЕРАБОТКА //
+// ВКЛАДКА ОТЧЁТ //
 // ==================== //
 
 function loadReportPage() {
@@ -697,9 +823,7 @@ function updateOverviewChart(totalIncome, totalExpense) {
             cutout: '75%',
             radius: '90%',
             plugins: {
-                legend: { 
-                    display: false 
-                },
+                legend: { display: false },
                 tooltip: {
                     callbacks: {
                         label: (context) => {
@@ -721,13 +845,6 @@ function updateOverviewChart(totalIncome, totalExpense) {
                 animateRotate: true,
                 duration: 1000,
                 easing: 'easeOutQuart'
-            },
-            elements: {
-                arc: {
-                    borderWidth: 0,
-                    borderJoinStyle: 'round',
-                    borderRadius: 15
-                }
             }
         }
     });
@@ -754,7 +871,7 @@ async function updateIncomeChart(transactions) {
     if (incomeTransactions.length === 0) {
         ctx.innerHTML = `
             <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--ios-text-tertiary);">
-                <div style="font-size: 48px; margin-bottom: 16px;">💰</div>
+                <div style="font-size: 48px; margin-bottom: 16px;">${incomeIcon}</div>
                 <div style="font-size: 15px;">Нет доходов за период</div>
             </div>
         `;
@@ -826,13 +943,6 @@ async function updateIncomeChart(transactions) {
                 animateRotate: true,
                 duration: 1000,
                 easing: 'easeOutQuart'
-            },
-            elements: {
-                arc: {
-                    borderWidth: 0,
-                    borderJoinStyle: 'round',
-                    borderRadius: 10
-                }
             }
         }
     });
@@ -859,7 +969,7 @@ async function updateExpenseChart(transactions) {
     if (expenseTransactions.length === 0) {
         ctx.innerHTML = `
             <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--ios-text-tertiary);">
-                <div style="font-size: 48px; margin-bottom: 16px;">🛒</div>
+                <div style="font-size: 48px; margin-bottom: 16px;">${expenseIcon}</div>
                 <div style="font-size: 15px;">Нет расходов за период</div>
             </div>
         `;
@@ -931,13 +1041,6 @@ async function updateExpenseChart(transactions) {
                 animateRotate: true,
                 duration: 1000,
                 easing: 'easeOutQuart'
-            },
-            elements: {
-                arc: {
-                    borderWidth: 0,
-                    borderJoinStyle: 'round',
-                    borderRadius: 10
-                }
             }
         }
     });
@@ -965,7 +1068,7 @@ async function updateSavingsChart(transactions) {
     if (savingsTransactions.length === 0) {
         ctx.innerHTML = `
             <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--ios-text-tertiary);">
-                <div style="font-size: 48px; margin-bottom: 16px;">💰</div>
+                <div style="font-size: 48px; margin-bottom: 16px;">${savingsIcon}</div>
                 <div style="font-size: 15px;">Нет накоплений за период</div>
             </div>
         `;
@@ -1101,7 +1204,7 @@ async function updateDistributionChart() {
             const percentage = totalBalance > 0 ? ((wallet.balance || 0) / totalBalance * 100).toFixed(1) : '0';
             html += `
                 <div class="legend-item">
-                    <div class="legend-color" style="background: ${colors[index]};"></div>
+                    <div class="legend-color" style="background: ${colors[index]}; box-shadow: 0 0 15px ${colors[index]}80;"></div>
                     <div class="legend-name">${wallet.name}</div>
                     <div class="legend-percentage">${percentage}%</div>
                 </div>
@@ -1134,6 +1237,7 @@ async function updateDistributionChart() {
                     callbacks: {
                         label: (context) => {
                             const percentage = totalBalance > 0 ? ((context.raw / totalBalance) * 100).toFixed(1) : '0.0';
+                            const symbol = currencySymbols[currentCurrency] || '₽';
                             return `${context.label}: ${formatCurrency(context.raw)} ${symbol} (${percentage}%)`;
                         }
                     }
@@ -1146,13 +1250,6 @@ async function updateDistributionChart() {
                 animateRotate: true,
                 duration: 1000,
                 easing: 'easeOutQuart'
-            },
-            elements: {
-                arc: {
-                    borderWidth: 0,
-                    borderJoinStyle: 'round',
-                    borderRadius: 10
-                }
             }
         }
     });
@@ -1280,12 +1377,6 @@ function updateDynamicsChart(data, period) {
                         }
                     }
                 }
-            },
-            elements: {
-                line: {
-                    borderJoinStyle: 'round',
-                    borderCapStyle: 'round'
-                }
             }
         }
     });
@@ -1306,7 +1397,7 @@ function updateChartLegend(legendId, categories, amounts, colors) {
         
         html += `
             <div class="legend-item">
-                <div class="legend-color" style="background: ${color};"></div>
+                <div class="legend-color" style="background: ${color}; box-shadow: 0 0 15px ${color}80;"></div>
                 <div class="legend-name">${category}</div>
                 <div class="legend-percentage">${percentage}%</div>
             </div>
@@ -1328,6 +1419,7 @@ async function loadGoals() {
         const goals = await response.json();
         goalsData = goals;
         updateGoalsDisplay();
+        updatePanelGoals(); // Обновляем также цели на панели
     } catch (error) {
         console.error('❌ Ошибка загрузки целей:', error);
     }
@@ -1359,16 +1451,16 @@ function updateGoalsDisplay() {
         html += `
             <div class="goal-card" onclick="addToGoal(${goal.id})">
                 <div class="goal-header">
-                    <div class="goal-icon" style="background: ${color}20; color: ${color};">${icon}</div>
+                    <div class="goal-icon" style="background: ${color}20; color: ${color}; box-shadow: 0 0 25px ${color}80;">${icon}</div>
                     <div class="goal-info">
                         <div class="goal-name">${goal.name}</div>
                         <div class="goal-date">${goal.deadline || 'Бессрочная'}</div>
                     </div>
-                    <div style="font-size: 16px; font-weight: 600;">${formatCurrency(goal.current_amount)} / ${formatCurrency(goal.target_amount)} ${symbol}</div>
+                    <div style="font-size: 16px; font-weight: 600; text-shadow: 0 0 10px ${color}80;">${formatCurrency(goal.current_amount)} / ${formatCurrency(goal.target_amount)} ${symbol}</div>
                 </div>
                 <div class="goal-progress">
                     <div class="progress-bar">
-                        <div class="progress-fill" style="width: ${progress}%; background: ${color};"></div>
+                        <div class="progress-fill" style="width: ${progress}%; background: ${color}; box-shadow: 0 0 15px ${color}80;"></div>
                     </div>
                     <div class="progress-text">
                         <span>Прогресс</span>
@@ -1425,7 +1517,8 @@ async function addToGoalApi(goalId, amount) {
 }
 
 // ==================== //
-// ВАЛЮТА //
+// ВАЛЮТА - ИСПРАВЛЕННЫЕ УВЕДОМЛЕНИЯ //
+/* ИСПРАВЛЕНО: уведомления на 1 секунду */
 // ==================== //
 
 function updateCurrencyDisplay() {
@@ -1484,7 +1577,6 @@ async function selectCurrency(currency) {
 
 // ==================== //
 // ВЫБОР ОСНОВНОГО КОШЕЛЬКА //
-/* ИСПРАВЛЕНО: перенесён в сервисы */
 // ==================== //
 
 async function loadDefaultWallet() {
@@ -1527,6 +1619,7 @@ function updateDefaultWalletDisplay() {
     if (defaultWalletData) {
         defaultWalletName.textContent = defaultWalletData.name;
         defaultWalletIcon.textContent = defaultWalletData.icon || '💳';
+        defaultWalletIcon.style.boxShadow = '0 0 20px var(--ios-accent-glow)';
     } else {
         defaultWalletName.textContent = defaultWallet;
         defaultWalletIcon.textContent = '💳';
@@ -1730,15 +1823,15 @@ function setupSavingsDestination() {
         const destinationHTML = `
             <div class="form-group" id="savings-destination">
                 <label class="form-label">Куда накопления?</label>
-                <div class="savings-destination">
+                <div class="savings-destination" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
                     <button type="button" class="destination-option ${currentSavingsDestination === 'piggybank' ? 'active' : ''}" 
-                            data-destination="piggybank" onclick="selectSavingsDestination('piggybank')">
-                        <div class="icon">💰</div>
+                            data-destination="piggybank" onclick="selectSavingsDestination('piggybank')" style="padding: 12px; border: 1.5px solid var(--ios-tertiary); border-radius: var(--border-radius-small); background: ${currentSavingsDestination === 'piggybank' ? 'var(--ios-yellow-glow)' : 'var(--ios-elevated)'}; color: ${currentSavingsDestination === 'piggybank' ? 'white' : 'var(--ios-text-primary)'}; display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 14px;">
+                        <div style="font-size: 24px;">💰</div>
                         <div>В копилку</div>
                     </button>
                     <button type="button" class="destination-option ${currentSavingsDestination === 'goal' ? 'active' : ''}" 
-                            data-destination="goal" onclick="selectSavingsDestination('goal')">
-                        <div class="icon">🎯</div>
+                            data-destination="goal" onclick="selectSavingsDestination('goal')" style="padding: 12px; border: 1.5px solid var(--ios-tertiary); border-radius: var(--border-radius-small); background: ${currentSavingsDestination === 'goal' ? 'var(--ios-yellow-glow)' : 'var(--ios-elevated)'}; color: ${currentSavingsDestination === 'goal' ? 'white' : 'var(--ios-text-primary)'}; display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 14px;">
+                        <div style="font-size: 24px;">🎯</div>
                         <div>На цель</div>
                     </button>
                 </div>
@@ -1751,7 +1844,7 @@ function setupSavingsDestination() {
             const goalSelectorHTML = `
                 <div class="form-group" id="goal-selector" style="display: ${currentSavingsDestination === 'goal' ? 'block' : 'none'}">
                     <label class="form-label">Выберите цель</label>
-                    <div id="goal-options">
+                    <div id="goal-options" style="max-height: 200px; overflow-y: auto;">
                         ${generateGoalOptions()}
                     </div>
                 </div>
@@ -1790,18 +1883,20 @@ function generateGoalOptions() {
     return goalsData.map(goal => {
         const progress = Math.min((goal.current_amount / goal.target_amount) * 100, 100);
         const isSelected = goal.id === selectedGoalId;
+        const color = goal.color || '#FF9500';
         
         return `
-            <div class="goal-option ${isSelected ? 'active' : ''}" onclick="selectGoal(${goal.id})">
-                <div class="goal-icon-small" style="background: ${goal.color}20; color: ${goal.color};">
-                    ${goal.icon}
+            <div class="goal-option" onclick="selectGoal(${goal.id})" style="display: flex; align-items: center; gap: 12px; padding: 12px; margin-bottom: 8px; border: 1.5px solid ${isSelected ? color : 'var(--ios-tertiary)'}; border-radius: var(--border-radius-small); background: ${isSelected ? color + '20' : 'var(--ios-elevated)'}; cursor: pointer; transition: all var(--transition-fast);">
+                <div style="width: 32px; height: 32px; border-radius: 8px; background: ${color}20; color: ${color}; display: flex; align-items: center; justify-content: center; font-size: 16px; box-shadow: 0 0 15px ${color}50;">
+                    ${goal.icon || '🎯'}
                 </div>
-                <div class="goal-info-small">
-                    <div class="goal-name-small">${goal.name}</div>
-                    <div class="goal-progress-small">
+                <div style="flex: 1; min-width: 0;">
+                    <div style="font-size: 14px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${goal.name}</div>
+                    <div style="font-size: 12px; color: var(--ios-text-secondary);">
                         ${formatCurrency(goal.current_amount)} / ${formatCurrency(goal.target_amount)} ${symbol} (${progress.toFixed(1)}%)
                     </div>
                 </div>
+                ${isSelected ? '<div style="color: ' + color + '; font-size: 18px; font-weight: bold;">✓</div>' : ''}
             </div>
         `;
     }).join('');
@@ -2064,6 +2159,9 @@ async function addNewCategory() {
         // Обновляем интерфейс
         if (currentPage === 'panel') {
             updatePanelCategories();
+            if (type === 'savings') {
+                updateSavingsDisplay();
+            }
         }
         
         closeModal('add-category-modal');
@@ -2218,6 +2316,7 @@ async function addNewGoal(e) {
         
         // Обновляем интерфейс
         updateGoalsDisplay();
+        updatePanelGoals();
         
         closeModal('add-goal-modal');
         nameInput.value = '';
@@ -2232,8 +2331,7 @@ async function addNewGoal(e) {
 }
 
 // ==================== //
-// НАВИГАЦИЯ - ОБНОВЛЁННАЯ //
-/* ИСПРАВЛЕНО: мгновенное переключение без задержки */
+// НАВИГАЦИЯ //
 // ==================== //
 
 function initNavigation() {
@@ -2250,17 +2348,14 @@ function initNavigation() {
 function switchPage(pageName) {
     console.log('🔄 Переключаем на страницу:', pageName);
     
-    // ИСПРАВЛЕНО: мгновенное переключение активной вкладки
+    // Обновляем активную вкладку
     document.querySelectorAll('.nav-item').forEach(nav => {
         nav.classList.remove('active');
     });
     
     const activeNav = document.querySelector(`.nav-item[data-page="${pageName}"]`);
     if (activeNav) {
-        // Используем requestAnimationFrame для мгновенного переключения
-        requestAnimationFrame(() => {
-            activeNav.classList.add('active');
-        });
+        activeNav.classList.add('active');
     }
     
     // Показываем страницу
@@ -2270,10 +2365,7 @@ function switchPage(pageName) {
     
     const targetPage = document.getElementById(`${pageName}-page`);
     if (targetPage) {
-        // Мгновенное отображение страницы без задержки
-        requestAnimationFrame(() => {
-            targetPage.classList.add('active');
-        });
+        targetPage.classList.add('active');
         currentPage = pageName;
         
         // Загружаем данные для страницы
@@ -2288,7 +2380,6 @@ function switchPage(pageName) {
                 loadReportPage();
                 break;
             case 'services':
-                // Загружаем данные об основном кошельке
                 loadDefaultWallet();
                 break;
         }
@@ -2297,7 +2388,6 @@ function switchPage(pageName) {
 
 // ==================== //
 // ОБРАБОТЧИКИ СОБЫТИЙ //
-/* ИСПРАВЛЕНО: добавлены обработчики для выбора кошелька */
 // ==================== //
 
 function initEventListeners() {
@@ -2472,7 +2562,7 @@ function showAllCategories(type) {
             
             html += `
                 <div class="category-card" style="margin: 8px 16px;" onclick="showAddTransactionForCategory('${type}', '${cat.name}')">
-                    <div class="category-icon" style="background: ${color}20; color: ${color};">
+                    <div class="category-icon" style="background: ${color}20; color: ${color}; box-shadow: 0 0 20px ${color}50;">
                         ${icon}
                     </div>
                     <div class="category-info">
@@ -2515,8 +2605,8 @@ function showAllTransactions() {
             const isIncome = trans.type === 'income';
             const amountClass = isIncome ? 'amount-positive' : 'amount-negative';
             const amountSign = isIncome ? '+' : '−';
-            const icon = isIncome ? '⬆️' : '⬇️';
-            const iconColor = isIncome ? 'var(--ios-green)' : 'var(--ios-red)';
+            const icon = isIncome ? incomeIcon : expenseIcon;
+            const iconClass = isIncome ? 'income' : 'expense';
             const date = new Date(trans.date).toLocaleDateString('ru-RU', {
                 day: 'numeric',
                 month: 'short',
@@ -2526,7 +2616,7 @@ function showAllTransactions() {
             
             html += `
                 <div class="transaction-item">
-                    <div class="transaction-icon" style="background: ${iconColor}20; color: ${iconColor};">${icon}</div>
+                    <div class="transaction-icon ${iconClass}">${icon}</div>
                     <div class="transaction-info">
                         <div class="transaction-title">${trans.description || trans.category}</div>
                         <div class="transaction-details">${trans.category} • ${date} • ${trans.wallet}</div>
@@ -2703,20 +2793,33 @@ function changeCalendarYear(delta) {
 }
 
 // ==================== //
-// УВЕДОМЛЕНИЯ И УТИЛИТЫ //
+/* УВЕДОМЛЕНИЯ - ИСПРАВЛЕННЫЕ */
+/* ИСПРАВЛЕНО: показ на 1 секунду с плавным исчезновением */
 // ==================== //
 
 function showNotification(message, type = 'info') {
     const notification = document.getElementById('notification');
     if (!notification) return;
     
-    notification.textContent = message;
-    notification.className = `notification ${type}`;
-    notification.classList.add('show');
+    // Скрываем предыдущее уведомление
+    notification.classList.remove('show');
     
+    // Ждём немного и показываем новое
     setTimeout(() => {
-        notification.classList.remove('show');
-    }, 3000);
+        notification.textContent = message;
+        notification.className = `notification ${type}`;
+        
+        // Добавляем класс show с небольшой задержкой для анимации
+        setTimeout(() => {
+            notification.classList.add('show');
+        }, 10);
+        
+        // Автоматически скрываем через 1 секунду
+        setTimeout(() => {
+            notification.classList.remove('show');
+        }, 1000);
+        
+    }, 100);
 }
 
 function closeModal(modalId) {

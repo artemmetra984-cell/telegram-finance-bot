@@ -2,12 +2,15 @@
 /* ==================== */
 /* TELEGRAM FINANCE - iOS 26 STYLE UPDATED */
 /* ИСПРАВЛЕНИЯ: */
-/* 1. Навигация - мгновенное переключение без задержки */
-/* 2. Кошельки - убраны звёздочки, улучшено центрирование */
+/* 1. Центрирование текста категорий */
+/* 2. Улучшенные уведомления (1 секунда) */
+/* 3. Приятные светящиеся цвета */
+/* 4. Новые иконки для доходов/расходов */
+/* 5. Исправлено отображение накоплений */
 /* ==================== */
 
 :root {
-  /* iOS 26 / Telegram Dark Theme - Updated */
+  /* iOS 26 / Telegram Dark Theme - Enhanced Glow */
   --ios-bg: #000000;
   --ios-secondary: rgba(28, 28, 30, 0.9);
   --ios-tertiary: rgba(44, 44, 46, 0.7);
@@ -16,38 +19,44 @@
   --ios-text-primary: #ffffff;
   --ios-text-secondary: rgba(152, 152, 157, 0.9);
   --ios-text-tertiary: #6c6c70;
-  --ios-accent: #2481cc;
-  --ios-accent-glow: rgba(36, 129, 204, 0.4);
-  --ios-green: #30d158;
-  --ios-green-glow: rgba(48, 209, 88, 0.3);
-  --ios-red: #ff453a;
-  --ios-red-glow: rgba(255, 69, 58, 0.3);
-  --ios-yellow: #ffd60a;
-  --ios-yellow-glow: rgba(255, 214, 10, 0.3);
-  --ios-blue: #0a84ff;
-  --ios-blue-glow: rgba(10, 132, 255, 0.3);
-  --ios-purple: #bf5af2;
-  --ios-purple-glow: rgba(191, 90, 242, 0.3);
-  --ios-orange: #ff9f0a;
-  --ios-orange-glow: rgba(255, 159, 10, 0.3);
   
-  /* Chart Colors with glow */
+  /* Enhanced Glow Colors */
+  --ios-accent: #2481cc;
+  --ios-accent-glow: rgba(36, 129, 204, 0.6);
+  --ios-green: #30d158;
+  --ios-green-glow: rgba(48, 209, 88, 0.6);
+  --ios-red: #ff453a;
+  --ios-red-glow: rgba(255, 69, 58, 0.6);
+  --ios-yellow: #ffd60a;
+  --ios-yellow-glow: rgba(255, 214, 10, 0.6);
+  --ios-blue: #0a84ff;
+  --ios-blue-glow: rgba(10, 132, 255, 0.6);
+  --ios-purple: #bf5af2;
+  --ios-purple-glow: rgba(191, 90, 242, 0.6);
+  --ios-orange: #ff9f0a;
+  --ios-orange-glow: rgba(255, 159, 10, 0.6);
+  --ios-pink: #ff375f;
+  --ios-pink-glow: rgba(255, 55, 95, 0.6);
+  --ios-cyan: #5ac8fa;
+  --ios-cyan-glow: rgba(90, 200, 250, 0.6);
+  
+  /* Chart Colors with enhanced glow */
   --chart-1: #FF9500;
-  --chart-1-glow: rgba(255, 149, 0, 0.3);
+  --chart-1-glow: rgba(255, 149, 0, 0.5);
   --chart-2: #FF5E3A;
-  --chart-2-glow: rgba(255, 94, 58, 0.3);
+  --chart-2-glow: rgba(255, 94, 58, 0.5);
   --chart-3: #FF2D55;
-  --chart-3-glow: rgba(255, 45, 85, 0.3);
+  --chart-3-glow: rgba(255, 45, 85, 0.5);
   --chart-4: #5856D6;
-  --chart-4-glow: rgba(88, 86, 214, 0.3);
+  --chart-4-glow: rgba(88, 86, 214, 0.5);
   --chart-5: #007AFF;
-  --chart-5-glow: rgba(0, 122, 255, 0.3);
+  --chart-5-glow: rgba(0, 122, 255, 0.5);
   --chart-6: #34C759;
-  --chart-6-glow: rgba(52, 199, 89, 0.3);
+  --chart-6-glow: rgba(52, 199, 89, 0.5);
   --chart-7: #AF52DE;
-  --chart-7-glow: rgba(175, 82, 222, 0.3);
+  --chart-7-glow: rgba(175, 82, 222, 0.5);
   --chart-8: #FF3B30;
-  --chart-8-glow: rgba(255, 59, 48, 0.3);
+  --chart-8-glow: rgba(255, 59, 48, 0.5);
   
   /* Layout */
   --border-radius: 14px;
@@ -65,13 +74,14 @@
   --transition-normal: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   --transition-slow: 0.5s cubic-bezier(0.4, 0, 0.2, 1);
   
-  /* Shadows with glow */
+  /* Enhanced Shadows with glow */
   --shadow-subtle: 0 1px 3px rgba(0, 0, 0, 0.3);
   --shadow-medium: 0 4px 12px rgba(0, 0, 0, 0.4);
   --shadow-floating: 0 10px 30px rgba(0, 0, 0, 0.5);
-  --shadow-glow: 0 0 20px var(--ios-accent-glow);
-  --shadow-glow-green: 0 0 20px var(--ios-green-glow);
-  --shadow-glow-red: 0 0 20px var(--ios-red-glow);
+  --shadow-glow: 0 0 25px var(--ios-accent-glow);
+  --shadow-glow-green: 0 0 25px var(--ios-green-glow);
+  --shadow-glow-red: 0 0 25px var(--ios-red-glow);
+  --shadow-glow-yellow: 0 0 25px var(--ios-yellow-glow);
 }
 
 /* ==================== */
@@ -107,8 +117,7 @@ body {
 }
 
 /* ==================== */
-/* BOTTOM NAVIGATION - iOS 26 STYLE REDESIGNED */
-/* ИСПРАВЛЕНО: мгновенное переключение без задержки */
+/* BOTTOM NAVIGATION */
 /* ==================== */
 
 .bottom-nav {
@@ -141,22 +150,19 @@ body {
   cursor: pointer;
   position: relative;
   -webkit-tap-highlight-color: transparent;
-  /* Убраны transition для мгновенного переключения */
   height: 60px;
   border-radius: var(--border-radius-large);
+  transition: color var(--transition-fast);
 }
 
 .nav-item:hover {
   color: var(--ios-text-primary);
 }
 
-/* ИСПРАВЛЕНО: мгновенное переключение активного состояния */
 .nav-item.active {
   color: var(--ios-accent);
-  transition: none !important;
 }
 
-/* Навигационные иконки - векторные */
 .nav-icon {
   position: relative;
   z-index: 2;
@@ -167,21 +173,14 @@ body {
   height: 28px;
   margin-bottom: 4px;
   filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.15));
-  /* Убраны transition для мгновенного переключения */
+  transition: all var(--transition-fast);
 }
 
-.nav-item:hover .nav-icon {
-  filter: drop-shadow(0 0 12px rgba(255, 255, 255, 0.25));
-}
-
-/* ИСПРАВЛЕНО: мгновенное переключение активной иконки */
 .nav-item.active .nav-icon {
   filter: drop-shadow(0 0 15px var(--ios-accent-glow));
   transform: translateY(-2px);
-  transition: none !important;
 }
 
-/* Векторные иконки */
 .nav-icon svg {
   width: 100%;
   height: 100%;
@@ -190,14 +189,13 @@ body {
   fill: none;
   stroke-linecap: round;
   stroke-linejoin: round;
-  /* Убраны transition для мгновенного переключения */
+  transition: all var(--transition-fast);
 }
 
 .nav-item.active .nav-icon svg {
   stroke: white;
   stroke-width: 2;
   filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.5));
-  transition: none !important;
 }
 
 .nav-label {
@@ -207,19 +205,18 @@ body {
   opacity: 0.9;
   position: relative;
   z-index: 2;
-  /* Убраны transition для мгновенного переключения */
   text-align: center;
   line-height: 1.2;
+  transition: all var(--transition-fast);
 }
 
 .nav-item.active .nav-label {
   opacity: 1;
   font-weight: 600;
   color: var(--ios-accent);
-  transition: none !important;
 }
 
-/* Свечение для активной иконки (без transition) */
+/* Glow for active icon */
 .nav-item.active .nav-icon::after {
   content: '';
   position: absolute;
@@ -228,7 +225,7 @@ body {
   transform: translate(-50%, -50%);
   width: 32px;
   height: 32px;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.3) 0%, transparent 70%);
+  background: radial-gradient(circle, var(--ios-accent-glow) 0%, transparent 70%);
   border-radius: 50%;
   z-index: -1;
   animation: iconGlow 2s infinite;
@@ -245,7 +242,7 @@ body {
   }
 }
 
-/* Плавное появление страниц */
+/* Page transitions */
 .page {
   display: none;
   opacity: 0;
@@ -260,10 +257,11 @@ body {
 }
 
 /* ==================== */
-/* PANEL PAGE UPDATED */
+/* PANEL PAGE - UPDATED */
+/* ИСПРАВЛЕНО: Центрирование текста категорий */
 /* ==================== */
 
-/* Balance Card - Compact */
+/* Balance Card */
 .balance-card {
   background: linear-gradient(135deg, rgba(10, 132, 255, 0.9) 0%, rgba(36, 129, 204, 0.8) 100%);
   border-radius: var(--border-radius-large);
@@ -309,7 +307,7 @@ body {
   opacity: 0.8;
 }
 
-/* Categories Cards - More Compact */
+/* Categories Cards - Centered Text */
 .category-section {
   margin: var(--spacing-md);
 }
@@ -352,7 +350,7 @@ body {
 .category-card {
   background: var(--ios-surface);
   border-radius: var(--border-radius);
-  padding: var(--spacing-md) var(--spacing-sm);
+  padding: var(--spacing-md);
   display: flex;
   align-items: center;
   gap: var(--spacing-md);
@@ -376,6 +374,7 @@ body {
   justify-content: center;
   font-size: 18px;
   flex-shrink: 0;
+  box-shadow: 0 0 15px currentColor;
 }
 
 .category-info {
@@ -384,6 +383,8 @@ body {
   display: flex;
   flex-direction: column;
   justify-content: center;
+  align-items: center; /* ИСПРАВЛЕНО: центрирование */
+  text-align: center; /* ИСПРАВЛЕНО: центрирование текста */
 }
 
 .category-name {
@@ -393,7 +394,7 @@ body {
   margin-bottom: 2px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   width: 100%;
 }
 
@@ -402,14 +403,14 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  /* ИСПРАВЛЕНО: центрирование текста */
-  text-align: left;
-  padding-right: 8px;
+  text-align: center;
 }
 
 .category-stats {
   font-size: 12px;
   color: var(--ios-text-secondary);
+  text-align: center;
+  width: 100%;
 }
 
 .category-amount {
@@ -429,12 +430,7 @@ body {
   color: var(--ios-red);
 }
 
-/* ИСПРАВЛЕНО: убраны звёздочки выбора основного кошелька */
-.wallet-star {
-  display: none;
-}
-
-/* Add category button in grid */
+/* Add category button */
 .add-category-btn {
   background: var(--ios-surface);
   border: 1px dashed rgba(255, 255, 255, 0.2);
@@ -456,7 +452,7 @@ body {
   color: var(--ios-accent);
 }
 
-/* Recent Transactions */
+/* Recent Transactions with New Icons */
 .recent-transactions {
   margin: var(--spacing-md);
 }
@@ -472,6 +468,7 @@ body {
   border: 0.5px solid rgba(255, 255, 255, 0.05);
 }
 
+/* НОВЫЕ ИКОНКИ: Заменены стрелочки */
 .transaction-icon {
   width: 40px;
   height: 40px;
@@ -480,6 +477,21 @@ body {
   align-items: center;
   justify-content: center;
   font-size: 20px;
+  box-shadow: 0 0 20px currentColor;
+}
+
+/* Income icon - растущий график */
+.transaction-icon.income {
+  background: var(--ios-green)20;
+  color: var(--ios-green);
+  box-shadow: 0 0 20px var(--ios-green-glow);
+}
+
+/* Expense icon - падающий график */
+.transaction-icon.expense {
+  background: var(--ios-red)20;
+  color: var(--ios-red);
+  box-shadow: 0 0 20px var(--ios-red-glow);
 }
 
 .transaction-info {
@@ -610,19 +622,16 @@ body {
 
 .filter-btn.income.active {
   background: var(--ios-green);
+  box-shadow: 0 0 20px var(--ios-green-glow);
 }
 
 .filter-btn.expense.active {
   background: var(--ios-red);
-}
-
-/* Transactions List */
-.transactions-list {
-  margin: 0 var(--spacing-md);
+  box-shadow: 0 0 20px var(--ios-red-glow);
 }
 
 /* ==================== */
-/* REPORT PAGE UPDATED - CHARTS */
+/* REPORT PAGE - ENHANCED GLOW */
 /* ==================== */
 
 /* Report Tabs */
@@ -656,6 +665,7 @@ body {
 .report-tab.active {
   background: var(--ios-accent);
   color: white;
+  box-shadow: var(--shadow-glow);
 }
 
 /* Report Sections */
@@ -663,14 +673,7 @@ body {
   margin: var(--spacing-md);
 }
 
-.report-header {
-  font-size: 22px;
-  font-weight: 700;
-  margin-bottom: var(--spacing-lg);
-  color: var(--ios-text-primary);
-}
-
-/* Chart Container with glow */
+/* Chart Container with enhanced glow */
 .chart-container {
   background: var(--ios-surface);
   border-radius: var(--border-radius-large);
@@ -679,6 +682,10 @@ body {
   position: relative;
   overflow: hidden;
   box-shadow: var(--shadow-medium);
+}
+
+.chart-container:hover {
+  box-shadow: var(--shadow-floating);
 }
 
 .chart-title {
@@ -697,7 +704,7 @@ body {
 
 /* Chart glow effects */
 .chart-canvas {
-  filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.1));
+  filter: drop-shadow(0 0 20px rgba(255, 255, 255, 0.15));
 }
 
 /* Chart Legend */
@@ -719,6 +726,7 @@ body {
   width: 12px;
   height: 12px;
   border-radius: 6px;
+  box-shadow: 0 0 10px currentColor;
 }
 
 .legend-name {
@@ -753,6 +761,7 @@ body {
   font-size: 24px;
   font-weight: 700;
   color: var(--ios-text-primary);
+  text-shadow: 0 0 10px currentColor;
 }
 
 .overview-value.income {
@@ -774,6 +783,7 @@ body {
   padding: var(--spacing-lg);
   margin-bottom: var(--spacing-md);
   border: 0.5px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.05);
 }
 
 .goal-header {
@@ -791,6 +801,7 @@ body {
   align-items: center;
   justify-content: center;
   font-size: 24px;
+  box-shadow: 0 0 25px currentColor;
 }
 
 .goal-info {
@@ -822,12 +833,14 @@ body {
   border-radius: 3px;
   overflow: hidden;
   margin-bottom: 8px;
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.3);
 }
 
 .progress-fill {
   height: 100%;
   border-radius: 3px;
   transition: width 1s ease;
+  box-shadow: 0 0 15px currentColor;
 }
 
 .progress-text {
@@ -857,57 +870,7 @@ body {
 .add-goal-btn:hover {
   border-color: var(--ios-accent);
   color: var(--ios-accent);
-}
-
-/* Balance Distribution */
-.balance-distribution {
-  margin: var(--spacing-md);
-}
-
-.distribution-item {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-md);
-  padding: var(--spacing-md);
-  background: var(--ios-surface);
-  border-radius: var(--border-radius);
-  margin-bottom: 8px;
-}
-
-.distribution-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 20px;
-}
-
-.distribution-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.distribution-name {
-  font-size: 16px;
-  font-weight: 500;
-  margin-bottom: 2px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.distribution-amount {
-  font-size: 15px;
-  color: var(--ios-text-secondary);
-}
-
-.distribution-percentage {
-  font-size: 16px;
-  font-weight: 600;
-  flex-shrink: 0;
-  margin-left: var(--spacing-sm);
+  box-shadow: var(--shadow-glow);
 }
 
 /* Period Selector */
@@ -935,11 +898,11 @@ body {
 .period-btn.active {
   background: var(--ios-accent);
   color: white;
+  box-shadow: var(--shadow-glow);
 }
 
 /* ==================== */
-/* SERVICES PAGE UPDATED */
-/* ДОБАВЛЕН: выбор основного кошелька */
+/* SERVICES PAGE */
 /* ==================== */
 
 .services-section {
@@ -952,6 +915,7 @@ body {
   padding: var(--spacing-lg);
   margin-bottom: var(--spacing-md);
   border: 0.5px solid rgba(255, 255, 255, 0.05);
+  box-shadow: var(--shadow-subtle);
 }
 
 .service-title {
@@ -961,7 +925,7 @@ body {
   color: var(--ios-text-primary);
 }
 
-/* Основной кошелёк - новая секция */
+/* Основной кошелёк */
 .default-wallet-section {
   margin-bottom: var(--spacing-lg);
 }
@@ -980,6 +944,7 @@ body {
 
 .default-wallet-display:hover {
   border-color: var(--ios-accent);
+  box-shadow: var(--shadow-glow);
 }
 
 .default-wallet-info {
@@ -998,6 +963,7 @@ body {
   align-items: center;
   justify-content: center;
   font-size: 18px;
+  box-shadow: 0 0 20px var(--ios-accent-glow);
 }
 
 .default-wallet-text {
@@ -1079,6 +1045,7 @@ body {
   align-items: center;
   justify-content: center;
   font-size: 16px;
+  box-shadow: 0 0 15px var(--ios-accent-glow);
 }
 
 .wallet-option-text {
@@ -1101,6 +1068,7 @@ body {
   color: var(--ios-accent);
   font-size: 18px;
   opacity: 0;
+  text-shadow: 0 0 10px var(--ios-accent);
 }
 
 .wallet-option.active .wallet-option-check {
@@ -1132,16 +1100,18 @@ body {
 
 .currency-option:hover {
   border-color: var(--ios-accent);
+  box-shadow: var(--shadow-glow);
 }
 
 .currency-option.active {
   border-color: var(--ios-accent);
   background: var(--ios-accent);
   color: white;
+  box-shadow: var(--shadow-glow);
 }
 
 /* ==================== */
-/* MODALS & FORMS UPDATED */
+/* MODALS & FORMS - ENHANCED GLOW */
 /* ==================== */
 
 .modal-overlay {
@@ -1180,6 +1150,7 @@ body {
   overflow-y: auto;
   animation: slideUp 0.3s;
   border: 0.5px solid rgba(255, 255, 255, 0.1);
+  box-shadow: var(--shadow-floating);
 }
 
 @keyframes slideUp {
@@ -1198,7 +1169,7 @@ body {
   text-align: center;
 }
 
-/* Transaction type tabs with glow */
+/* Transaction type tabs with enhanced glow */
 .modal-tabs {
   display: flex;
   gap: 4px;
@@ -1234,113 +1205,19 @@ body {
 .modal-tab.income.active {
   background: linear-gradient(135deg, var(--ios-green), rgba(48, 209, 88, 0.8));
   color: white;
-  box-shadow: 0 0 15px var(--ios-green-glow);
+  box-shadow: 0 0 20px var(--ios-green-glow);
 }
 
 .modal-tab.expense.active {
   background: linear-gradient(135deg, var(--ios-red), rgba(255, 69, 58, 0.8));
   color: white;
-  box-shadow: 0 0 15px var(--ios-red-glow);
+  box-shadow: 0 0 20px var(--ios-red-glow);
 }
 
 .modal-tab.savings.active {
   background: linear-gradient(135deg, var(--ios-yellow), rgba(255, 214, 10, 0.8));
   color: white;
-  box-shadow: 0 0 15px var(--ios-yellow-glow);
-}
-
-/* Savings destination selector */
-.savings-destination {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--spacing-sm);
-  margin-bottom: var(--spacing-lg);
-}
-
-.destination-option {
-  padding: var(--spacing-md);
-  border: 1.5px solid var(--ios-tertiary);
-  border-radius: var(--border-radius-small);
-  background: var(--ios-elevated);
-  color: var(--ios-text-primary);
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all var(--transition-fast);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-}
-
-.destination-option:hover {
-  border-color: var(--ios-accent);
-}
-
-.destination-option.active {
-  border-color: var(--ios-yellow);
-  background: var(--ios-yellow-glow);
-  color: white;
-}
-
-.destination-option .icon {
-  font-size: 24px;
-}
-
-/* Goal selector in savings modal */
-.goal-selector {
-  margin-bottom: var(--spacing-lg);
-}
-
-.goal-option {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-md);
-  padding: var(--spacing-md);
-  background: var(--ios-elevated);
-  border: 1px solid var(--ios-tertiary);
-  border-radius: var(--border-radius-small);
-  margin-bottom: var(--spacing-sm);
-  cursor: pointer;
-  transition: all var(--transition-fast);
-}
-
-.goal-option:hover {
-  border-color: var(--ios-accent);
-}
-
-.goal-option.active {
-  border-color: var(--ios-yellow);
-  background: var(--ios-yellow-glow);
-}
-
-.goal-icon-small {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 16px;
-}
-
-.goal-info-small {
-  flex: 1;
-  min-width: 0;
-}
-
-.goal-name-small {
-  font-size: 14px;
-  font-weight: 500;
-  margin-bottom: 2px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.goal-progress-small {
-  font-size: 12px;
-  color: var(--ios-text-secondary);
+  box-shadow: 0 0 20px var(--ios-yellow-glow);
 }
 
 /* Form Styles */
@@ -1370,6 +1247,7 @@ body {
 .form-input:focus {
   outline: none;
   border-color: var(--ios-accent);
+  box-shadow: 0 0 15px var(--ios-accent-glow);
 }
 
 .form-select {
@@ -1383,7 +1261,13 @@ body {
   cursor: pointer;
 }
 
-/* Color Picker */
+.form-select:focus {
+  outline: none;
+  border-color: var(--ios-accent);
+  box-shadow: 0 0 15px var(--ios-accent-glow);
+}
+
+/* Color Picker with glow */
 .color-picker {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
@@ -1398,6 +1282,7 @@ body {
   border: 2px solid transparent;
   cursor: pointer;
   transition: transform var(--transition-fast);
+  box-shadow: 0 0 15px currentColor;
 }
 
 .color-option-small:hover {
@@ -1407,6 +1292,7 @@ body {
 .color-option-small.selected {
   border-color: white;
   transform: scale(1.1);
+  box-shadow: 0 0 20px currentColor;
 }
 
 /* Icon Picker */
@@ -1429,15 +1315,18 @@ body {
   font-size: 20px;
   cursor: pointer;
   transition: all var(--transition-fast);
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
 }
 
 .icon-option:hover {
   background: var(--ios-tertiary);
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
 }
 
 .icon-option.selected {
   border-color: var(--ios-accent);
   background: var(--ios-tertiary);
+  box-shadow: 0 0 20px var(--ios-accent-glow);
 }
 
 /* Modal Buttons */
@@ -1465,6 +1354,7 @@ body {
 
 .modal-btn.secondary:hover {
   background: var(--ios-elevated);
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.1);
 }
 
 .modal-btn.primary {
@@ -1473,7 +1363,8 @@ body {
 }
 
 .modal-btn.primary:hover {
-  background: var(--ios-accent-light);
+  background: var(--ios-blue);
+  box-shadow: var(--shadow-glow);
 }
 
 /* ==================== */
@@ -1496,7 +1387,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 6px 25px rgba(36, 129, 204, 0.5), 0 0 20px rgba(36, 129, 204, 0.3);
+  box-shadow: 0 6px 25px rgba(36, 129, 204, 0.5), 0 0 25px rgba(36, 129, 204, 0.5);
   z-index: 900;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   backdrop-filter: blur(10px);
@@ -1512,7 +1403,7 @@ body {
 
 .add-button:hover {
   transform: scale(1.1);
-  box-shadow: 0 8px 30px rgba(36, 129, 204, 0.7), 0 0 25px rgba(36, 129, 204, 0.4);
+  box-shadow: 0 8px 30px rgba(36, 129, 204, 0.7), 0 0 30px rgba(36, 129, 204, 0.6);
 }
 
 .add-button:active {
@@ -1520,7 +1411,7 @@ body {
 }
 
 /* ==================== */
-/* NOTIFICATIONS UPDATED */
+/* NOTIFICATIONS - UPDATED (1 секунда) */
 /* ==================== */
 
 .notification {
@@ -1538,28 +1429,45 @@ body {
   z-index: 3000;
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
   max-width: 90%;
   text-align: center;
+  opacity: 0;
 }
 
 .notification.show {
   transform: translateX(-50%) translateY(0);
+  opacity: 1;
+  animation: notificationHide 1s ease 1s forwards;
+}
+
+@keyframes notificationHide {
+  0% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-100px);
+  }
 }
 
 .notification.success {
   border-left: 4px solid var(--ios-green);
-  background: linear-gradient(135deg, var(--ios-surface), rgba(52, 199, 89, 0.1));
+  background: linear-gradient(135deg, var(--ios-surface), rgba(52, 199, 89, 0.15));
+  box-shadow: 0 0 25px var(--ios-green-glow);
 }
 
 .notification.error {
   border-left: 4px solid var(--ios-red);
-  background: linear-gradient(135deg, var(--ios-surface), rgba(255, 69, 58, 0.1));
+  background: linear-gradient(135deg, var(--ios-surface), rgba(255, 69, 58, 0.15));
+  box-shadow: 0 0 25px var(--ios-red-glow);
 }
 
 .notification.info {
   border-left: 4px solid var(--ios-accent);
-  background: linear-gradient(135deg, var(--ios-surface), rgba(10, 132, 255, 0.1));
+  background: linear-gradient(135deg, var(--ios-surface), rgba(10, 132, 255, 0.15));
+  box-shadow: 0 0 25px var(--ios-accent-glow);
 }
 
 /* ==================== */
@@ -1579,7 +1487,7 @@ body {
 }
 
 .glow {
-  box-shadow: 0 0 15px currentColor;
+  box-shadow: 0 0 20px currentColor;
 }
 
 .mt-1 { margin-top: var(--spacing-sm); }
@@ -1591,6 +1499,40 @@ body {
 .mb-2 { margin-bottom: var(--spacing-md); }
 .mb-3 { margin-bottom: var(--spacing-lg); }
 .mb-4 { margin-bottom: var(--spacing-xl); }
+
+/* Loading spinner */
+.loading {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--ios-bg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.loading-spinner {
+  width: 50px;
+  height: 50px;
+  border: 3px solid var(--ios-tertiary);
+  border-top-color: var(--ios-accent);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 16px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.loading-text {
+  font-size: 16px;
+  color: var(--ios-text-secondary);
+}
 
 /* ==================== */
 /* RESPONSIVE ADJUSTMENTS */
@@ -1654,5 +1596,9 @@ body {
   
   .pages-container {
     min-height: calc(100vh - 84px - env(safe-area-inset-bottom));
+  }
+  
+  .add-button {
+    bottom: calc(90px + env(safe-area-inset-bottom));
   }
 }
