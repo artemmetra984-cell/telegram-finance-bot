@@ -1,12 +1,7 @@
 /* frontend/static/style.css */
 /* ==================== */
 /* TELEGRAM FINANCE - iOS 26 STYLE UPDATED */
-/* ИСПРАВЛЕНИЯ: */
-/* 1. Центрирование текста категорий */
-/* 2. Улучшенные уведомления (1 секунда) */
-/* 3. Приятные светящиеся цвета */
-/* 4. Новые иконки для доходов/расходов */
-/* 5. Исправлено отображение накоплений */
+/* НОВОЕ: Сворачиваемые категории с анимацией */
 /* ==================== */
 
 :root {
@@ -257,8 +252,8 @@ body {
 }
 
 /* ==================== */
-/* PANEL PAGE - UPDATED */
-/* ИСПРАВЛЕНО: Центрирование текста категорий */
+/* PANEL PAGE - ПЕРЕРАБОТАННАЯ */
+/* НОВОЕ: Сворачиваемые блоки категорий */
 /* ==================== */
 
 /* Balance Card */
@@ -307,8 +302,249 @@ body {
   opacity: 0.8;
 }
 
-/* Categories Cards - Centered Text */
-.category-section {
+/* НОВОЕ: Сворачиваемые секции */
+.collapsible-section {
+  margin: var(--spacing-md);
+  border-radius: var(--border-radius-large);
+  overflow: hidden;
+  box-shadow: var(--shadow-medium);
+  transition: all var(--transition-normal);
+}
+
+.collapsible-section:last-of-type {
+  margin-bottom: var(--spacing-xl);
+}
+
+.collapsible-header {
+  padding: var(--spacing-lg) var(--spacing-md);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  border: none;
+  width: 100%;
+  text-align: left;
+  position: relative;
+  overflow: hidden;
+  transition: all var(--transition-normal);
+}
+
+.collapsible-header:hover {
+  filter: brightness(1.1);
+}
+
+.collapsible-header::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+}
+
+.collapsible-title {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  flex: 1;
+}
+
+.collapsible-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+}
+
+.collapsible-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.collapsible-name {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 4px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.collapsible-summary {
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.collapsible-arrow {
+  font-size: 20px;
+  font-weight: bold;
+  transition: transform var(--transition-normal);
+  margin-left: var(--spacing-sm);
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.collapsible-section.expanded .collapsible-arrow {
+  transform: rotate(180deg);
+}
+
+/* Контент секции (скрыт по умолчанию) */
+.collapsible-content {
+  max-height: 0;
+  overflow: hidden;
+  background: var(--ios-surface);
+  transition: max-height var(--transition-slow) cubic-bezier(0.4, 0, 0.2, 1);
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.collapsible-section.expanded .collapsible-content {
+  max-height: 800px;
+}
+
+/* Кнопка "Скрыть" */
+.hide-categories-btn {
+  width: calc(100% - 32px);
+  margin: var(--spacing-md) 16px;
+  padding: var(--spacing-md);
+  background: var(--ios-tertiary);
+  border: none;
+  border-radius: var(--border-radius);
+  color: var(--ios-text-secondary);
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all var(--transition-fast);
+}
+
+.hide-categories-btn:hover {
+  background: var(--ios-elevated);
+  color: var(--ios-text-primary);
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.1);
+}
+
+/* Категории внутри секций */
+.category-grid {
+  padding: var(--spacing-md);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.category-card {
+  background: var(--ios-elevated);
+  border-radius: var(--border-radius);
+  padding: var(--spacing-md);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  border: 0.5px solid rgba(255, 255, 255, 0.05);
+  transition: transform var(--transition-fast), background var(--transition-fast);
+  cursor: pointer;
+  position: relative;
+}
+
+.category-card:active {
+  transform: scale(0.98);
+  background: var(--ios-tertiary);
+}
+
+.category-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+  box-shadow: 0 0 15px currentColor;
+}
+
+.category-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.category-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ios-text-primary);
+  margin-bottom: 2px;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.category-name-text {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.category-stats {
+  font-size: 12px;
+  color: var(--ios-text-secondary);
+}
+
+.category-amount {
+  font-size: 15px;
+  font-weight: 600;
+  flex-shrink: 0;
+  margin-left: var(--spacing-sm);
+  min-width: 80px;
+  text-align: right;
+}
+
+.amount-positive {
+  color: var(--ios-green);
+  text-shadow: 0 0 10px var(--ios-green-glow);
+}
+
+.amount-negative {
+  color: var(--ios-red);
+  text-shadow: 0 0 10px var(--ios-red-glow);
+}
+
+/* Добавить категорию */
+.add-category-btn {
+  background: var(--ios-surface);
+  border: 1px dashed rgba(255, 255, 255, 0.2);
+  border-radius: var(--border-radius);
+  padding: var(--spacing-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--ios-text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  margin-top: 4px;
+}
+
+.add-category-btn:hover {
+  border-color: var(--ios-accent);
+  color: var(--ios-accent);
+}
+
+/* Последние операции */
+.recent-transactions {
   margin: var(--spacing-md);
 }
 
@@ -341,122 +577,6 @@ body {
   background: var(--ios-tertiary);
 }
 
-.category-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.category-card {
-  background: var(--ios-surface);
-  border-radius: var(--border-radius);
-  padding: var(--spacing-md);
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-md);
-  border: 0.5px solid rgba(255, 255, 255, 0.05);
-  transition: transform var(--transition-fast), background var(--transition-fast);
-  cursor: pointer;
-  position: relative;
-}
-
-.category-card:active {
-  transform: scale(0.98);
-  background: var(--ios-elevated);
-}
-
-.category-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 18px;
-  flex-shrink: 0;
-  box-shadow: 0 0 15px currentColor;
-}
-
-.category-info {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center; /* ИСПРАВЛЕНО: центрирование */
-  text-align: center; /* ИСПРАВЛЕНО: центрирование текста */
-}
-
-.category-name {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--ios-text-primary);
-  margin-bottom: 2px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-}
-
-.category-name-text {
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  text-align: center;
-}
-
-.category-stats {
-  font-size: 12px;
-  color: var(--ios-text-secondary);
-  text-align: center;
-  width: 100%;
-}
-
-.category-amount {
-  font-size: 15px;
-  font-weight: 600;
-  flex-shrink: 0;
-  margin-left: var(--spacing-sm);
-  min-width: 80px;
-  text-align: right;
-}
-
-.amount-positive {
-  color: var(--ios-green);
-}
-
-.amount-negative {
-  color: var(--ios-red);
-}
-
-/* Add category button */
-.add-category-btn {
-  background: var(--ios-surface);
-  border: 1px dashed rgba(255, 255, 255, 0.2);
-  border-radius: var(--border-radius);
-  padding: var(--spacing-sm);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  color: var(--ios-text-secondary);
-  font-size: 13px;
-  cursor: pointer;
-  transition: all var(--transition-fast);
-  margin-top: 4px;
-}
-
-.add-category-btn:hover {
-  border-color: var(--ios-accent);
-  color: var(--ios-accent);
-}
-
-/* Recent Transactions with New Icons */
-.recent-transactions {
-  margin: var(--spacing-md);
-}
-
 .transaction-item {
   background: var(--ios-surface);
   border-radius: var(--border-radius);
@@ -468,7 +588,6 @@ body {
   border: 0.5px solid rgba(255, 255, 255, 0.05);
 }
 
-/* НОВЫЕ ИКОНКИ: Заменены стрелочки */
 .transaction-icon {
   width: 40px;
   height: 40px;
@@ -480,14 +599,12 @@ body {
   box-shadow: 0 0 20px currentColor;
 }
 
-/* Income icon - растущий график */
 .transaction-icon.income {
   background: var(--ios-green)20;
   color: var(--ios-green);
   box-shadow: 0 0 20px var(--ios-green-glow);
 }
 
-/* Expense icon - падающий график */
 .transaction-icon.expense {
   background: var(--ios-red)20;
   color: var(--ios-red);
@@ -1112,6 +1229,7 @@ body {
 
 /* ==================== */
 /* MODALS & FORMS - ENHANCED GLOW */
+/* ИСПРАВЛЕНО: выбор накоплений */
 /* ==================== */
 
 .modal-overlay {
@@ -1265,6 +1383,117 @@ body {
   outline: none;
   border-color: var(--ios-accent);
   box-shadow: 0 0 15px var(--ios-accent-glow);
+}
+
+/* ИСПРАВЛЕНО: выбор накоплений (копилка/цель) */
+.savings-destination {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: var(--spacing-md);
+}
+
+.destination-option {
+  padding: 16px 12px;
+  border: 2px solid var(--ios-tertiary);
+  border-radius: var(--border-radius);
+  background: var(--ios-elevated);
+  color: var(--ios-text-primary);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  transition: all var(--transition-fast);
+}
+
+.destination-option:hover {
+  border-color: var(--ios-yellow);
+  transform: translateY(-2px);
+}
+
+.destination-option.active {
+  border-color: var(--ios-yellow);
+  background: var(--ios-yellow);
+  color: black;
+  box-shadow: 0 0 20px var(--ios-yellow-glow);
+  transform: translateY(-2px);
+}
+
+.destination-option.active .destination-icon {
+  color: black;
+  text-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+}
+
+.destination-icon {
+  font-size: 28px;
+  transition: all var(--transition-fast);
+}
+
+/* Выбор цели для накоплений */
+.goal-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  margin-bottom: 8px;
+  border: 1.5px solid var(--ios-tertiary);
+  border-radius: var(--border-radius-small);
+  background: var(--ios-elevated);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.goal-option:hover {
+  border-color: var(--ios-yellow);
+  background: rgba(255, 214, 10, 0.1);
+}
+
+.goal-option.active {
+  border-color: var(--ios-yellow);
+  background: var(--ios-yellow)20;
+  box-shadow: 0 0 15px var(--ios-yellow-glow);
+}
+
+.goal-option-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+}
+
+.goal-option-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.goal-option-name {
+  font-size: 14px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.goal-option-details {
+  font-size: 12px;
+  color: var(--ios-text-secondary);
+}
+
+.goal-option-check {
+  color: var(--ios-yellow);
+  font-size: 18px;
+  font-weight: bold;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.goal-option.active .goal-option-check {
+  opacity: 1;
 }
 
 /* Color Picker with glow */
@@ -1541,6 +1770,20 @@ body {
 @media (max-width: 480px) {
   .balance-amount {
     font-size: 24px;
+  }
+  
+  .collapsible-name {
+    font-size: 16px;
+  }
+  
+  .collapsible-summary {
+    font-size: 20px;
+  }
+  
+  .collapsible-icon {
+    width: 36px;
+    height: 36px;
+    font-size: 18px;
   }
   
   .overview-value {
