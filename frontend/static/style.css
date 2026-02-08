@@ -1,7 +1,7 @@
 /* frontend/static/style.css */
 /* ==================== */
 /* TELEGRAM FINANCE - iOS 26 STYLE UPDATED */
-/* УТОНЧЁННАЯ ВЕРСИЯ: пастельные цвета, меньшая высота */
+/* УТОНЧЁННАЯ ВЕРСИЯ: пастельные цвета для категорий */
 /* ==================== */
 
 :root {
@@ -15,23 +15,23 @@
   --ios-text-secondary: rgba(152, 152, 157, 0.9);
   --ios-text-tertiary: #6c6c70;
   
-  /* Пастельные цвета */
+  /* Пастельные цвета - БОЛЕЕ ЯРКИЕ */
   --pastel-green: #68C2A4;
-  --pastel-green-glow: rgba(104, 194, 164, 0.3);
+  --pastel-green-glow: rgba(104, 194, 164, 0.5);
   --pastel-red: #FF8A7A;
-  --pastel-red-glow: rgba(255, 138, 122, 0.3);
+  --pastel-red-glow: rgba(255, 138, 122, 0.5);
   --pastel-yellow: #FFD166;
-  --pastel-yellow-glow: rgba(255, 209, 102, 0.3);
+  --pastel-yellow-glow: rgba(255, 209, 102, 0.5);
   --pastel-orange: #FFB347;
-  --pastel-orange-glow: rgba(255, 179, 71, 0.3);
+  --pastel-orange-glow: rgba(255, 179, 71, 0.5);
   --pastel-blue: #7AB8FF;
-  --pastel-blue-glow: rgba(122, 184, 255, 0.3);
+  --pastel-blue-glow: rgba(122, 184, 255, 0.5);
   --pastel-purple: #B19CD9;
-  --pastel-purple-glow: rgba(177, 156, 217, 0.3);
+  --pastel-purple-glow: rgba(177, 156, 217, 0.5);
   --pastel-cyan: #6EC6CA;
-  --pastel-cyan-glow: rgba(110, 198, 202, 0.3);
+  --pastel-cyan-glow: rgba(110, 198, 202, 0.5);
   --pastel-pink: #FF9EB5;
-  --pastel-pink-glow: rgba(255, 158, 181, 0.3);
+  --pastel-pink-glow: rgba(255, 158, 181, 0.5);
   
   /* Благородный серый для остатка */
   --noble-gray: rgba(72, 72, 74, 0.9);
@@ -40,7 +40,7 @@
   
   /* Акцентный цвет */
   --ios-accent: #5D9CEC;
-  --ios-accent-glow: rgba(93, 156, 236, 0.3);
+  --ios-accent-glow: rgba(93, 156, 236, 0.5);
   
   /* Chart Colors - пастельные */
   --chart-1: var(--pastel-green);
@@ -257,7 +257,7 @@ body {
 
 /* ==================== */
 /* PANEL PAGE - УТОНЧЁННАЯ */
-/* Уменьшенная высота, пастельные цвета */
+/* Пастельные фоны для категорий */
 /* ==================== */
 
 /* Balance Card - благородный серый */
@@ -308,13 +308,14 @@ body {
   letter-spacing: 0.5px;
 }
 
-/* Сворачиваемые секции - уменьшенная высота */
+/* Сворачиваемые секции - ПАСТЕЛЬНЫЕ ФОНЫ */
 .collapsible-section {
   margin: var(--spacing-md);
   border-radius: var(--border-radius-large);
   overflow: hidden;
   box-shadow: var(--shadow-medium);
   transition: all var(--transition-normal);
+  background: var(--ios-surface); /* Обычный фон для контента */
 }
 
 .collapsible-section:last-of-type {
@@ -334,6 +335,7 @@ body {
   overflow: hidden;
   transition: all var(--transition-normal);
   min-height: 60px;
+  color: white; /* Белый текст на пастельном фоне */
 }
 
 .collapsible-header:hover {
@@ -347,33 +349,38 @@ body {
   left: 0;
   right: 0;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
 }
 
-/* Пастельные цвета для заголовков */
+/* Пастельные цвета для заголовков - НЕПРОЗРАЧНЫЕ */
 .collapsible-section[data-type="income"] .collapsible-header {
-  background: linear-gradient(135deg, rgba(104, 194, 164, 0.15) 0%, rgba(104, 194, 164, 0.1) 100%);
-  border: 1px solid rgba(104, 194, 164, 0.2);
+  background: linear-gradient(135deg, var(--pastel-green) 0%, rgba(104, 194, 164, 0.9) 100%);
+  border: 1px solid rgba(104, 194, 164, 0.3);
+  box-shadow: 0 0 15px var(--pastel-green-glow);
 }
 
 .collapsible-section[data-type="expense"] .collapsible-header {
-  background: linear-gradient(135deg, rgba(255, 138, 122, 0.15) 0%, rgba(255, 138, 122, 0.1) 100%);
-  border: 1px solid rgba(255, 138, 122, 0.2);
+  background: linear-gradient(135deg, var(--pastel-red) 0%, rgba(255, 138, 122, 0.9) 100%);
+  border: 1px solid rgba(255, 138, 122, 0.3);
+  box-shadow: 0 0 15px var(--pastel-red-glow);
 }
 
 .collapsible-section[data-type="savings"] .collapsible-header {
-  background: linear-gradient(135deg, rgba(255, 209, 102, 0.15) 0%, rgba(255, 209, 102, 0.1) 100%);
-  border: 1px solid rgba(255, 209, 102, 0.2);
+  background: linear-gradient(135deg, var(--pastel-yellow) 0%, rgba(255, 209, 102, 0.9) 100%);
+  border: 1px solid rgba(255, 209, 102, 0.3);
+  box-shadow: 0 0 15px var(--pastel-yellow-glow);
 }
 
 .collapsible-section[data-type="goals"] .collapsible-header {
-  background: linear-gradient(135deg, rgba(255, 179, 71, 0.15) 0%, rgba(255, 179, 71, 0.1) 100%);
-  border: 1px solid rgba(255, 179, 71, 0.2);
+  background: linear-gradient(135deg, var(--pastel-orange) 0%, rgba(255, 179, 71, 0.9) 100%);
+  border: 1px solid rgba(255, 179, 71, 0.3);
+  box-shadow: 0 0 15px var(--pastel-orange-glow);
 }
 
 .collapsible-section[data-type="wallets"] .collapsible-header {
-  background: linear-gradient(135deg, rgba(122, 184, 255, 0.15) 0%, rgba(122, 184, 255, 0.1) 100%);
-  border: 1px solid rgba(122, 184, 255, 0.2);
+  background: linear-gradient(135deg, var(--pastel-blue) 0%, rgba(122, 184, 255, 0.9) 100%);
+  border: 1px solid rgba(122, 184, 255, 0.3);
+  box-shadow: 0 0 15px var(--pastel-blue-glow);
 }
 
 .collapsible-title {
@@ -387,14 +394,14 @@ body {
   width: 36px;
   height: 36px;
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.2);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 18px;
-  box-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.2);
 }
 
 .collapsible-text {
@@ -406,14 +413,14 @@ body {
   font-size: 16px;
   font-weight: 600;
   margin-bottom: 2px;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
 .collapsible-summary {
   font-size: 20px;
   font-weight: 700;
   letter-spacing: -0.5px;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
 }
 
 /* Векторные стрелочки */
@@ -424,7 +431,7 @@ body {
   width: 24px;
   height: 24px;
   transition: transform var(--transition-normal);
-  color: var(--ios-text-secondary);
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .collapsible-arrow svg {
@@ -481,12 +488,13 @@ body {
   opacity: 0.8;
 }
 
-/* Категории внутри секций */
+/* Категории внутри секций - обычный фон */
 .category-grid {
   padding: var(--spacing-md);
   display: flex;
   flex-direction: column;
   gap: 6px;
+  background: var(--ios-surface);
 }
 
 .category-card {
@@ -594,6 +602,10 @@ body {
 /* Последние операции */
 .recent-transactions {
   margin: var(--spacing-md);
+  background: var(--ios-surface);
+  border-radius: var(--border-radius-large);
+  padding: var(--spacing-md);
+  box-shadow: var(--shadow-medium);
 }
 
 .section-header {
@@ -626,7 +638,7 @@ body {
 }
 
 .transaction-item {
-  background: var(--ios-surface);
+  background: var(--ios-elevated);
   border-radius: var(--border-radius);
   padding: var(--spacing-md);
   display: flex;
@@ -802,7 +814,7 @@ body {
 }
 
 /* ==================== */
-/* REPORT PAGE - ПАСТЕЛЬНЫЕ ЦВЕТА */
+/* REPORT PAGE - ОБЫЧНЫЙ ЦВЕТ */
 /* ==================== */
 
 /* Report Tabs */
@@ -844,7 +856,7 @@ body {
   margin: var(--spacing-md);
 }
 
-/* Chart Container with пастельные цвета */
+/* Chart Container with обычный цвет */
 .chart-container {
   background: var(--ios-surface);
   border-radius: var(--border-radius-large);
@@ -1289,7 +1301,7 @@ body {
 }
 
 /* ==================== */
-/* MODALS & FORMS - УТОНЧЁННЫЕ */
+/* MODALS & FORMS - ПАСТЕЛЬНЫЕ ЦВЕТА ДЛЯ ВКЛАДОК */
 /* ==================== */
 
 .modal-overlay {
@@ -1347,7 +1359,7 @@ body {
   text-align: center;
 }
 
-/* Transaction type tabs with пастельные цвета */
+/* Transaction type tabs with ПАСТЕЛЬНЫЕ ЦВЕТА */
 .modal-tabs {
   display: flex;
   gap: 4px;
@@ -1367,6 +1379,7 @@ body {
   font-size: 14px;
   cursor: pointer;
   transition: all var(--transition-fast);
+  color: var(--ios-text-primary);
 }
 
 .modal-tab.income {
@@ -1382,19 +1395,19 @@ body {
 }
 
 .modal-tab.income.active {
-  background: linear-gradient(135deg, var(--pastel-green), rgba(104, 194, 164, 0.8));
+  background: linear-gradient(135deg, var(--pastel-green), rgba(104, 194, 164, 0.9));
   color: white;
   box-shadow: 0 0 15px var(--pastel-green-glow);
 }
 
 .modal-tab.expense.active {
-  background: linear-gradient(135deg, var(--pastel-red), rgba(255, 138, 122, 0.8));
+  background: linear-gradient(135deg, var(--pastel-red), rgba(255, 138, 122, 0.9));
   color: white;
   box-shadow: 0 0 15px var(--pastel-red-glow);
 }
 
 .modal-tab.savings.active {
-  background: linear-gradient(135deg, var(--pastel-yellow), rgba(255, 209, 102, 0.8));
+  background: linear-gradient(135deg, var(--pastel-yellow), rgba(255, 209, 102, 0.9));
   color: white;
   box-shadow: 0 0 15px var(--pastel-yellow-glow);
 }
