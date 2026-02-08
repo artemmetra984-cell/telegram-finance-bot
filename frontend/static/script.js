@@ -273,7 +273,9 @@ function updateCategorySection(type, title, showLimited = true) {
                     ${icon}
                 </div>
                 <div class="category-info">
-                    <div class="category-name">${cat.name}</div>
+                    <div class="category-name">
+                        <span class="category-name-text">${cat.name}</span>
+                    </div>
                     <div class="category-stats">${type === 'income' ? 'Доходы' : type === 'expense' ? 'Расходы' : 'Накопления'}</div>
                 </div>
                 <div class="category-amount ${isPositive ? 'amount-positive' : 'amount-negative'}">
@@ -310,20 +312,24 @@ function updateWalletsDisplay() {
         const balance = wallet.balance || 0;
         const isDefault = wallet.is_default;
         const icon = wallet.icon || '💳';
+        const starIcon = isDefault ? '★' : '☆';
+        const starClass = isDefault ? 'active' : '';
         
         html += `
             <button class="category-card" onclick="showWalletTransactions('${wallet.name}')">
                 <div class="category-icon" style="background: var(--ios-blue)20; color: var(--ios-blue);">${icon}</div>
                 <div class="category-info">
-                    <div class="category-name">${wallet.name}</div>
+                    <div class="category-name">
+                        <span class="category-name-text">${wallet.name}</span>
+                        <button class="wallet-star ${starClass}" onclick="setDefaultWallet('${wallet.name}', event)">
+                            ${starIcon}
+                        </button>
+                    </div>
                     <div class="category-stats">Кошелёк</div>
                 </div>
                 <div class="category-amount">
                     ${formatCurrency(balance)} ${symbol}
                 </div>
-                <button class="wallet-star ${isDefault ? 'active' : ''}" onclick="setDefaultWallet('${wallet.name}', event)">
-                    ${isDefault ? '★' : '☆'}
-                </button>
             </button>
         `;
     });
@@ -1626,7 +1632,7 @@ function setupSavingsDestination() {
     if (oldDestination) oldDestination.remove();
     if (oldGoalSelector) oldGoalSelector.remove();
     
-    // Для накоплений добавляем выбор цели
+    // Для накоплений добавляем выбор назначения
     if (currentTransactionType === 'savings') {
         // Добавляем выбор назначения
         const destinationHTML = `
@@ -2349,7 +2355,9 @@ function showAllCategories(type) {
                         ${icon}
                     </div>
                     <div class="category-info">
-                        <div class="category-name">${cat.name}</div>
+                        <div class="category-name">
+                            <span class="category-name-text">${cat.name}</span>
+                        </div>
                         <div class="category-stats">${typeNames[type]}</div>
                     </div>
                     <div class="category-amount ${isPositive ? 'amount-positive' : 'amount-negative'}">

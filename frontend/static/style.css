@@ -209,51 +209,8 @@ body {
   color: var(--ios-accent);
 }
 
-/* Активный индикатор - анимированный круг */
-.nav-item.active::before {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 56px;
-  height: 56px;
-  background: var(--ios-accent);
-  border-radius: 28px;
-  z-index: 1;
-  opacity: 0;
-  animation: navPulse 2s infinite, fadeInScale 0.3s forwards;
-  box-shadow: 
-    0 0 0 4px rgba(36, 129, 204, 0.1),
-    0 0 0 8px rgba(36, 129, 204, 0.05),
-    0 0 20px rgba(36, 129, 204, 0.3);
-}
-
-@keyframes fadeInScale {
-  0% {
-    opacity: 0;
-    transform: translate(-50%, -50%) scale(0.8);
-  }
-  100% {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
-  }
-}
-
-@keyframes navPulse {
-  0%, 100% {
-    box-shadow: 
-      0 0 0 4px rgba(36, 129, 204, 0.1),
-      0 0 0 8px rgba(36, 129, 204, 0.05),
-      0 0 20px rgba(36, 129, 204, 0.3);
-  }
-  50% {
-    box-shadow: 
-      0 0 0 6px rgba(36, 129, 204, 0.15),
-      0 0 0 12px rgba(36, 129, 204, 0.08),
-      0 0 30px rgba(36, 129, 204, 0.4);
-  }
-}
+/* УБРАН синий кружок и связанные анимации */
+/* Активный индикатор - только белая иконка */
 
 /* Свечение для активной иконки */
 .nav-item.active .nav-icon::after {
@@ -417,6 +374,9 @@ body {
 .category-info {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .category-name {
@@ -424,6 +384,17 @@ body {
   font-weight: 500;
   color: var(--ios-text-primary);
   margin-bottom: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.category-name-text {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .category-stats {
@@ -436,6 +407,8 @@ body {
   font-weight: 600;
   flex-shrink: 0;
   margin-left: var(--spacing-sm);
+  min-width: 80px;
+  text-align: right;
 }
 
 .amount-positive {
@@ -446,21 +419,18 @@ body {
   color: var(--ios-red);
 }
 
-/* Wallet Star - Moved right */
+/* Wallet Star - Исправлено: справа от названия */
 .wallet-star {
   background: none;
   border: none;
   color: var(--ios-yellow);
   font-size: 18px;
   cursor: pointer;
-  padding: 4px;
+  padding: 0 4px;
   opacity: 0.7;
   transition: opacity var(--transition-fast);
-  position: absolute;
-  right: 40px;
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 10;
+  flex-shrink: 0;
+  margin-left: 8px;
 }
 
 .wallet-star:hover {
@@ -523,22 +493,33 @@ body {
 
 .transaction-info {
   flex: 1;
+  min-width: 0;
 }
 
 .transaction-title {
   font-size: 16px;
   font-weight: 500;
   margin-bottom: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .transaction-details {
   font-size: 13px;
   color: var(--ios-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .transaction-amount {
   font-size: 16px;
   font-weight: 600;
+  flex-shrink: 0;
+  margin-left: var(--spacing-sm);
+  min-width: 90px;
+  text-align: right;
 }
 
 .view-more-btn {
@@ -823,12 +804,16 @@ body {
 
 .goal-info {
   flex: 1;
+  min-width: 0;
 }
 
 .goal-name {
   font-size: 17px;
   font-weight: 600;
   margin-bottom: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .goal-date {
@@ -910,12 +895,16 @@ body {
 
 .distribution-info {
   flex: 1;
+  min-width: 0;
 }
 
 .distribution-name {
   font-size: 16px;
   font-weight: 500;
   margin-bottom: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .distribution-amount {
@@ -926,6 +915,8 @@ body {
 .distribution-percentage {
   font-size: 16px;
   font-weight: 600;
+  flex-shrink: 0;
+  margin-left: var(--spacing-sm);
 }
 
 /* Period Selector */
@@ -1197,12 +1188,16 @@ body {
 
 .goal-info-small {
   flex: 1;
+  min-width: 0;
 }
 
 .goal-name-small {
   font-size: 14px;
   font-weight: 500;
   margin-bottom: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .goal-progress-small {
@@ -1510,11 +1505,6 @@ body {
   .nav-icon {
     width: 24px;
     height: 24px;
-  }
-  
-  .nav-item.active::before {
-    width: 48px;
-    height: 48px;
   }
 }
 
