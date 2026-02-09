@@ -149,10 +149,10 @@ const segmentIconsPlugin = {
             const icon = icons[i] || '';
             if (!icon) return;
             const color = Array.isArray(colors) ? colors[i] : colors;
-            const angle = arc.endAngle - 0.12;
             const thickness = arc.outerRadius - arc.innerRadius;
             const badgeRadius = Math.min(16, Math.max(10, thickness * 0.45));
-            const radius = arc.outerRadius - badgeRadius - 2;
+            const angle = arc.endAngle;
+            const radius = arc.innerRadius + thickness * 0.5;
             const x = arc.x + Math.cos(angle) * radius;
             const y = arc.y + Math.sin(angle) * radius;
             ctx.save();
@@ -172,6 +172,36 @@ const segmentIconsPlugin = {
     }
 };
 
+const segmentCapsPlugin = {
+    id: 'segmentCaps',
+    afterDatasetDraw(chart, args, pluginOptions) {
+        const type = chart?.config?.type;
+        if (type !== 'doughnut' && type !== 'pie') return;
+        const colors = pluginOptions?.colors || chart.data.datasets[args.index]?.backgroundColor || [];
+        const meta = chart.getDatasetMeta(args.index);
+        const ctx = chart.ctx;
+        ctx.save();
+        meta.data.forEach((arc, i) => {
+            const color = Array.isArray(colors) ? colors[i] : colors;
+            const thickness = arc.outerRadius - arc.innerRadius;
+            const capRadius = Math.min(18, Math.max(10, thickness * 0.5));
+            const angle = arc.endAngle;
+            const radius = arc.innerRadius + thickness * 0.5;
+            const x = arc.x + Math.cos(angle) * radius;
+            const y = arc.y + Math.sin(angle) * radius;
+            ctx.save();
+            ctx.fillStyle = color;
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.55)';
+            ctx.shadowBlur = 12;
+            ctx.shadowOffsetY = 4;
+            ctx.beginPath();
+            ctx.arc(x, y, capRadius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        });
+        ctx.restore();
+    }
+};
 const segmentPercentagesPlugin = {
     id: 'segmentPercentages',
     afterDatasetDraw(chart, args, pluginOptions) {
@@ -205,7 +235,7 @@ const segmentPercentagesPlugin = {
 };
 
 if (window.Chart && Chart.register) {
-    Chart.register(chartShadowPlugin, segmentIconsPlugin, segmentPercentagesPlugin);
+    Chart.register(chartShadowPlugin, segmentCapsPlugin, segmentIconsPlugin, segmentPercentagesPlugin);
 }
 
 // ==================== //
@@ -1024,7 +1054,7 @@ function updateOverviewChart(totalIncome, totalExpense) {
     }
     
     // Создаем новый график с улучшенным стилем
-    const spacing = -6;
+    const spacing = 0;
     charts['overview-chart'] = new Chart(ctx, {
         type: 'doughnut',
         data: {
@@ -1040,7 +1070,7 @@ function updateOverviewChart(totalIncome, totalExpense) {
                     '#FF453A'
                 ],
                 borderWidth: 0,
-                borderRadius: { outerStart: 0, outerEnd: 18, innerStart: 0, innerEnd: 18 },
+                borderRadius: 0,
                 spacing: spacing,
                 borderAlign: 'inner',
                 borderJoinStyle: 'round',
@@ -1066,6 +1096,9 @@ function updateOverviewChart(totalIncome, totalExpense) {
                     shadowColor: 'rgba(0, 0, 0, 0.7)',
                     shadowBlur: 40,
                     shadowOffsetY: 16
+                },
+                segmentCaps: {
+                    colors: ['#30D158', '#FF453A']
                 },
                 segmentIcons: {
                     icons: ['💰', '📉'],
@@ -1159,7 +1192,7 @@ async function updateIncomeChart(transactions) {
     });
     
     // Создаем новый график с улучшенным стилем
-    const spacing = categories.length > 1 ? -6 : 0;
+    const spacing = 0;
     charts['income-chart'] = new Chart(ctx, {
         type: 'doughnut',
         data: {
@@ -1169,7 +1202,7 @@ async function updateIncomeChart(transactions) {
                 backgroundColor: backgroundColors,
                 borderColor: borderColors,
                 borderWidth: 0,
-                borderRadius: { outerStart: 0, outerEnd: 18, innerStart: 0, innerEnd: 18 },
+                borderRadius: 0,
                 spacing: spacing,
                 borderAlign: 'inner',
                 hoverBackgroundColor: hoverColors,
@@ -1188,6 +1221,9 @@ async function updateIncomeChart(transactions) {
                     shadowColor: 'rgba(0, 0, 0, 0.7)',
                     shadowBlur: 38,
                     shadowOffsetY: 14
+                },
+                segmentCaps: {
+                    colors: backgroundColors
                 },
                 segmentIcons: {
                     icons,
@@ -1279,7 +1315,7 @@ async function updateExpenseChart(transactions) {
     });
     
     // Создаем новый график с улучшенным стилем
-    const spacing = categories.length > 1 ? -6 : 0;
+    const spacing = 0;
     charts['expense-chart'] = new Chart(ctx, {
         type: 'doughnut',
         data: {
@@ -1289,7 +1325,7 @@ async function updateExpenseChart(transactions) {
                 backgroundColor: backgroundColors,
                 borderColor: borderColors,
                 borderWidth: 0,
-                borderRadius: { outerStart: 0, outerEnd: 18, innerStart: 0, innerEnd: 18 },
+                borderRadius: 0,
                 spacing: spacing,
                 borderAlign: 'inner',
                 hoverBackgroundColor: hoverColors,
@@ -1308,6 +1344,9 @@ async function updateExpenseChart(transactions) {
                     shadowColor: 'rgba(0, 0, 0, 0.7)',
                     shadowBlur: 38,
                     shadowOffsetY: 14
+                },
+                segmentCaps: {
+                    colors: backgroundColors
                 },
                 segmentIcons: {
                     icons,

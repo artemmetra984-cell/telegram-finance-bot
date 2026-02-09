@@ -914,7 +914,7 @@ body {
 
 .chart-wrapper {
   position: relative;
-  height: 230px;
+  height: 345px;
   margin: var(--spacing-md) 0;
   display: flex;
   align-items: center;
@@ -942,9 +942,9 @@ body {
 }
 
 .chart-row .chart-wrapper {
-  flex: 1 1 260px;
-  max-width: 320px;
-  height: 220px;
+  flex: 1 1 390px;
+  max-width: 480px;
+  height: 330px;
   margin: 0;
 }
 
@@ -1306,13 +1306,17 @@ body {
 }
 
 .article-close {
-  width: 32px;
-  height: 32px;
-  border-radius: 16px;
+  width: 40px;
+  height: 40px;
+  border-radius: 20px;
   border: 1px solid var(--ios-tertiary);
   background: var(--ios-elevated);
   color: var(--ios-text-primary);
   cursor: pointer;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .article-modal-body {
