@@ -1,7 +1,7 @@
 # backend/app.py
 import os
 import sys
-from flask import Flask, render_template, jsonify, request
+from flask import Flask, render_template, jsonify, request, send_from_directory
 from flask_cors import CORS
 from dotenv import load_dotenv
 import requests
@@ -212,6 +212,10 @@ except ImportError as e:
 @app.route('/')
 def index():
     return render_template('index.html')
+
+@app.route('/sw.js')
+def service_worker():
+    return send_from_directory(STATIC_DIR, 'sw.js', mimetype='application/javascript')
 
 @app.route('/webhook', methods=['POST'])
 def telegram_webhook():

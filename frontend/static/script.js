@@ -309,6 +309,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         initNavigation();
         updateCurrencyDisplay();
         setupAddButton();
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js').catch(() => {});
+        }
         
         // Инициализируем сворачиваемые секции
         initCollapsibleSections();
