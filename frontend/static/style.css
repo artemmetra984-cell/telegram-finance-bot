@@ -295,7 +295,7 @@ body {
 }
 
 .balance-amount {
-  font-size: 30px;
+  font-size: 34px;
   font-weight: 700;
   margin-bottom: var(--spacing-xs);
   letter-spacing: -0.5px;
@@ -959,6 +959,23 @@ body {
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.legend-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.legend-title {
+  color: var(--ios-text-primary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.legend-meta {
+  color: var(--ios-text-secondary);
+  font-size: 12px;
 }
 
 .legend-color {

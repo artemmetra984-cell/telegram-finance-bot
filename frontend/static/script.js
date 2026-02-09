@@ -240,7 +240,11 @@ function updateBalanceDisplay(summary) {
     // Остаток
     const balanceElement = document.getElementById('balance');
     if (balanceElement) {
-        balanceElement.textContent = formatCurrency(summary.balance) + ' ' + symbol;
+        const walletsTotal = walletsData.reduce((sum, w) => sum + (w.balance || 0), 0);
+        const balanceValue = Number.isFinite(walletsTotal) && walletsTotal > 0
+            ? walletsTotal
+            : (summary?.balance ?? 0);
+        balanceElement.textContent = formatCurrency(balanceValue) + ' ' + symbol;
     }
     
     // Обновляем суммы в заголовках секций
@@ -304,12 +308,14 @@ async function loadPanelData() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                user_id: currentUser.id,
+                telegram_id: currentUser.telegramId,
+                first_name: currentUser.firstName || 'Пользователь',
                 session_token: sessionToken
             })
         });
-        
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         const data = await response.json();
+        if (data.error) throw new Error(data.error);
         
         // Обновляем категории
         categoriesData = data.categories || categoriesData;
@@ -886,8 +892,8 @@ function updateOverviewChart(totalIncome, totalExpense) {
                     'rgba(255, 69, 58, 1)'
                 ],
                 borderWidth: 0,
-                borderRadius: { outerStart: 0, outerEnd: 16, innerStart: 0, innerEnd: 16 },
-                spacing: -6,
+                borderRadius: { outerStart: 0, outerEnd: 18, innerStart: 0, innerEnd: 18 },
+                spacing: -10,
                 borderAlign: 'inner',
                 borderJoinStyle: 'round',
                 hoverBackgroundColor: [
@@ -896,7 +902,7 @@ function updateOverviewChart(totalIncome, totalExpense) {
                 ],
                 hoverBorderColor: 'rgba(255, 255, 255, 0.2)',
                 hoverBorderWidth: 0,
-                hoverOffset: 6
+                hoverOffset: 0
             }]
         },
         options: {
@@ -1001,13 +1007,13 @@ async function updateIncomeChart(transactions) {
                 backgroundColor: backgroundColors,
                 borderColor: borderColors,
                 borderWidth: 0,
-                borderRadius: { outerStart: 0, outerEnd: 16, innerStart: 0, innerEnd: 16 },
-                spacing: -6,
+                borderRadius: { outerStart: 0, outerEnd: 18, innerStart: 0, innerEnd: 18 },
+                spacing: -10,
                 borderAlign: 'inner',
                 hoverBackgroundColor: hoverColors,
                 hoverBorderColor: 'rgba(255, 255, 255, 0.2)',
                 hoverBorderWidth: 0,
-                hoverOffset: 6
+                hoverOffset: 0
             }]
         },
         options: {
@@ -1107,13 +1113,13 @@ async function updateExpenseChart(transactions) {
                 backgroundColor: backgroundColors,
                 borderColor: borderColors,
                 borderWidth: 0,
-                borderRadius: { outerStart: 0, outerEnd: 16, innerStart: 0, innerEnd: 16 },
-                spacing: -6,
+                borderRadius: { outerStart: 0, outerEnd: 18, innerStart: 0, innerEnd: 18 },
+                spacing: -10,
                 borderAlign: 'inner',
                 hoverBackgroundColor: hoverColors,
                 hoverBorderColor: 'rgba(255, 255, 255, 0.2)',
                 hoverBorderWidth: 0,
-                hoverOffset: 6
+                hoverOffset: 0
             }]
         },
         options: {
@@ -1560,8 +1566,10 @@ function updateChartLegend(legendId, categories, amounts, colors) {
         html += `
             <div class="legend-item">
                 <div class="legend-color" style="background: ${color}; box-shadow: 0 0 15px ${color}80;"></div>
-                <div class="legend-name">${category}</div>
-                <div class="legend-percentage">${percentage}%</div>
+                <div class="legend-text">
+                    <div class="legend-title">${category}</div>
+                    <div class="legend-meta">${formatCurrency(amount)} ${symbol} • ${percentage}%</div>
+                </div>
             </div>
         `;
     });
@@ -2452,7 +2460,7 @@ async function addNewGoal(e) {
     if (!nameInput || !amountInput) return;
     
     const name = nameInput.value.trim();
-    const amount = parseFloat(amountInput.value);
+    const amount = parseFloat((amountInput.value || '').replace(',', '.'));
     const selectedIcon = iconsGrid?.querySelector('.icon-option.selected');
     const selectedColor = colorGrid?.querySelector('.color-option-small.selected');
     
@@ -2477,6 +2485,10 @@ async function addNewGoal(e) {
     }
     
     try {
+        if (!currentUser || !currentUser.id) {
+            showNotification('Сессия устарела, перезайдите', 'error');
+            return;
+        }
         const response = await fetch('/api/add_goal', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -2490,6 +2502,7 @@ async function addNewGoal(e) {
             })
         });
         
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         const data = await response.json();
         if (data.error) throw new Error(data.error);
         
