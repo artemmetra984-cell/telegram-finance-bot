@@ -40,6 +40,30 @@ const colorPaletteGlow = [
   'rgba(255, 59, 48, 0.5)'
 ];
 
+const chartShadowPlugin = {
+    id: 'chartShadow',
+    beforeDatasetDraw(chart, args, pluginOptions) {
+        const type = chart?.config?.type;
+        if (type !== 'doughnut' && type !== 'pie') return;
+        const ctx = chart.ctx;
+        ctx.save();
+        chart.$shadowActive = true;
+        ctx.shadowColor = pluginOptions?.shadowColor || 'rgba(0, 0, 0, 0.45)';
+        ctx.shadowBlur = pluginOptions?.shadowBlur ?? 22;
+        ctx.shadowOffsetY = pluginOptions?.shadowOffsetY ?? 8;
+    },
+    afterDatasetDraw(chart) {
+        if (!chart.$shadowActive) return;
+        chart.$shadowActive = false;
+        const ctx = chart.ctx;
+        ctx.restore();
+    }
+};
+
+if (window.Chart && Chart.register) {
+    Chart.register(chartShadowPlugin);
+}
+
 // ==================== //
 // ОСНОВНАЯ ИНИЦИАЛИЗАЦИЯ //
 // ==================== //
@@ -860,24 +884,30 @@ function updateOverviewChart(totalIncome, totalExpense) {
                     'rgba(48, 209, 88, 1)',
                     'rgba(255, 69, 58, 1)'
                 ],
-                borderWidth: 2,
+                borderWidth: 0,
+                borderRadius: 14,
+                spacing: 4,
                 borderJoinStyle: 'round',
                 hoverBackgroundColor: [
                     'rgba(48, 209, 88, 1)',
                     'rgba(255, 69, 58, 1)'
                 ],
-                hoverBorderColor: 'rgba(255, 255, 255, 0.3)',
-                hoverBorderWidth: 3,
-                hoverOffset: 10
+                hoverBorderColor: 'rgba(255, 255, 255, 0.2)',
+                hoverBorderWidth: 0,
+                hoverOffset: 6
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            cutout: '75%',
-            radius: '90%',
+            cutout: '72%',
+            radius: '92%',
             plugins: {
                 legend: { display: false },
+                chartShadow: {
+                    shadowBlur: 24,
+                    shadowOffsetY: 10
+                },
                 tooltip: {
                     callbacks: {
                         label: (context) => {
@@ -960,18 +990,20 @@ async function updateIncomeChart(transactions) {
     
     // Создаем новый график с улучшенным стилем
     charts['income-chart'] = new Chart(ctx, {
-        type: 'pie',
+        type: 'doughnut',
         data: {
             labels: categories,
             datasets: [{
                 data: amounts,
                 backgroundColor: backgroundColors,
                 borderColor: borderColors,
-                borderWidth: 2,
+                borderWidth: 0,
+                borderRadius: 12,
+                spacing: 4,
                 hoverBackgroundColor: hoverColors,
-                hoverBorderColor: 'rgba(255, 255, 255, 0.3)',
-                hoverBorderWidth: 3,
-                hoverOffset: 10
+                hoverBorderColor: 'rgba(255, 255, 255, 0.2)',
+                hoverBorderWidth: 0,
+                hoverOffset: 6
             }]
         },
         options: {
@@ -979,6 +1011,10 @@ async function updateIncomeChart(transactions) {
             maintainAspectRatio: false,
             plugins: {
                 legend: { display: false },
+                chartShadow: {
+                    shadowBlur: 22,
+                    shadowOffsetY: 8
+                },
                 tooltip: {
                     callbacks: {
                         label: (context) => {
@@ -990,8 +1026,8 @@ async function updateIncomeChart(transactions) {
                     }
                 }
             },
-            cutout: '65%',
-            radius: '85%',
+            cutout: '72%',
+            radius: '90%',
             animation: {
                 animateScale: true,
                 animateRotate: true,
@@ -1058,18 +1094,20 @@ async function updateExpenseChart(transactions) {
     
     // Создаем новый график с улучшенным стилем
     charts['expense-chart'] = new Chart(ctx, {
-        type: 'pie',
+        type: 'doughnut',
         data: {
             labels: categories,
             datasets: [{
                 data: amounts,
                 backgroundColor: backgroundColors,
                 borderColor: borderColors,
-                borderWidth: 2,
+                borderWidth: 0,
+                borderRadius: 12,
+                spacing: 4,
                 hoverBackgroundColor: hoverColors,
-                hoverBorderColor: 'rgba(255, 255, 255, 0.3)',
-                hoverBorderWidth: 3,
-                hoverOffset: 10
+                hoverBorderColor: 'rgba(255, 255, 255, 0.2)',
+                hoverBorderWidth: 0,
+                hoverOffset: 6
             }]
         },
         options: {
@@ -1077,6 +1115,10 @@ async function updateExpenseChart(transactions) {
             maintainAspectRatio: false,
             plugins: {
                 legend: { display: false },
+                chartShadow: {
+                    shadowBlur: 22,
+                    shadowOffsetY: 8
+                },
                 tooltip: {
                     callbacks: {
                         label: (context) => {
@@ -1088,8 +1130,8 @@ async function updateExpenseChart(transactions) {
                     }
                 }
             },
-            cutout: '65%',
-            radius: '85%',
+            cutout: '72%',
+            radius: '90%',
             animation: {
                 animateScale: true,
                 animateRotate: true,

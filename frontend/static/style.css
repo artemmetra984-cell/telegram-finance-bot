@@ -863,22 +863,23 @@ body {
 
 /* Chart Container with обычный цвет */
 .chart-container {
-  background: var(--ios-surface);
+  background: radial-gradient(120% 120% at 10% 0%, #2a2a2e 0%, #1b1b1f 45%, #141417 100%);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: var(--border-radius-large);
   padding: var(--spacing-lg);
   margin-bottom: var(--spacing-lg);
   position: relative;
   overflow: hidden;
-  box-shadow: var(--shadow-medium);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 .chart-container:hover {
-  box-shadow: var(--shadow-floating);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
 .chart-title {
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 500;
   margin-bottom: var(--spacing-lg);
   color: var(--ios-text-primary);
   text-align: center;
@@ -886,8 +887,11 @@ body {
 
 .chart-wrapper {
   position: relative;
-  height: 200px;
+  height: 230px;
   margin: var(--spacing-md) 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* Chart glow effects */
@@ -908,6 +912,10 @@ body {
   align-items: center;
   gap: 8px;
   font-size: 13px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .legend-color {
