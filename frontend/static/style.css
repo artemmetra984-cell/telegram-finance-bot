@@ -1259,6 +1259,9 @@ body {
 
 .add-home-open {
   width: 100%;
+  background: #3a4a63;
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #e9eef6;
 }
 
 /* Articles */

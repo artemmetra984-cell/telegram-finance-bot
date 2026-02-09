@@ -1119,6 +1119,23 @@ function openInvestAll() {
 
 function openAddToHome() {
     const modal = document.getElementById('add-to-home-modal');
+    const note = document.getElementById('add-home-note');
+    const iosStep = document.getElementById('add-home-ios');
+    const androidStep = document.getElementById('add-home-android');
+    const ua = navigator.userAgent || '';
+    const isAndroid = /Android/i.test(ua);
+    const isIOS = /iP(hone|ad|od)/i.test(ua);
+    if (iosStep) iosStep.style.display = isAndroid ? 'none' : 'block';
+    if (androidStep) androidStep.style.display = isIOS ? 'none' : 'block';
+    if (note) {
+        if (isIOS) {
+            note.textContent = 'На iOS добавление доступно только через Safari. Внутри Telegram меню недоступно.';
+        } else if (isAndroid) {
+            note.textContent = 'Добавление доступно через браузер. Внутри Telegram меню недоступно.';
+        } else {
+            note.textContent = 'Добавление работает через браузер. Внутри Telegram меню недоступно.';
+        }
+    }
     if (modal) modal.classList.add('active');
 }
 
