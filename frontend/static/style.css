@@ -923,7 +923,7 @@ body {
 
 /* Chart Legend */
 .chart-legend {
-  display: flex;
+  display: none;
   flex-wrap: wrap;
   gap: 10px;
   margin-top: var(--spacing-xl);
@@ -933,10 +933,12 @@ body {
   display: flex;
   align-items: center;
   gap: var(--spacing-lg);
+  justify-content: center;
 }
 
 .chart-row .chart-wrapper {
-  flex: 0 0 220px;
+  flex: 1 1 260px;
+  max-width: 320px;
   height: 220px;
   margin: 0;
 }
@@ -976,6 +978,20 @@ body {
 .legend-meta {
   color: var(--ios-text-secondary);
   font-size: 12px;
+}
+
+.goal-option-progress {
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+  margin-top: 6px;
+}
+
+.goal-option-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  box-shadow: 0 0 10px currentColor;
 }
 
 .legend-color {

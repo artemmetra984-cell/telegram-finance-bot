@@ -24,6 +24,8 @@ let charts = {};
 let allTransactions = [];
 let currentSavingsDestination = 'piggybank';
 let selectedGoalId = null;
+let isCreatingGoal = false;
+let isCreatingGoal = false;
 
 // Константы
 const currencySymbols = { 'RUB': '₽', 'USD': '$', 'EUR': '€', 'GEL': '₾' };
@@ -60,8 +62,66 @@ const chartShadowPlugin = {
     }
 };
 
+const segmentIconsPlugin = {
+    id: 'segmentIcons',
+    afterDatasetDraw(chart, args, pluginOptions) {
+        const type = chart?.config?.type;
+        if (type !== 'doughnut' && type !== 'pie') return;
+        const icons = pluginOptions?.icons || [];
+        if (!icons.length) return;
+        const meta = chart.getDatasetMeta(args.index);
+        const ctx = chart.ctx;
+        ctx.save();
+        ctx.font = '16px "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        meta.data.forEach((arc, i) => {
+            const angle = arc.endAngle - 0.08;
+            const radius = arc.outerRadius - 14;
+            const x = arc.x + Math.cos(angle) * radius;
+            const y = arc.y + Math.sin(angle) * radius;
+            const icon = icons[i] || '';
+            if (!icon) return;
+            ctx.fillText(icon, x, y);
+        });
+        ctx.restore();
+    }
+};
+
+const segmentPercentagesPlugin = {
+    id: 'segmentPercentages',
+    afterDatasetDraw(chart, args, pluginOptions) {
+        const type = chart?.config?.type;
+        if (type !== 'doughnut' && type !== 'pie') return;
+        if (!pluginOptions) return;
+        const meta = chart.getDatasetMeta(args.index);
+        const data = chart.data.datasets[args.index]?.data || [];
+        const total = data.reduce((a, b) => a + b, 0);
+        if (!total) return;
+        const ctx = chart.ctx;
+        ctx.save();
+        ctx.font = '12px "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+        ctx.fillStyle = '#ffffff';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
+        ctx.shadowBlur = 6;
+        meta.data.forEach((arc, i) => {
+            const value = data[i] || 0;
+            const percent = ((value / total) * 100);
+            if (percent < 3) return;
+            const angle = (arc.startAngle + arc.endAngle) / 2;
+            const radius = (arc.innerRadius + arc.outerRadius) / 2;
+            const x = arc.x + Math.cos(angle) * radius;
+            const y = arc.y + Math.sin(angle) * radius;
+            ctx.fillText(`${percent.toFixed(0)}%`, x, y);
+        });
+        ctx.restore();
+    }
+};
+
 if (window.Chart && Chart.register) {
-    Chart.register(chartShadowPlugin);
+    Chart.register(chartShadowPlugin, segmentIconsPlugin, segmentPercentagesPlugin);
 }
 
 // ==================== //
@@ -755,6 +815,8 @@ function loadReportPage() {
     setupReportTabs();
     loadGoals();
     setupBalancePeriods();
+    const activeTab = document.querySelector('.report-tab.active')?.dataset.tab || 'overview';
+    requestAnimationFrame(() => updateReportTab(activeTab));
 }
 
 function setupReportTabs() {
@@ -776,13 +838,13 @@ function setupReportTabs() {
             const targetTab = document.getElementById(`tab-${tabId}`);
             if (targetTab) {
                 targetTab.classList.add('active');
-                updateReportTab(tabId);
+                requestAnimationFrame(() => updateReportTab(tabId));
             }
         };
     });
     
     // Инициализируем первую вкладку
-    updateReportTab('overview');
+    requestAnimationFrame(() => updateReportTab('overview'));
 }
 
 async function updateReportTab(tabId) {
@@ -884,12 +946,12 @@ function updateOverviewChart(totalIncome, totalExpense) {
             datasets: [{
                 data: [totalIncome, totalExpense],
                 backgroundColor: [
-                    'rgba(48, 209, 88, 0.9)',
-                    'rgba(255, 69, 58, 0.9)'
+                    '#30D158',
+                    '#FF453A'
                 ],
                 borderColor: [
-                    'rgba(48, 209, 88, 1)',
-                    'rgba(255, 69, 58, 1)'
+                    '#30D158',
+                    '#FF453A'
                 ],
                 borderWidth: 0,
                 borderRadius: { outerStart: 0, outerEnd: 18, innerStart: 0, innerEnd: 18 },
@@ -897,8 +959,8 @@ function updateOverviewChart(totalIncome, totalExpense) {
                 borderAlign: 'inner',
                 borderJoinStyle: 'round',
                 hoverBackgroundColor: [
-                    'rgba(48, 209, 88, 1)',
-                    'rgba(255, 69, 58, 1)'
+                    '#30D158',
+                    '#FF453A'
                 ],
                 hoverBorderColor: 'rgba(255, 255, 255, 0.2)',
                 hoverBorderWidth: 0,
@@ -910,12 +972,18 @@ function updateOverviewChart(totalIncome, totalExpense) {
             maintainAspectRatio: false,
             cutout: '72%',
             radius: '92%',
+            rotation: -90,
             plugins: {
                 legend: { display: false },
                 chartShadow: {
-                    shadowBlur: 24,
-                    shadowOffsetY: 10
+                    shadowColor: 'rgba(0, 0, 0, 0.7)',
+                    shadowBlur: 40,
+                    shadowOffsetY: 16
                 },
+                segmentIcons: {
+                    icons: ['💰', '📉']
+                },
+                segmentPercentages: true,
                 tooltip: {
                     callbacks: {
                         label: (context) => {
@@ -991,11 +1059,12 @@ async function updateIncomeChart(transactions) {
         return cat?.color || colorPalette[index % colorPalette.length];
     });
     
-    const borderColors = backgroundColors.map(color => color + 'FF');
-    const hoverColors = backgroundColors.map(color => color + 'CC');
-    
-    // Обновляем легенду
-    updateChartLegend('income-legend', categories, amounts, backgroundColors);
+    const borderColors = backgroundColors.map(color => color);
+    const hoverColors = backgroundColors.map(color => color);
+    const icons = categories.map(category => {
+        const cat = categoriesData.income?.find(c => c.name === category);
+        return cat?.icon || '💰';
+    });
     
     // Создаем новый график с улучшенным стилем
     charts['income-chart'] = new Chart(ctx, {
@@ -1022,9 +1091,14 @@ async function updateIncomeChart(transactions) {
             plugins: {
                 legend: { display: false },
                 chartShadow: {
-                    shadowBlur: 22,
-                    shadowOffsetY: 8
+                    shadowColor: 'rgba(0, 0, 0, 0.7)',
+                    shadowBlur: 38,
+                    shadowOffsetY: 14
                 },
+                segmentIcons: {
+                    icons
+                },
+                segmentPercentages: true,
                 tooltip: {
                     callbacks: {
                         label: (context) => {
@@ -1038,6 +1112,7 @@ async function updateIncomeChart(transactions) {
             },
             cutout: '72%',
             radius: '90%',
+            rotation: -90,
             animation: {
                 animateScale: true,
                 animateRotate: true,
@@ -1097,11 +1172,12 @@ async function updateExpenseChart(transactions) {
         return cat?.color || colorPalette[index % colorPalette.length];
     });
     
-    const borderColors = backgroundColors.map(color => color + 'FF');
-    const hoverColors = backgroundColors.map(color => color + 'CC');
-    
-    // Обновляем легенду
-    updateChartLegend('expense-legend', categories, amounts, backgroundColors);
+    const borderColors = backgroundColors.map(color => color);
+    const hoverColors = backgroundColors.map(color => color);
+    const icons = categories.map(category => {
+        const cat = categoriesData.expense?.find(c => c.name === category);
+        return cat?.icon || '💸';
+    });
     
     // Создаем новый график с улучшенным стилем
     charts['expense-chart'] = new Chart(ctx, {
@@ -1128,9 +1204,14 @@ async function updateExpenseChart(transactions) {
             plugins: {
                 legend: { display: false },
                 chartShadow: {
-                    shadowBlur: 22,
-                    shadowOffsetY: 8
+                    shadowColor: 'rgba(0, 0, 0, 0.7)',
+                    shadowBlur: 38,
+                    shadowOffsetY: 14
                 },
+                segmentIcons: {
+                    icons
+                },
+                segmentPercentages: true,
                 tooltip: {
                     callbacks: {
                         label: (context) => {
@@ -1144,6 +1225,7 @@ async function updateExpenseChart(transactions) {
             },
             cutout: '72%',
             radius: '90%',
+            rotation: -90,
             animation: {
                 animateScale: true,
                 animateRotate: true,
@@ -2090,6 +2172,9 @@ function generateGoalOptions() {
                     <div class="goal-option-details">
                         ${formatCurrency(currentAmount)} / ${formatCurrency(targetAmount)} ${symbol} (${progress.toFixed(1)}%)
                     </div>
+                    <div class="goal-option-progress">
+                        <div class="goal-option-progress-fill" style="width: ${progress}%; background: ${color}; color: ${color};"></div>
+                    </div>
                 </div>
                 <div class="goal-option-check">
                     ${isSelected ? '✓' : ''}
@@ -2449,6 +2534,8 @@ function showAddGoalModal() {
 
 async function addNewGoal(e) {
     if (e) e.preventDefault();
+    if (isCreatingGoal) return;
+    isCreatingGoal = true;
     
     const nameInput = document.getElementById('goal-name-input');
     const amountInput = document.getElementById('goal-target-amount');
@@ -2476,17 +2563,20 @@ async function addNewGoal(e) {
     
     if (!name) {
         showNotification('Введите название цели', 'error');
+        isCreatingGoal = false;
         return;
     }
     
     if (!amount || amount <= 0) {
         showNotification('Введите корректную сумму', 'error');
+        isCreatingGoal = false;
         return;
     }
     
     try {
         if (!currentUser || !currentUser.id) {
             showNotification('Сессия устарела, перезайдите', 'error');
+            isCreatingGoal = false;
             return;
         }
         const response = await fetch('/api/add_goal', {
@@ -2527,10 +2617,12 @@ async function addNewGoal(e) {
         amountInput.value = '';
         
         showNotification(`Цель "${name}" создана`, 'success');
+        isCreatingGoal = false;
         
     } catch (error) {
         console.error('❌ Ошибка создания цели:', error);
         showNotification('Ошибка создания цели', 'error');
+        isCreatingGoal = false;
     }
 }
 
