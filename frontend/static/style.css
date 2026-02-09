@@ -295,7 +295,7 @@ body {
 }
 
 .balance-amount {
-  font-size: 61px;
+  font-size: 68px;
   font-weight: 700;
   margin-bottom: var(--spacing-xs);
   letter-spacing: -0.5px;
@@ -2406,7 +2406,7 @@ body {
 
 @media (max-width: 480px) {
   .balance-amount {
-    font-size: 26px;
+    font-size: 33px;
   }
   
   .collapsible-name {
