@@ -347,6 +347,36 @@
             <!-- ==================== -->
             <!-- СТРАНИЦА 4: СЕРВИСЫ -->
             <!-- ==================== -->
+            <div id="invest-page" class="page">
+                <div class="invest-section">
+                    <div class="invest-header">
+                        <div class="invest-title">Топ дня</div>
+                        <button class="invest-link" onclick="openInvestAll()">Посмотреть все</button>
+                    </div>
+
+                    <div class="invest-block">
+                        <div class="invest-block-title">Криптовалюты</div>
+                        <div class="invest-toggle" data-market="crypto">
+                            <button class="invest-toggle-btn active" data-kind="gainers">Топ роста</button>
+                            <button class="invest-toggle-btn" data-kind="losers">Топ падения</button>
+                        </div>
+                        <div class="invest-grid" id="crypto-grid"></div>
+                    </div>
+
+                    <div class="invest-block">
+                        <div class="invest-block-title">Акции</div>
+                        <div class="invest-toggle" data-market="stocks">
+                            <button class="invest-toggle-btn active" data-kind="gainers">Топ роста</button>
+                            <button class="invest-toggle-btn" data-kind="losers">Топ падения</button>
+                        </div>
+                        <div class="invest-grid" id="stocks-grid"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ==================== -->
+            <!-- СТРАНИЦА 5: СЕРВИСЫ -->
+            <!-- ==================== -->
             <div id="services-page" class="page">
                 <div class="services-section">
                     <!-- Основной кошелёк -->
@@ -487,13 +517,27 @@
                         <span>Проценты</span>
                         <strong id="calc-interest">0</strong>
                     </div>
-                    <div class="calc-note">Расчет учитывает ежемесячное начисление и пополнение.</div>
+                    <div class="calc-note">Расчет учитывает выбранную частоту начисления и ежемесячное пополнение.</div>
                 </div>
                 <div class="calc-chart" id="calc-chart-wrap" style="display: none;">
                     <div class="calc-chart-title">Рост капитала</div>
                     <div class="calc-chart-canvas">
                         <canvas id="compound-chart"></canvas>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Модалка: график инструмента -->
+        <div id="market-modal" class="modal-overlay">
+            <div class="modal-content market-modal">
+                <div class="article-modal-header">
+                    <div class="article-modal-title" id="market-modal-title"></div>
+                    <button class="article-close" onclick="closeMarketModal()">✕</button>
+                </div>
+                <div class="market-modal-sub" id="market-modal-sub"></div>
+                <div class="market-chart">
+                    <canvas id="market-chart"></canvas>
                 </div>
             </div>
         </div>
@@ -525,6 +569,14 @@
                     </svg>
                 </span>
                 <span class="nav-label">Отчёт</span>
+            </button>
+            <button class="nav-item" data-page="invest">
+                <span class="nav-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                        <path d="M4 19h16v2H4zM6 17V7h3v10H6zm5 0V3h3v14h-3zm5 0v-6h3v6h-3z"/>
+                    </svg>
+                </span>
+                <span class="nav-label">Инвестиции</span>
             </button>
             <button class="nav-item" data-page="services">
                 <span class="nav-icon">

@@ -27,6 +27,7 @@ let selectedGoalId = null;
 let isCreatingGoal = false;
 let compoundListenersInitialized = false;
 const compoundStorageKey = 'finance_compound_calc';
+let marketState = { crypto: 'gainers', stocks: 'gainers' };
 
 // Константы
 const currencySymbols = { 'RUB': '₽', 'USD': '$', 'EUR': '€', 'GEL': '₾' };
@@ -934,6 +935,144 @@ function loadReportPage() {
     setupBalancePeriods();
     const activeTab = document.querySelector('.report-tab.active')?.dataset.tab || 'overview';
     requestAnimationFrame(() => updateReportTab(activeTab));
+}
+
+function loadInvestPage() {
+    setupInvestToggles();
+    loadMarketSection('crypto');
+    loadMarketSection('stocks');
+}
+
+function setupInvestToggles() {
+    document.querySelectorAll('.invest-toggle').forEach(toggle => {
+        const market = toggle.dataset.market;
+        if (!market) return;
+        toggle.querySelectorAll('.invest-toggle-btn').forEach(btn => {
+            btn.onclick = () => {
+                toggle.querySelectorAll('.invest-toggle-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                marketState[market] = btn.dataset.kind || 'gainers';
+                loadMarketSection(market);
+            };
+        });
+    });
+}
+
+async function loadMarketSection(market) {
+    const kind = marketState[market] || 'gainers';
+    const gridId = market === 'crypto' ? 'crypto-grid' : 'stocks-grid';
+    const grid = document.getElementById(gridId);
+    if (!grid) return;
+    grid.innerHTML = `<div style="grid-column: 1 / -1; color: var(--ios-text-secondary); text-align: center;">Загрузка...</div>`;
+    try {
+        const res = await fetch(`/api/market_movers/${market}?type=${kind}`);
+        const data = await res.json();
+        if (data.error) {
+            grid.innerHTML = `<div style="grid-column: 1 / -1; color: var(--ios-text-secondary); text-align: center;">${data.error}</div>`;
+            return;
+        }
+        renderMarketGrid(grid, data.items || [], market);
+    } catch (e) {
+        grid.innerHTML = `<div style="grid-column: 1 / -1; color: var(--ios-text-secondary); text-align: center;">Нет данных</div>`;
+        console.error('❌ Ошибка загрузки рынка:', e);
+    }
+}
+
+function renderMarketGrid(container, items, market) {
+    if (!items.length) {
+        container.innerHTML = `<div style="grid-column: 1 / -1; color: var(--ios-text-secondary); text-align: center;">Нет данных</div>`;
+        return;
+    }
+    container.innerHTML = items.map(item => {
+        const change = Number(item.change) || 0;
+        const changeClass = change >= 0 ? 'up' : 'down';
+        const logo = item.image || item.logo || '';
+        const symbol = (item.symbol || '').toUpperCase();
+        return `
+            <button class="invest-card"
+                data-market="${market}"
+                data-id="${item.id || ''}"
+                data-symbol="${item.symbol || ''}"
+                data-name="${(item.name || '').replace(/"/g, '&quot;')}"
+                data-change="${change}"
+                data-price="${item.price || ''}">
+                <div class="invest-logo">${logo ? `<img src="${logo}" alt="${item.symbol}">` : `<div class="invest-logo-text">${symbol.slice(0, 3)}</div>`}</div>
+                <div class="invest-symbol">${symbol}</div>
+                <div class="invest-change ${changeClass}">${change >= 0 ? '↑' : '↓'} ${Math.abs(change).toFixed(2)}%</div>
+            </button>
+        `;
+    }).join('');
+    container.querySelectorAll('.invest-card').forEach(card => {
+        card.onclick = () => {
+            openMarketModal({
+                id: card.dataset.id || '',
+                symbol: card.dataset.symbol || '',
+                name: card.dataset.name || '',
+                change: parseFloat(card.dataset.change || '0') || 0,
+                price: card.dataset.price || '',
+                market: card.dataset.market || ''
+            });
+        };
+    });
+}
+
+function openInvestAll() {
+    showNotification('Скоро будет полный список', 'info');
+}
+
+async function openMarketModal(item) {
+    const modal = document.getElementById('market-modal');
+    const title = document.getElementById('market-modal-title');
+    const sub = document.getElementById('market-modal-sub');
+    if (!modal || !title || !sub) return;
+    title.textContent = `${(item.symbol || '').toUpperCase()}${item.name ? ' • ' + item.name : ''}`;
+    const symbol = currencySymbols[currentCurrency] || '₽';
+    sub.textContent = `Изменение: ${item.change >= 0 ? '+' : ''}${item.change.toFixed(2)}%${item.price ? ` • Цена: ${item.price} ${item.market === 'crypto' ? '$' : symbol}` : ''}`;
+    modal.classList.add('active');
+    await loadMarketChart(item.market, item.id || item.symbol);
+}
+
+function closeMarketModal() {
+    const modal = document.getElementById('market-modal');
+    if (modal) modal.classList.remove('active');
+}
+
+async function loadMarketChart(market, id) {
+    const canvas = document.getElementById('market-chart');
+    if (!canvas) return;
+    try {
+        const res = await fetch(`/api/market_chart/${market}?id=${encodeURIComponent(id)}`);
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+        const points = data.points || [];
+        if (charts['market-chart']) charts['market-chart'].destroy();
+        charts['market-chart'] = new Chart(canvas, {
+            type: 'line',
+            data: {
+                labels: points.map(p => p.t),
+                datasets: [{
+                    data: points.map(p => p.v),
+                    borderColor: 'rgba(93, 156, 236, 0.9)',
+                    backgroundColor: 'rgba(93, 156, 236, 0.2)',
+                    pointRadius: 0,
+                    borderWidth: 2,
+                    tension: 0.35,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { display: false },
+                    y: { display: false }
+                }
+            }
+        });
+    } catch (e) {
+        console.error('❌ Ошибка графика:', e);
+    }
 }
 
 function setupReportTabs() {
@@ -2821,6 +2960,9 @@ function switchPage(pageName) {
             case 'report':
                 loadReportPage();
                 break;
+            case 'invest':
+                loadInvestPage();
+                break;
             case 'services':
                 loadDefaultWallet();
                 break;
@@ -3449,3 +3591,5 @@ window.closeArticle = closeArticle;
 window.openCompoundCalculator = openCompoundCalculator;
 window.calculateCompound = calculateCompound;
 window.closeCompoundCalculator = closeCompoundCalculator;
+window.openInvestAll = openInvestAll;
+window.closeMarketModal = closeMarketModal;

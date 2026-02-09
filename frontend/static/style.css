@@ -1350,6 +1350,155 @@ body {
   color: var(--ios-text-secondary);
 }
 
+/* Investments */
+.invest-section {
+  margin: var(--spacing-md);
+}
+
+.invest-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--spacing-md);
+}
+
+.invest-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--ios-text-primary);
+}
+
+.invest-link {
+  background: none;
+  border: none;
+  color: var(--ios-accent);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.invest-block {
+  background: var(--ios-surface);
+  border-radius: var(--border-radius-large);
+  padding: var(--spacing-lg);
+  margin-bottom: var(--spacing-md);
+  border: 0.5px solid rgba(255, 255, 255, 0.06);
+  box-shadow: var(--shadow-subtle);
+}
+
+.invest-block-title {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: var(--spacing-md);
+  color: var(--ios-text-primary);
+}
+
+.invest-toggle {
+  display: flex;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 999px;
+  padding: 4px;
+  gap: 4px;
+  margin-bottom: var(--spacing-md);
+}
+
+.invest-toggle-btn {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: var(--ios-text-secondary);
+  padding: 10px 0;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.invest-toggle-btn.active {
+  background: rgba(255, 255, 255, 0.18);
+  color: var(--ios-text-primary);
+}
+
+.invest-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--spacing-md);
+}
+
+.invest-card {
+  text-align: center;
+}
+
+.invest-logo {
+  width: 56px;
+  height: 56px;
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.invest-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.invest-logo-text {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ios-text-primary);
+  opacity: 0.8;
+}
+
+.invest-symbol {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ios-text-primary);
+  margin-bottom: 2px;
+}
+
+.invest-change {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.invest-change.up {
+  color: var(--pastel-green);
+}
+
+.invest-change.down {
+  color: var(--pastel-red);
+}
+
+.market-modal {
+  max-width: 560px;
+}
+
+.market-modal-sub {
+  font-size: 13px;
+  color: var(--ios-text-secondary);
+  margin-bottom: var(--spacing-md);
+}
+
+.market-chart {
+  position: relative;
+  height: 260px;
+}
+
+@media (max-width: 420px) {
+  .invest-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .invest-logo {
+    width: 52px;
+    height: 52px;
+    border-radius: 26px;
+  }
+}
 /* Compound calculator */
 .calc-modal {
   max-width: 520px;

@@ -26,6 +26,20 @@ WEBHOOK_URL = os.getenv('WEBHOOK_URL', 'https://telegram-finance-bot-1-8zea.onre
 
 print(f"🚀 Starting Flask app (iOS 26 Version)")
 
+MARKET_CACHE = {}
+MARKET_CACHE_TTL = 300  # seconds
+
+def cache_get(key):
+    entry = MARKET_CACHE.get(key)
+    if not entry:
+        return None
+    if (datetime.utcnow() - entry['ts']).total_seconds() > MARKET_CACHE_TTL:
+        return None
+    return entry['data']
+
+def cache_set(key, data):
+    MARKET_CACHE[key] = {'ts': datetime.utcnow(), 'data': data}
+
 try:
     from database import db
     print("✅ Database imported")
@@ -567,6 +581,119 @@ def get_goals():
             return jsonify([])
     except Exception as e:
         print(f"Get goals error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/market_movers/<market>')
+def get_market_movers(market):
+    try:
+        move_type = request.args.get('type', 'gainers')
+        cache_key = f"movers_{market}_{move_type}"
+        cached = cache_get(cache_key)
+        if cached:
+            return jsonify({'items': cached})
+        
+        if market == 'crypto':
+            params = {
+                'vs_currency': 'usd',
+                'order': 'market_cap_desc',
+                'per_page': 250,
+                'page': 1,
+                'sparkline': 'false',
+                'price_change_percentage': '24h'
+            }
+            resp = requests.get('https://api.coingecko.com/api/v3/coins/markets', params=params, timeout=10)
+            data = resp.json()
+            items = []
+            for coin in data:
+                change = coin.get('price_change_percentage_24h')
+                if change is None:
+                    continue
+                items.append({
+                    'id': coin.get('id'),
+                    'symbol': coin.get('symbol', '').upper(),
+                    'name': coin.get('name', ''),
+                    'change': float(change),
+                    'price': coin.get('current_price'),
+                    'image': coin.get('image')
+                })
+            items.sort(key=lambda x: x['change'], reverse=(move_type == 'gainers'))
+            items = items[:8]
+            cache_set(cache_key, items)
+            return jsonify({'items': items})
+        
+        if market == 'stocks':
+            api_key = os.getenv('ALPHAVANTAGE_API_KEY')
+            if not api_key:
+                return jsonify({'error': 'ALPHAVANTAGE_API_KEY is not set'}), 400
+            params = {'function': 'TOP_GAINERS_LOSERS', 'apikey': api_key}
+            resp = requests.get('https://www.alphavantage.co/query', params=params, timeout=10)
+            data = resp.json()
+            key = 'top_gainers' if move_type == 'gainers' else 'top_losers'
+            raw_items = data.get(key, [])
+            items = []
+            for item in raw_items[:8]:
+                symbol = item.get('ticker', '')
+                change_pct = item.get('change_percentage', '0%').replace('%', '').replace(',', '.')
+                try:
+                    change = float(change_pct)
+                except ValueError:
+                    change = 0.0
+                items.append({
+                    'id': symbol,
+                    'symbol': symbol,
+                    'name': symbol,
+                    'change': change,
+                    'price': item.get('price'),
+                    'logo': f"https://financialmodelingprep.com/image-stock/{symbol}.png"
+                })
+            cache_set(cache_key, items)
+            return jsonify({'items': items})
+        
+        return jsonify({'error': 'Unknown market'}), 400
+    except Exception as e:
+        print(f"Market movers error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/market_chart/<market>')
+def get_market_chart(market):
+    try:
+        item_id = request.args.get('id', '')
+        if not item_id:
+            return jsonify({'error': 'Missing id'}), 400
+        cache_key = f"chart_{market}_{item_id}"
+        cached = cache_get(cache_key)
+        if cached:
+            return jsonify({'points': cached})
+        
+        if market == 'crypto':
+            params = {'vs_currency': 'usd', 'days': 30}
+            resp = requests.get(f'https://api.coingecko.com/api/v3/coins/{item_id}/market_chart', params=params, timeout=10)
+            data = resp.json()
+            points = [{'t': p[0], 'v': p[1]} for p in data.get('prices', [])]
+            cache_set(cache_key, points)
+            return jsonify({'points': points})
+        
+        if market == 'stocks':
+            api_key = os.getenv('ALPHAVANTAGE_API_KEY')
+            if not api_key:
+                return jsonify({'error': 'ALPHAVANTAGE_API_KEY is not set'}), 400
+            params = {
+                'function': 'TIME_SERIES_DAILY',
+                'symbol': item_id,
+                'apikey': api_key,
+                'outputsize': 'compact'
+            }
+            resp = requests.get('https://www.alphavantage.co/query', params=params, timeout=10)
+            data = resp.json()
+            series = data.get('Time Series (Daily)', {})
+            dates = sorted(series.keys())[-30:]
+            points = [{'t': d, 'v': float(series[d]['4. close'])} for d in dates if '4. close' in series[d]]
+            cache_set(cache_key, points)
+            return jsonify({'points': points})
+        
+        return jsonify({'error': 'Unknown market'}), 400
+    except Exception as e:
+        print(f"Market chart error: {e}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/export/<int:user_id>')
