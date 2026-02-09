@@ -29,17 +29,46 @@ let isCreatingGoal = false;
 // Константы
 const currencySymbols = { 'RUB': '₽', 'USD': '$', 'EUR': '€', 'GEL': '₾' };
 const monthNames = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
-const colorPalette = ['#FF9500', '#FF5E3A', '#FF2D55', '#5856D6', '#007AFF', '#34C759', '#AF52DE', '#FF3B30'];
-const colorPaletteGlow = [
-  'rgba(255, 149, 0, 0.5)',
-  'rgba(255, 94, 58, 0.5)',
-  'rgba(255, 45, 85, 0.5)',
-  'rgba(88, 86, 214, 0.5)',
-  'rgba(0, 122, 255, 0.5)',
-  'rgba(52, 199, 89, 0.5)',
-  'rgba(175, 82, 222, 0.5)',
-  'rgba(255, 59, 48, 0.5)'
+const colorPalette = [
+  '#2ED9FF', '#22D3A6', '#F5D547', '#FF9F1C',
+  '#FF6B6B', '#FF4D9E', '#8A5CFF', '#5B8CFF',
+  '#00B0FF', '#00C2A8', '#7BDFF2', '#A3F7BF',
+  '#FFD166', '#FFA69E', '#C77DFF', '#4D96FF'
 ];
+const colorPaletteGlow = [
+  'rgba(46, 217, 255, 0.5)', 'rgba(34, 211, 166, 0.5)', 'rgba(245, 213, 71, 0.5)', 'rgba(255, 159, 28, 0.5)',
+  'rgba(255, 107, 107, 0.5)', 'rgba(255, 77, 158, 0.5)', 'rgba(138, 92, 255, 0.5)', 'rgba(91, 140, 255, 0.5)',
+  'rgba(0, 176, 255, 0.5)', 'rgba(0, 194, 168, 0.5)', 'rgba(123, 223, 242, 0.5)', 'rgba(163, 247, 191, 0.5)',
+  'rgba(255, 209, 102, 0.5)', 'rgba(255, 166, 158, 0.5)', 'rgba(199, 125, 255, 0.5)', 'rgba(77, 150, 255, 0.5)'
+];
+
+const articlesLibrary = {
+    budget_principles: {
+        title: 'Управление бюджетом: 4 принципа финансовой грамотности',
+        body: `
+            <p>Эффективное распределение личных финансов строится на простых, но проверенных правилах. Вот ключевые законы, которые работают:</p>
+            <h2>1. Правило 50/30/20</h2>
+            <ul>
+                <li><strong>50%</strong> — обязательные расходы (аренда, коммуналка, продукты)</li>
+                <li><strong>30%</strong> — желания (развлечения, хобби, подписки)</li>
+                <li><strong>20%</strong> — сбережения и инвестиции</li>
+            </ul>
+            <p>Эта базовая структура сохраняет баланс между текущими нуждами и будущими целями.</p>
+            <h2>2. Сначала заплати себе</h2>
+            <p>Откладывайте 10–20% дохода <strong>сразу после получения</strong>, а не по остаточному принципу. Это формирует финансовую подушку и инвестиционный капитал.</p>
+            <h2>3. Разделение счетов</h2>
+            <p>Используйте три отдельных счета:</p>
+            <ul>
+                <li><strong>Расчетный</strong> — для ежедневных операций</li>
+                <li><strong>Накопительный</strong> — неприкосновенный запас (6 месячных доходов)</li>
+                <li><strong>Инвестиционный</strong> — для долгосрочных целей</li>
+            </ul>
+            <h2>4. Правило 24 часов</h2>
+            <p>Перед крупной покупкой выдержите паузу. Часто импульсивное желание проходит, сохраняя деньги для действительно важного.</p>
+            <p>Финансовая грамотность — не в ограничении каждой копейки, а в осознанном распределении ресурсов. Начните с отслеживания расходов в течение месяца, затем примените эти принципы, адаптировав проценты под свои реалии. Система важнее сумм: даже небольшие, но регулярные отложения создают устойчивость.</p>
+        `
+    }
+};
 
 const chartShadowPlugin = {
     id: 'chartShadow',
@@ -86,6 +115,16 @@ function mixWithWhite(color, weight = 0.2) {
     return c;
 }
 
+function pickDistinctColor(baseColor, index, usedColors) {
+    let color = baseColor || colorPalette[index % colorPalette.length];
+    if (usedColors && usedColors.has(color)) {
+        const fallback = colorPalette.find(c => !usedColors.has(c));
+        color = fallback || colorPalette[(index + 1) % colorPalette.length];
+    }
+    if (usedColors) usedColors.add(color);
+    return color;
+}
+
 const segmentIconsPlugin = {
     id: 'segmentIcons',
     afterDatasetDraw(chart, args, pluginOptions) {
@@ -93,20 +132,27 @@ const segmentIconsPlugin = {
         if (type !== 'doughnut' && type !== 'pie') return;
         const icons = pluginOptions?.icons || [];
         if (!icons.length) return;
+        const minPercent = pluginOptions?.minPercent ?? 10;
         const colors = pluginOptions?.colors || chart.data.datasets[args.index]?.backgroundColor || [];
         const meta = chart.getDatasetMeta(args.index);
+        const data = chart.data.datasets[args.index]?.data || [];
+        const total = data.reduce((a, b) => a + b, 0);
+        if (!total) return;
         const ctx = chart.ctx;
         ctx.save();
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         meta.data.forEach((arc, i) => {
+            const value = data[i] || 0;
+            const percent = (value / total) * 100;
+            if (percent < minPercent) return;
             const icon = icons[i] || '';
             if (!icon) return;
             const color = Array.isArray(colors) ? colors[i] : colors;
             const angle = arc.endAngle - 0.12;
             const thickness = arc.outerRadius - arc.innerRadius;
-            const badgeRadius = Math.min(18, Math.max(12, thickness * 0.55));
-            const radius = arc.outerRadius - badgeRadius + 2;
+            const badgeRadius = Math.min(16, Math.max(10, thickness * 0.45));
+            const radius = arc.outerRadius - badgeRadius - 2;
             const x = arc.x + Math.cos(angle) * radius;
             const y = arc.y + Math.sin(angle) * radius;
             ctx.save();
@@ -452,11 +498,12 @@ function updateCategorySection(type, title) {
     
     let html = '';
     
-    categories.forEach(cat => {
+    const usedColors = new Set();
+    categories.forEach((cat, index) => {
         const amount = stats[cat.name] || 0;
         const isPositive = type !== 'expense';
         const icon = cat.icon || (type === 'income' ? '📈' : '📉');
-        const color = cat.color || (type === 'income' ? '#34C759' : '#FF9500');
+        const color = pickDistinctColor(cat.color, index, usedColors);
         
         html += `
             <button class="category-card" onclick="showAddTransactionForCategory('${type}', '${cat.name}')">
@@ -506,10 +553,11 @@ function updateSavingsDisplay() {
     let html = '';
     
     // Показываем накопления из категорий
-    categories.forEach(cat => {
+    const usedColors = new Set();
+    categories.forEach((cat, index) => {
         const amount = stats[cat.name] || 0;
         const icon = cat.icon || '💰';
-        const color = cat.color || '#FFD60A';
+        const color = pickDistinctColor(cat.color, index, usedColors);
         
         html += `
             <button class="category-card" onclick="showAddTransactionForCategory('savings', '${cat.name}')">
@@ -531,9 +579,11 @@ function updateSavingsDisplay() {
     // Если нет категорий накоплений, показываем общие накопления
     if (categories.length === 0) {
         const totalSavings = categoryStats.expense?.['Накопления'] || 0;
+        const usedColors = new Set();
+        const savingsColor = pickDistinctColor('#FFD166', 0, usedColors);
         html += `
             <button class="category-card" onclick="showAddTransactionForCategory('savings', 'Накопления')">
-                <div class="category-icon" style="background: var(--ios-yellow)20; color: var(--ios-yellow); box-shadow: 0 0 15px var(--ios-yellow-glow);">
+                <div class="category-icon" style="background: ${savingsColor}20; color: ${savingsColor}; box-shadow: 0 0 15px ${savingsColor}80;">
                     💰
                 </div>
                 <div class="category-info">
@@ -541,7 +591,7 @@ function updateSavingsDisplay() {
                         <span class="category-name-text">Накопления</span>
                     </div>
                 </div>
-                <div class="category-amount" style="color: var(--ios-yellow);">
+                <div class="category-amount" style="color: ${savingsColor};">
                     ${formatCurrency(totalSavings)} ${symbol}
                 </div>
             </button>
@@ -633,7 +683,6 @@ function updateWalletsDisplay() {
                     <div class="category-name">
                         <span class="category-name-text">${wallet.name}</span>
                     </div>
-                    <div class="category-stats">Кошелёк</div>
                 </div>
                 <div class="category-amount">
                     ${formatCurrency(balance)} ${symbol}
@@ -1019,7 +1068,9 @@ function updateOverviewChart(totalIncome, totalExpense) {
                     shadowOffsetY: 16
                 },
                 segmentIcons: {
-                    icons: ['💰', '📉']
+                    icons: ['💰', '📉'],
+                    colors: ['#30D158', '#FF453A'],
+                    minPercent: 10
                 },
                 segmentPercentages: true,
                 tooltip: {
@@ -1094,9 +1145,10 @@ async function updateIncomeChart(transactions) {
     }
     
     // Получаем цвета категорий
+    const usedColors = new Set();
     const backgroundColors = categories.map((category, index) => {
         const cat = categoriesData.income?.find(c => c.name === category);
-        return cat?.color || colorPalette[index % colorPalette.length];
+        return pickDistinctColor(cat?.color, index, usedColors);
     });
     
     const borderColors = backgroundColors.map(color => color);
@@ -1138,7 +1190,9 @@ async function updateIncomeChart(transactions) {
                     shadowOffsetY: 14
                 },
                 segmentIcons: {
-                    icons
+                    icons,
+                    colors: backgroundColors,
+                    minPercent: 10
                 },
                 segmentPercentages: true,
                 tooltip: {
@@ -1211,9 +1265,10 @@ async function updateExpenseChart(transactions) {
     }
     
     // Получаем цвета категорий
+    const usedColors = new Set();
     const backgroundColors = categories.map((category, index) => {
         const cat = categoriesData.expense?.find(c => c.name === category);
-        return cat?.color || colorPalette[index % colorPalette.length];
+        return pickDistinctColor(cat?.color, index, usedColors);
     });
     
     const borderColors = backgroundColors.map(color => color);
@@ -1255,7 +1310,9 @@ async function updateExpenseChart(transactions) {
                     shadowOffsetY: 14
                 },
                 segmentIcons: {
-                    icons
+                    icons,
+                    colors: backgroundColors,
+                    minPercent: 10
                 },
                 segmentPercentages: true,
                 tooltip: {
@@ -3139,6 +3196,29 @@ function exportData() {
     }, 1000);
 }
 
+function openArticlesLibrary() {
+    switchPage('articles');
+    const servicesNav = document.querySelector('.nav-item[data-page="services"]');
+    if (servicesNav) servicesNav.classList.add('active');
+}
+
+function openArticle(articleId) {
+    const article = articlesLibrary[articleId];
+    if (!article) return;
+    const titleEl = document.getElementById('article-modal-title');
+    const bodyEl = document.getElementById('article-modal-body');
+    const modal = document.getElementById('article-modal');
+    if (!titleEl || !bodyEl || !modal) return;
+    titleEl.textContent = article.title;
+    bodyEl.innerHTML = article.body;
+    modal.classList.add('active');
+}
+
+function closeArticle() {
+    const modal = document.getElementById('article-modal');
+    if (modal) modal.classList.remove('active');
+}
+
 // Глобальные функции
 window.selectCurrency = selectCurrency;
 window.addNewCategory = addNewCategory;
@@ -3163,3 +3243,6 @@ window.selectGoal = selectGoal;
 window.addToGoal = addToGoal;
 window.exportData = exportData;
 window.toggleCollapsibleSection = toggleCollapsibleSection;
+window.openArticlesLibrary = openArticlesLibrary;
+window.openArticle = openArticle;
+window.closeArticle = closeArticle;

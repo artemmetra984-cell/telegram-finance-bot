@@ -227,8 +227,7 @@
                         <!-- Накопления -->
                         <div class="chart-container">
                             <div class="chart-title">Накопления</div>
-                            <div style="text-align: center; padding: 30px 20px;">
-                                <div style="font-size: 48px; color: var(--pastel-yellow); margin-bottom: 16px;">💰</div>
+                            <div style="text-align: center; padding: 22px 20px;">
                                 <div class="overview-value" id="overview-savings">0 ₽</div>
                                 <div class="overview-label">Всего накоплено</div>
                             </div>
@@ -237,7 +236,7 @@
                         <!-- Общий баланс -->
                         <div class="chart-container">
                             <div class="chart-title">Общий баланс</div>
-                            <div style="text-align: center; padding: 30px 20px;">
+                            <div style="text-align: center; padding: 22px 20px;">
                                 <div class="overview-value" id="overview-balance">0 ₽</div>
                                 <div class="overview-label">Текущий остаток</div>
                             </div>
@@ -389,29 +388,45 @@
                         </div>
                     </div>
 
-                    <!-- Экспорт данных -->
+                    <!-- Статьи -->
                     <div class="service-card">
-                        <div class="service-title">Экспорт данных</div>
-                        <div style="text-align: center; padding: 20px 0;">
-                            <button class="modal-btn secondary" onclick="exportData()" style="width: 100%;">
-                                📥 Экспорт в CSV
-                            </button>
-                        </div>
+                        <div class="service-title">Статьи</div>
+                        <button class="service-link" onclick="openArticlesLibrary()">
+                            <span>Библиотека статей</span>
+                            <span class="service-link-arrow">→</span>
+                        </button>
                     </div>
 
-                    <!-- О приложении -->
-                    <div class="service-card">
-                        <div class="service-title">О приложении</div>
-                        <div style="text-align: center; padding: 30px 20px;">
-                            <div style="font-size: 48px; margin-bottom: 16px;">💰</div>
-                            <div style="font-size: 15px; color: var(--ios-text-secondary); line-height: 1.5;">
-                                Финансовый помощник<br>
-                                Версия 2.0<br>
-                                iOS 26 / Telegram стиль
-                            </div>
-                        </div>
+                </div>
+            </div>
+
+            <!-- ==================== -->
+            <!-- СТРАНИЦА: СТАТЬИ -->
+            <!-- ==================== -->
+            <div id="articles-page" class="page">
+                <div class="articles-section">
+                    <div class="articles-header">
+                        <button class="articles-back" onclick="switchPage('services')">←</button>
+                        <div class="articles-title">Статьи</div>
+                    </div>
+                    <div class="articles-list">
+                        <button class="article-card" onclick="openArticle('budget_principles')">
+                            <div class="article-card-title">Четыре принципа финансовой грамотности</div>
+                            <div class="article-card-meta">Бюджет и привычки</div>
+                        </button>
                     </div>
                 </div>
+            </div>
+        </div>
+
+        <!-- Статья: модальное окно -->
+        <div id="article-modal" class="modal-overlay">
+            <div class="modal-content article-modal">
+                <div class="article-modal-header">
+                    <div class="article-modal-title" id="article-modal-title"></div>
+                    <button class="article-close" onclick="closeArticle()">✕</button>
+                </div>
+                <div class="article-modal-body" id="article-modal-body"></div>
             </div>
         </div>
 
