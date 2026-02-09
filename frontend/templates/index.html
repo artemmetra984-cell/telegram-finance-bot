@@ -443,6 +443,15 @@
                         </button>
                     </div>
 
+                    <!-- Добавить на экран -->
+                    <div class="service-card">
+                        <div class="service-title">Добавить на экран</div>
+                        <button class="service-link" onclick="openAddToHome()">
+                            <span>На рабочий стол</span>
+                            <span class="service-link-arrow">→</span>
+                        </button>
+                    </div>
+
                 </div>
             </div>
 
@@ -551,6 +560,33 @@
                 </div>
                 <div class="market-chart">
                     <canvas id="market-chart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Модалка: добавить на экран -->
+        <div id="add-to-home-modal" class="modal-overlay">
+            <div class="modal-content">
+                <div class="article-modal-header">
+                    <div class="article-modal-title">Добавить на экран</div>
+                    <button class="article-close" onclick="closeAddToHome()">✕</button>
+                </div>
+                <div class="article-modal-body">
+                    <div class="add-home-note">Добавление работает через браузер. Внутри Telegram меню недоступно.</div>
+                    <div class="add-home-steps">
+                        <div class="add-home-step">
+                            <div class="add-home-title">iOS</div>
+                            <div class="add-home-text">Нажмите «Поделиться» → «На экран Домой».</div>
+                        </div>
+                        <div class="add-home-step">
+                            <div class="add-home-title">Android</div>
+                            <div class="add-home-text">Откройте меню браузера → «Установить приложение».</div>
+                        </div>
+                    </div>
+                    <button class="service-link add-home-open" onclick="openAddToHomeLink()">
+                        <span>Открыть в браузере</span>
+                        <span class="service-link-arrow">→</span>
+                    </button>
                 </div>
             </div>
         </div>

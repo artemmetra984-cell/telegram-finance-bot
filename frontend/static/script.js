@@ -1117,6 +1117,25 @@ function openInvestAll() {
     showNotification('Скоро будет полный список', 'info');
 }
 
+function openAddToHome() {
+    const modal = document.getElementById('add-to-home-modal');
+    if (modal) modal.classList.add('active');
+}
+
+function closeAddToHome() {
+    const modal = document.getElementById('add-to-home-modal');
+    if (modal) modal.classList.remove('active');
+}
+
+function openAddToHomeLink() {
+    const url = window.location.href;
+    if (window.Telegram && Telegram.WebApp && Telegram.WebApp.openLink) {
+        Telegram.WebApp.openLink(url);
+        return;
+    }
+    window.open(url, '_blank');
+}
+
 async function openMarketModal(item) {
     const modal = document.getElementById('market-modal');
     const title = document.getElementById('market-modal-title');

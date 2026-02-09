@@ -1226,6 +1226,41 @@ body {
   opacity: 0.7;
 }
 
+/* Add to home */
+.add-home-note {
+  font-size: 14px;
+  color: var(--ios-text-secondary);
+  margin-bottom: var(--spacing-md);
+}
+
+.add-home-steps {
+  display: grid;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+}
+
+.add-home-step {
+  padding: var(--spacing-md);
+  background: var(--ios-elevated);
+  border-radius: var(--border-radius-small);
+  border: 1px solid var(--ios-tertiary);
+}
+
+.add-home-title {
+  font-weight: 600;
+  margin-bottom: 4px;
+  color: var(--ios-text-primary);
+}
+
+.add-home-text {
+  color: var(--ios-text-secondary);
+  font-size: 13px;
+}
+
+.add-home-open {
+  width: 100%;
+}
+
 /* Articles */
 .articles-section {
   margin: var(--spacing-md);
