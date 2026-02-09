@@ -688,16 +688,38 @@ def get_market_movers(market):
             api_key = os.getenv('ALPHAVANTAGE_API_KEY')
             if not api_key:
                 return jsonify({'error': 'ALPHAVANTAGE_API_KEY is not set'}), 400
-            params = {'function': 'TOP_GAINERS_LOSERS', 'apikey': api_key}
-            resp = requests.get('https://www.alphavantage.co/query', params=params, timeout=10)
-            try:
-                data = resp.json()
-            except Exception:
-                return jsonify({'error': 'Alpha Vantage invalid response'}), 502
+            all_key = "movers_stocks_all"
+            all_cached = cache_get(all_key)
+            if not all_cached:
+                params = {'function': 'TOP_GAINERS_LOSERS', 'apikey': api_key}
+                resp = requests.get('https://www.alphavantage.co/query', params=params, timeout=10)
+                try:
+                    data = resp.json()
+                except Exception:
+                    return jsonify({'error': 'Alpha Vantage invalid response'}), 502
+                if 'Note' in data or 'Information' in data:
+                    all_cached = cache_get(all_key, allow_stale=True)
+                    if not all_cached:
+                        return jsonify({'error': 'Alpha Vantage rate limit'}), 429
+                else:
+                    all_cached = {
+                        'top_gainers': data.get('top_gainers', []),
+                        'top_losers': data.get('top_losers', []),
+                        'most_actively_traded': data.get('most_actively_traded', [])
+                    }
+                    cache_set(all_key, all_cached)
             key = 'top_gainers' if move_type == 'gainers' else 'top_losers'
-            raw_items = data.get(key, [])
+            raw_items = []
+            if isinstance(all_cached, dict):
+                raw_items = all_cached.get(key, []) or []
+            elif isinstance(all_cached, list):
+                raw_items = all_cached
+            if not isinstance(raw_items, list):
+                raw_items = []
             items = []
             for item in raw_items[:8]:
+                if not isinstance(item, dict):
+                    continue
                 symbol = item.get('ticker', '')
                 change_pct = item.get('change_percentage', '0%').replace('%', '').replace(',', '.')
                 try:
@@ -705,13 +727,17 @@ def get_market_movers(market):
                 except ValueError:
                     change = 0.0
                 safe_symbol = ''.join(ch for ch in symbol if ch.isalnum())
+                safe_symbol = safe_symbol.upper()
+                logo_primary = f"https://storage.googleapis.com/iex/api/logos/{safe_symbol}.png" if safe_symbol else ''
+                logo_alt = f"https://financialmodelingprep.com/image-stock/{safe_symbol}.png" if safe_symbol else ''
                 items.append({
                     'id': symbol,
                     'symbol': symbol,
                     'name': symbol,
                     'change': change,
                     'price': item.get('price'),
-                    'logo': f"https://financialmodelingprep.com/image-stock/{safe_symbol}.png" if safe_symbol else ''
+                    'logo': logo_primary,
+                    'logo_alt': logo_alt
                 })
             cache_set(cache_key, items)
             return jsonify({'items': items})

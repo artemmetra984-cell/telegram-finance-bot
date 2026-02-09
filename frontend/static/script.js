@@ -28,6 +28,7 @@ let isCreatingGoal = false;
 let compoundListenersInitialized = false;
 const compoundStorageKey = 'finance_compound_calc';
 let marketState = { crypto: 'gainers', stocks: 'gainers' };
+let marketCache = { crypto: {}, stocks: {} };
 
 // Константы
 const currencySymbols = { 'RUB': '₽', 'USD': '$', 'EUR': '€', 'GEL': '₾' };
@@ -963,16 +964,31 @@ async function loadMarketSection(market) {
     const gridId = market === 'crypto' ? 'crypto-grid' : 'stocks-grid';
     const grid = document.getElementById(gridId);
     if (!grid) return;
+    const cachedItems = marketCache[market]?.[kind];
+    if (cachedItems && cachedItems.length) {
+        renderMarketGrid(grid, cachedItems, market);
+        return;
+    }
     grid.innerHTML = `<div style="grid-column: 1 / -1; color: var(--ios-text-secondary); text-align: center;">Загрузка...</div>`;
     try {
         const res = await fetch(`/api/market_movers/${market}?type=${kind}`);
         const data = await res.json();
         if (data.error) {
+            if (cachedItems && cachedItems.length) {
+                renderMarketGrid(grid, cachedItems, market);
+                return;
+            }
             grid.innerHTML = `<div style="grid-column: 1 / -1; color: var(--ios-text-secondary); text-align: center;">${data.error}</div>`;
             return;
         }
+        if (!marketCache[market]) marketCache[market] = {};
+        marketCache[market][kind] = data.items || [];
         renderMarketGrid(grid, data.items || [], market);
     } catch (e) {
+        if (cachedItems && cachedItems.length) {
+            renderMarketGrid(grid, cachedItems, market);
+            return;
+        }
         grid.innerHTML = `<div style="grid-column: 1 / -1; color: var(--ios-text-secondary); text-align: center;">Нет данных</div>`;
         console.error('❌ Ошибка загрузки рынка:', e);
     }
@@ -986,7 +1002,8 @@ function renderMarketGrid(container, items, market) {
     container.innerHTML = items.map(item => {
         const change = Number(item.change) || 0;
         const changeClass = change >= 0 ? 'up' : 'down';
-        const logo = item.image || item.logo || '';
+        const primaryLogo = item.image || item.logo || item.logo_alt || '';
+        const fallbackLogo = item.image ? '' : (item.logo_alt && item.logo_alt !== primaryLogo ? item.logo_alt : '');
         const symbol = (item.symbol || '').toUpperCase();
         return `
             <button class="invest-card"
@@ -997,7 +1014,7 @@ function renderMarketGrid(container, items, market) {
                 data-change="${change}"
                 data-price="${item.price || ''}">
                 <div class="invest-logo">
-                    ${logo ? `<img class="invest-logo-img" src="${logo}" alt="${item.symbol}">` : ''}
+                    ${primaryLogo ? `<img class="invest-logo-img" src="${primaryLogo}" alt="${item.symbol || ''}"${fallbackLogo ? ` data-alt-src="${fallbackLogo}"` : ''}>` : ''}
                     <div class="invest-logo-text">${symbol.slice(0, 3)}</div>
                 </div>
                 <div class="invest-symbol">${symbol}</div>
@@ -1007,6 +1024,12 @@ function renderMarketGrid(container, items, market) {
     }).join('');
     container.querySelectorAll('.invest-logo-img').forEach(img => {
         img.onerror = () => {
+            const alt = img.dataset.altSrc;
+            if (alt) {
+                img.src = alt;
+                img.dataset.altSrc = '';
+                return;
+            }
             const wrap = img.closest('.invest-logo');
             if (wrap) wrap.classList.add('logo-fallback');
             img.remove();

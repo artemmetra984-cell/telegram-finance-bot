@@ -1377,24 +1377,25 @@ body {
 }
 
 .invest-block {
-  background: var(--ios-surface);
+  background: #f7f7fa;
+  color: #111111;
   border-radius: var(--border-radius-large);
   padding: var(--spacing-lg);
   margin-bottom: var(--spacing-md);
-  border: 0.5px solid rgba(255, 255, 255, 0.06);
-  box-shadow: var(--shadow-subtle);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.08);
 }
 
 .invest-block-title {
   font-size: 15px;
   font-weight: 600;
   margin-bottom: var(--spacing-md);
-  color: var(--ios-text-primary);
+  color: #111111;
 }
 
 .invest-toggle {
   display: flex;
-  background: rgba(255, 255, 255, 0.06);
+  background: #e8e8ee;
   border-radius: 999px;
   padding: 4px;
   gap: 4px;
@@ -1405,7 +1406,7 @@ body {
   flex: 1;
   border: none;
   background: transparent;
-  color: var(--ios-text-secondary);
+  color: #5b5b5f;
   padding: 10px 0;
   border-radius: 999px;
   font-size: 14px;
@@ -1415,8 +1416,9 @@ body {
 }
 
 .invest-toggle-btn.active {
-  background: rgba(255, 255, 255, 0.18);
-  color: var(--ios-text-primary);
+  background: #ffffff;
+  color: #111111;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.08);
 }
 
 .invest-grid {
@@ -1430,12 +1432,12 @@ body {
 }
 
 .invest-logo {
-  width: 46px;
-  height: 46px;
-  border-radius: 23px;
-  background: rgba(0, 0, 0, 0.45);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.4);
+  width: 44px;
+  height: 44px;
+  border-radius: 22px;
+  background: #f6f6f9;
+  border: 1px solid rgba(0, 0, 0, 0.04);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.07);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1450,15 +1452,15 @@ body {
   height: 100%;
   object-fit: contain;
   background: transparent;
-  mix-blend-mode: multiply;
-  filter: brightness(0.9) contrast(1.15) saturate(1.1);
+  mix-blend-mode: normal;
+  filter: none;
   border-radius: 50%;
 }
 
 .invest-logo-text {
   font-size: 12px;
   font-weight: 700;
-  color: var(--ios-text-primary);
+  color: #111111;
   opacity: 0;
   position: absolute;
   inset: 0;
@@ -1474,7 +1476,7 @@ body {
 .invest-symbol {
   font-size: 11px;
   font-weight: 700;
-  color: var(--ios-text-primary);
+  color: #1a1a1d;
   margin-bottom: 2px;
 }
 
@@ -1511,9 +1513,9 @@ body {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
   .invest-logo {
-    width: 40px;
-    height: 40px;
-    border-radius: 20px;
+    width: 38px;
+    height: 38px;
+    border-radius: 19px;
     padding: 5px;
   }
 }
