@@ -25,7 +25,6 @@ let allTransactions = [];
 let currentSavingsDestination = 'piggybank';
 let selectedGoalId = null;
 let isCreatingGoal = false;
-let isCreatingGoal = false;
 
 // Константы
 const currencySymbols = { 'RUB': '₽', 'USD': '$', 'EUR': '€', 'GEL': '₾' };
