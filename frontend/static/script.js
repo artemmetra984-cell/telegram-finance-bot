@@ -1184,7 +1184,7 @@ async function loadMarketChart(market, id, range = '1m', symbol = '') {
         writeMarketChartCache(market, id, range, points);
         if (charts['market-chart']) charts['market-chart'].destroy();
         const labels = points.map(p => formatMarketLabel(p.t, range));
-        charts['market-chart'] = new Chart(canvas, {
+        const chartInstance = new Chart(canvas, {
             type: 'line',
             data: {
                 labels,
@@ -1201,22 +1201,47 @@ async function loadMarketChart(market, id, range = '1m', symbol = '') {
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        enabled: true,
+                        callbacks: {
+                            label: (ctx) => {
+                                const value = ctx.parsed?.y;
+                                if (value === null || value === undefined) return '';
+                                return `Цена: ${Number(value).toLocaleString('ru-RU', { maximumFractionDigits: 4 })}`;
+                            }
+                        }
+                    }
+                },
+                interaction: { mode: 'nearest', intersect: false },
                 scales: {
                     x: {
                         display: true,
                         grid: { display: false },
                         ticks: { color: '#8b8b90', maxTicksLimit: 6 }
                     },
-                    y: { display: false }
+                    y: {
+                        display: true,
+                        grid: { color: 'rgba(0,0,0,0.06)' },
+                        ticks: { color: '#8b8b90', maxTicksLimit: 5 }
+                    }
                 }
             }
         });
+        charts['market-chart'] = chartInstance;
+        canvas.onclick = (evt) => {
+            const points = chartInstance.getElementsAtEventForMode(evt, 'nearest', { intersect: false }, true);
+            if (!points.length) return;
+            chartInstance.setActiveElements(points);
+            chartInstance.tooltip.setActiveElements(points, { x: evt.offsetX, y: evt.offsetY });
+            chartInstance.update();
+        };
     } catch (e) {
         if (cachedPoints && cachedPoints.length) {
             if (charts['market-chart']) charts['market-chart'].destroy();
             const labels = cachedPoints.map(p => formatMarketLabel(p.t, range));
-            charts['market-chart'] = new Chart(canvas, {
+            const chartInstance = new Chart(canvas, {
                 type: 'line',
                 data: {
                     labels,
@@ -1233,17 +1258,42 @@ async function loadMarketChart(market, id, range = '1m', symbol = '') {
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            enabled: true,
+                            callbacks: {
+                                label: (ctx) => {
+                                    const value = ctx.parsed?.y;
+                                    if (value === null || value === undefined) return '';
+                                    return `Цена: ${Number(value).toLocaleString('ru-RU', { maximumFractionDigits: 4 })}`;
+                                }
+                            }
+                        }
+                    },
+                    interaction: { mode: 'nearest', intersect: false },
                     scales: {
                         x: {
                             display: true,
                             grid: { display: false },
                             ticks: { color: '#8b8b90', maxTicksLimit: 6 }
                         },
-                        y: { display: false }
+                        y: {
+                            display: true,
+                            grid: { color: 'rgba(0,0,0,0.06)' },
+                            ticks: { color: '#8b8b90', maxTicksLimit: 5 }
+                        }
                     }
                 }
             });
+            charts['market-chart'] = chartInstance;
+            canvas.onclick = (evt) => {
+                const points = chartInstance.getElementsAtEventForMode(evt, 'nearest', { intersect: false }, true);
+                if (!points.length) return;
+                chartInstance.setActiveElements(points);
+                chartInstance.tooltip.setActiveElements(points, { x: evt.offsetX, y: evt.offsetY });
+                chartInstance.update();
+            };
             return;
         }
         console.error('❌ Ошибка графика:', e);
