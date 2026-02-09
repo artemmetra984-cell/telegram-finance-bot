@@ -1044,8 +1044,10 @@ async function updateIncomeChart(transactions) {
         incomeByCategory[trans.category] = (incomeByCategory[trans.category] || 0) + trans.amount;
     });
     
-    const categories = Object.keys(incomeByCategory);
-    const amounts = Object.values(incomeByCategory);
+    const sorted = Object.entries(incomeByCategory)
+        .sort((a, b) => b[1] - a[1]); // от большего к меньшему
+    const categories = sorted.map(([name]) => name);
+    const amounts = sorted.map(([, value]) => value);
     
     // Удаляем старый график
     if (charts['income-chart']) {
@@ -1157,8 +1159,10 @@ async function updateExpenseChart(transactions) {
         expenseByCategory[trans.category] = (expenseByCategory[trans.category] || 0) + trans.amount;
     });
     
-    const categories = Object.keys(expenseByCategory);
-    const amounts = Object.values(expenseByCategory);
+    const sorted = Object.entries(expenseByCategory)
+        .sort((a, b) => b[1] - a[1]); // от большего к меньшему
+    const categories = sorted.map(([name]) => name);
+    const amounts = sorted.map(([, value]) => value);
     
     // Удаляем старый график
     if (charts['expense-chart']) {
