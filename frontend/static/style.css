@@ -1216,6 +1216,10 @@ body {
   transition: all var(--transition-fast);
 }
 
+.service-link-compact {
+  padding: calc(var(--spacing-md) * 0.8);
+}
+
 .service-link:hover {
   border-color: var(--ios-accent);
   box-shadow: 0 0 10px var(--ios-accent-glow);
