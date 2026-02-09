@@ -538,9 +538,8 @@ body {
 
 .category-name {
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
   color: var(--ios-text-primary);
-  margin-bottom: 2px;
   display: flex;
   align-items: center;
   width: 100%;
@@ -551,11 +550,6 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.category-stats {
-  font-size: 12px;
-  color: var(--ios-text-secondary);
 }
 
 .category-amount {
@@ -575,6 +569,11 @@ body {
 .amount-negative {
   color: var(--pastel-red);
   text-shadow: 0 0 5px var(--pastel-red-glow);
+}
+
+.amount-savings {
+  color: var(--pastel-yellow);
+  text-shadow: 0 0 5px var(--pastel-yellow-glow);
 }
 
 /* Добавить категорию */
@@ -669,6 +668,12 @@ body {
   background: rgba(255, 138, 122, 0.15);
   color: var(--pastel-red);
   box-shadow: 0 0 10px var(--pastel-red-glow);
+}
+
+.transaction-icon.savings {
+  background: rgba(255, 214, 10, 0.15);
+  color: var(--pastel-yellow);
+  box-shadow: 0 0 10px var(--pastel-yellow-glow);
 }
 
 .transaction-info {

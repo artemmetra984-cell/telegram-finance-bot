@@ -61,6 +61,31 @@ const chartShadowPlugin = {
     }
 };
 
+function normalizeColor(color) {
+    if (!color || typeof color !== 'string') return '#ffffff';
+    return color;
+}
+
+function mixWithWhite(color, weight = 0.2) {
+    const c = normalizeColor(color).trim();
+    if (c.startsWith('#')) {
+        const hex = c.length === 4
+            ? c.replace(/^#(.)(.)(.)$/, '#$1$1$2$2$3$3')
+            : c;
+        const r = parseInt(hex.slice(1, 3), 16);
+        const g = parseInt(hex.slice(3, 5), 16);
+        const b = parseInt(hex.slice(5, 7), 16);
+        const nr = Math.round(r + (255 - r) * weight);
+        const ng = Math.round(g + (255 - g) * weight);
+        const nb = Math.round(b + (255 - b) * weight);
+        return `rgb(${nr}, ${ng}, ${nb})`;
+    }
+    if (c.startsWith('rgb')) {
+        return c;
+    }
+    return c;
+}
+
 const segmentIconsPlugin = {
     id: 'segmentIcons',
     afterDatasetDraw(chart, args, pluginOptions) {
@@ -68,20 +93,34 @@ const segmentIconsPlugin = {
         if (type !== 'doughnut' && type !== 'pie') return;
         const icons = pluginOptions?.icons || [];
         if (!icons.length) return;
+        const colors = pluginOptions?.colors || chart.data.datasets[args.index]?.backgroundColor || [];
         const meta = chart.getDatasetMeta(args.index);
         const ctx = chart.ctx;
         ctx.save();
-        ctx.font = '16px "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         meta.data.forEach((arc, i) => {
-            const angle = arc.endAngle - 0.08;
-            const radius = arc.outerRadius - 14;
-            const x = arc.x + Math.cos(angle) * radius;
-            const y = arc.y + Math.sin(angle) * radius;
             const icon = icons[i] || '';
             if (!icon) return;
-            ctx.fillText(icon, x, y);
+            const color = Array.isArray(colors) ? colors[i] : colors;
+            const angle = arc.endAngle - 0.12;
+            const thickness = arc.outerRadius - arc.innerRadius;
+            const badgeRadius = Math.min(18, Math.max(12, thickness * 0.55));
+            const radius = arc.outerRadius - badgeRadius + 2;
+            const x = arc.x + Math.cos(angle) * radius;
+            const y = arc.y + Math.sin(angle) * radius;
+            ctx.save();
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
+            ctx.shadowBlur = 10;
+            ctx.shadowOffsetY = 4;
+            ctx.fillStyle = mixWithWhite(color, 0.15);
+            ctx.beginPath();
+            ctx.arc(x, y, badgeRadius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+            ctx.fillStyle = '#ffffff';
+            ctx.font = `${Math.round(badgeRadius * 1.1)}px "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+            ctx.fillText(icon, x, y + 0.5);
         });
         ctx.restore();
     }
@@ -99,18 +138,18 @@ const segmentPercentagesPlugin = {
         if (!total) return;
         const ctx = chart.ctx;
         ctx.save();
-        ctx.font = '12px "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
-        ctx.fillStyle = '#ffffff';
+        ctx.font = '14px "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.75)';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
-        ctx.shadowBlur = 6;
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+        ctx.shadowBlur = 4;
         meta.data.forEach((arc, i) => {
             const value = data[i] || 0;
             const percent = ((value / total) * 100);
             if (percent < 3) return;
             const angle = (arc.startAngle + arc.endAngle) / 2;
-            const radius = (arc.innerRadius + arc.outerRadius) / 2;
+            const radius = arc.outerRadius + 20;
             const x = arc.x + Math.cos(angle) * radius;
             const y = arc.y + Math.sin(angle) * radius;
             ctx.fillText(`${percent.toFixed(0)}%`, x, y);
@@ -428,7 +467,6 @@ function updateCategorySection(type, title) {
                     <div class="category-name">
                         <span class="category-name-text">${cat.name}</span>
                     </div>
-                    <div class="category-stats">${type === 'income' ? 'Доходы' : 'Расходы'}</div>
                 </div>
                 <div class="category-amount ${isPositive ? 'amount-positive' : 'amount-negative'}">
                     ${isPositive ? '+' : '−'}${formatCurrency(amount)} ${symbol}
@@ -482,7 +520,6 @@ function updateSavingsDisplay() {
                     <div class="category-name">
                         <span class="category-name-text">${cat.name}</span>
                     </div>
-                    <div class="category-stats">Накопления</div>
                 </div>
                 <div class="category-amount" style="color: ${color};">
                     ${formatCurrency(amount)} ${symbol}
@@ -503,7 +540,6 @@ function updateSavingsDisplay() {
                     <div class="category-name">
                         <span class="category-name-text">Накопления</span>
                     </div>
-                    <div class="category-stats">Общий баланс</div>
                 </div>
                 <div class="category-amount" style="color: var(--ios-yellow);">
                     ${formatCurrency(totalSavings)} ${symbol}
@@ -728,11 +764,12 @@ function displayMonthTransactions(transactions) {
     let html = '';
     
     filteredTransactions.forEach(trans => {
-        const isIncome = trans.type === 'income';
-        const amountClass = isIncome ? 'amount-positive' : 'amount-negative';
-        const amountSign = isIncome ? '+' : '−';
-        const icon = isIncome ? '📈' : '📉';
-        const iconClass = isIncome ? 'income' : 'expense';
+        const isSavings = trans.category === 'Накопления';
+        const isIncome = isSavings ? true : trans.type === 'income';
+        const amountClass = isSavings ? 'amount-savings' : (isIncome ? 'amount-positive' : 'amount-negative');
+        const amountSign = isSavings ? '+' : (isIncome ? '+' : '−');
+        const icon = isSavings ? '💰' : (isIncome ? '📈' : '📉');
+        const iconClass = isSavings ? 'savings' : (isIncome ? 'income' : 'expense');
         const date = new Date(trans.date).toLocaleDateString('ru-RU', {
             day: 'numeric',
             month: 'short',
@@ -970,6 +1007,7 @@ function updateOverviewChart(totalIncome, totalExpense) {
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            layout: { padding: 28 },
             cutout: '72%',
             radius: '92%',
             rotation: -90,
@@ -1091,6 +1129,7 @@ async function updateIncomeChart(transactions) {
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            layout: { padding: 28 },
             plugins: {
                 legend: { display: false },
                 chartShadow: {
@@ -1207,6 +1246,7 @@ async function updateExpenseChart(transactions) {
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            layout: { padding: 28 },
             plugins: {
                 legend: { display: false },
                 chartShadow: {
