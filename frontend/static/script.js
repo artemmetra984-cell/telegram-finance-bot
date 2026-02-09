@@ -31,6 +31,50 @@ let marketState = { crypto: 'gainers', stocks: 'gainers' };
 let marketCache = { crypto: {}, stocks: {} };
 let marketRangeInitialized = false;
 let marketChartState = { market: '', id: '', range: '1m' };
+const marketCacheKey = (market, kind) => `market_cache_${market}_${kind}`;
+const marketChartCacheKey = (market, id, range) => `market_chart_${market}_${id}_${range}`;
+
+function readMarketCache(market, kind) {
+    try {
+        const raw = localStorage.getItem(marketCacheKey(market, kind));
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (!parsed || !Array.isArray(parsed.items)) return null;
+        return parsed.items;
+    } catch {
+        return null;
+    }
+}
+
+function writeMarketCache(market, kind, items) {
+    try {
+        localStorage.setItem(marketCacheKey(market, kind), JSON.stringify({
+            ts: Date.now(),
+            items: items || []
+        }));
+    } catch {}
+}
+
+function readMarketChartCache(market, id, range) {
+    try {
+        const raw = localStorage.getItem(marketChartCacheKey(market, id, range));
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (!parsed || !Array.isArray(parsed.points)) return null;
+        return parsed.points;
+    } catch {
+        return null;
+    }
+}
+
+function writeMarketChartCache(market, id, range, points) {
+    try {
+        localStorage.setItem(marketChartCacheKey(market, id, range), JSON.stringify({
+            ts: Date.now(),
+            points: points || []
+        }));
+    } catch {}
+}
 
 // Константы
 const currencySymbols = { 'RUB': '₽', 'USD': '$', 'EUR': '€', 'GEL': '₾' };
@@ -971,7 +1015,13 @@ async function loadMarketSection(market) {
         renderMarketGrid(grid, cachedItems, market);
         return;
     }
-    grid.innerHTML = `<div style="grid-column: 1 / -1; color: var(--ios-text-secondary); text-align: center;">Загрузка...</div>`;
+    const persistedItems = readMarketCache(market, kind);
+    if (persistedItems && persistedItems.length) {
+        renderMarketGrid(grid, persistedItems, market);
+    }
+    if (!persistedItems || !persistedItems.length) {
+        grid.innerHTML = `<div style="grid-column: 1 / -1; color: var(--ios-text-secondary); text-align: center;">Загрузка...</div>`;
+    }
     try {
         const res = await fetch(`/api/market_movers/${market}?type=${kind}`);
         const data = await res.json();
@@ -980,15 +1030,24 @@ async function loadMarketSection(market) {
                 renderMarketGrid(grid, cachedItems, market);
                 return;
             }
+            if (persistedItems && persistedItems.length) {
+                renderMarketGrid(grid, persistedItems, market);
+                return;
+            }
             grid.innerHTML = `<div style="grid-column: 1 / -1; color: var(--ios-text-secondary); text-align: center;">${data.error}</div>`;
             return;
         }
         if (!marketCache[market]) marketCache[market] = {};
         marketCache[market][kind] = data.items || [];
+        writeMarketCache(market, kind, data.items || []);
         renderMarketGrid(grid, data.items || [], market);
     } catch (e) {
         if (cachedItems && cachedItems.length) {
             renderMarketGrid(grid, cachedItems, market);
+            return;
+        }
+        if (persistedItems && persistedItems.length) {
+            renderMarketGrid(grid, persistedItems, market);
             return;
         }
         grid.innerHTML = `<div style="grid-column: 1 / -1; color: var(--ios-text-secondary); text-align: center;">Нет данных</div>`;
@@ -1114,11 +1173,13 @@ function formatMarketLabel(value, range) {
 async function loadMarketChart(market, id, range = '1m') {
     const canvas = document.getElementById('market-chart');
     if (!canvas) return;
+    const cachedPoints = readMarketChartCache(market, id, range);
     try {
         const res = await fetch(`/api/market_chart/${market}?id=${encodeURIComponent(id)}&range=${encodeURIComponent(range)}`);
         const data = await res.json();
         if (data.error) throw new Error(data.error);
         const points = data.points || [];
+        writeMarketChartCache(market, id, range, points);
         if (charts['market-chart']) charts['market-chart'].destroy();
         const labels = points.map(p => formatMarketLabel(p.t, range));
         charts['market-chart'] = new Chart(canvas, {
@@ -1150,6 +1211,39 @@ async function loadMarketChart(market, id, range = '1m') {
             }
         });
     } catch (e) {
+        if (cachedPoints && cachedPoints.length) {
+            if (charts['market-chart']) charts['market-chart'].destroy();
+            const labels = cachedPoints.map(p => formatMarketLabel(p.t, range));
+            charts['market-chart'] = new Chart(canvas, {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [{
+                        data: cachedPoints.map(p => p.v),
+                        borderColor: 'rgba(93, 156, 236, 0.9)',
+                        backgroundColor: 'rgba(93, 156, 236, 0.2)',
+                        pointRadius: 0,
+                        borderWidth: 2,
+                        tension: 0.35,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: {
+                            display: true,
+                            grid: { display: false },
+                            ticks: { color: '#8b8b90', maxTicksLimit: 6 }
+                        },
+                        y: { display: false }
+                    }
+                }
+            });
+            return;
+        }
         console.error('❌ Ошибка графика:', e);
     }
 }

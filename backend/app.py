@@ -1,7 +1,6 @@
 # backend/app.py
 import os
 import sys
-import json
 from flask import Flask, render_template, jsonify, request
 from flask_cors import CORS
 from dotenv import load_dotenv
@@ -31,7 +30,7 @@ CACHE_DIR = os.getenv('MARKET_CACHE_DIR')
 if not CACHE_DIR:
     CACHE_DIR = '/data' if os.path.isdir('/data') else '/tmp'
 PERSIST_CACHE_PATH = os.path.join(CACHE_DIR, 'market_cache.json')
-PERSIST_KEYS = {'movers_stocks_all'}
+PERSIST_KEYS = {'movers_stocks_all', 'movers_crypto_all'}
 
 MARKET_CACHE = {}
 MARKET_CACHE_TTL = int(os.getenv('MARKET_CACHE_TTL', '900'))  # seconds
@@ -87,6 +86,48 @@ def cache_get(key, allow_stale=False):
 def cache_set(key, data):
     MARKET_CACHE[key] = {'ts': datetime.utcnow(), 'data': data}
     _persist_entry(key, data)
+
+def fetch_yahoo_movers(move_type):
+    try:
+        scr_id = 'day_gainers' if move_type == 'gainers' else 'day_losers'
+        resp = requests.get(
+            'https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved',
+            params={'formatted': 'false', 'scrIds': scr_id, 'count': 8},
+            headers={'User-Agent': 'Mozilla/5.0 (TelegramFinanceBot)'},
+            timeout=10
+        )
+        if resp.status_code != 200:
+            return []
+        data = resp.json()
+        results = data.get('finance', {}).get('result', [])
+        if not results:
+            return []
+        quotes = results[0].get('quotes', [])
+        items = []
+        for quote in quotes[:8]:
+            symbol = quote.get('symbol', '')
+            change = quote.get('regularMarketChangePercent')
+            price = quote.get('regularMarketPrice')
+            name = quote.get('shortName') or symbol
+            safe_symbol = ''.join(ch for ch in symbol if ch.isalnum()).upper()
+            logo_primary = f"https://storage.googleapis.com/iex/api/logos/{safe_symbol}.png" if safe_symbol else ''
+            logo_alt = f"https://financialmodelingprep.com/image-stock/{safe_symbol}.png" if safe_symbol else ''
+            try:
+                change_val = float(change) if change is not None else 0.0
+            except Exception:
+                change_val = 0.0
+            items.append({
+                'id': symbol,
+                'symbol': symbol,
+                'name': name,
+                'change': change_val,
+                'price': price,
+                'logo': logo_primary,
+                'logo_alt': logo_alt
+            })
+        return items
+    except Exception:
+        return []
 
 try:
     from database import db
@@ -709,10 +750,16 @@ def get_market_movers(market):
                 timeout=10
             )
             if resp.status_code != 200:
+                cached = cache_get(cache_key, allow_stale=True)
+                if cached:
+                    return jsonify({'points': cached})
                 return jsonify({'error': 'CoinGecko unavailable'}), 502
             try:
                 data = resp.json()
             except Exception:
+                cached = cache_get(cache_key, allow_stale=True)
+                if cached:
+                    return jsonify({'points': cached})
                 return jsonify({'error': 'CoinGecko invalid response'}), 502
             items = []
             for coin in data:
@@ -737,7 +784,7 @@ def get_market_movers(market):
             if not api_key:
                 return jsonify({'error': 'ALPHAVANTAGE_API_KEY is not set'}), 400
             all_key = "movers_stocks_all"
-            all_cached = cache_get(all_key)
+            all_cached = cache_get(all_key, allow_stale=True)
             if not all_cached:
                 params = {'function': 'TOP_GAINERS_LOSERS', 'apikey': api_key}
                 resp = requests.get('https://www.alphavantage.co/query', params=params, timeout=10)
@@ -746,19 +793,20 @@ def get_market_movers(market):
                 except Exception:
                     return jsonify({'error': 'Alpha Vantage invalid response'}), 502
                 if 'Note' in data or 'Information' in data:
-                    all_cached = cache_get(all_key, allow_stale=True)
-                    if not all_cached:
-                        cached = cache_get(cache_key, allow_stale=True)
-                        if cached:
-                            return jsonify({'items': cached})
-                        return jsonify({'error': 'Alpha Vantage rate limit'}), 429
-                else:
-                    all_cached = {
-                        'top_gainers': data.get('top_gainers', []),
-                        'top_losers': data.get('top_losers', []),
-                        'most_actively_traded': data.get('most_actively_traded', [])
-                    }
-                    cache_set(all_key, all_cached)
+                    cached = cache_get(cache_key, allow_stale=True)
+                    if cached:
+                        return jsonify({'items': cached})
+                    yahoo_items = fetch_yahoo_movers(move_type)
+                    if yahoo_items:
+                        cache_set(cache_key, yahoo_items)
+                        return jsonify({'items': yahoo_items})
+                    return jsonify({'error': 'Alpha Vantage rate limit'}), 429
+                all_cached = {
+                    'top_gainers': data.get('top_gainers', []),
+                    'top_losers': data.get('top_losers', []),
+                    'most_actively_traded': data.get('most_actively_traded', [])
+                }
+                cache_set(all_key, all_cached)
             key = 'top_gainers' if move_type == 'gainers' else 'top_losers'
             raw_items = []
             if isinstance(all_cached, dict):
@@ -835,7 +883,7 @@ def get_market_chart(market):
             if not api_key:
                 return jsonify({'error': 'ALPHAVANTAGE_API_KEY is not set'}), 400
             series_key = f"chart_stocks_series_{item_id}"
-            series_points = cache_get(series_key)
+            series_points = cache_get(series_key, allow_stale=True)
             if not series_points:
                 params = {
                     'function': 'TIME_SERIES_DAILY',
