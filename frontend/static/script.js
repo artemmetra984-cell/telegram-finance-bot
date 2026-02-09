@@ -31,6 +31,8 @@ let marketState = { crypto: 'gainers', stocks: 'gainers' };
 let marketCache = { crypto: {}, stocks: {} };
 let marketRangeInitialized = false;
 let marketChartState = { market: '', id: '', range: '1m' };
+let sharedWalletState = { status: 'none', code: '', link: '' };
+let pendingInviteCode = null;
 const marketCacheKey = (market, kind) => `market_cache_${market}_${kind}`;
 const marketChartCacheKey = (market, id, range) => `market_chart_${market}_${id}_${range}`;
 
@@ -296,6 +298,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.log('🚀 Загрузка приложения (iOS 26 стиль)...');
     
     try {
+        initInviteFromUrl();
         // Восстанавливаем сессию
         sessionToken = localStorage.getItem('finance_session_token');
         currentCurrency = localStorage.getItem('finance_currency') || 'RUB';
@@ -318,6 +321,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         // Загружаем начальные данные
         await loadPanelData();
+        handlePendingInvite();
         
         // Telegram Web App
         if (window.Telegram && Telegram.WebApp) {
@@ -1151,6 +1155,171 @@ function openAddToHomeLink() {
         return;
     }
     window.open(url, '_blank');
+}
+
+function openSharedWallet() {
+    const modal = document.getElementById('shared-wallet-modal');
+    if (modal) modal.classList.add('active');
+    loadSharedWalletStatus();
+}
+
+function closeSharedWallet() {
+    const modal = document.getElementById('shared-wallet-modal');
+    if (modal) modal.classList.remove('active');
+}
+
+async function loadSharedWalletStatus() {
+    if (!currentUser) return;
+    const statusEl = document.getElementById('shared-wallet-status');
+    const actionsEl = document.getElementById('shared-wallet-actions');
+    const shareEl = document.getElementById('shared-wallet-share');
+    const codeEl = document.getElementById('shared-code-value');
+    const copyCodeBtn = document.getElementById('shared-copy-code');
+    const copyLinkBtn = document.getElementById('shared-copy-link');
+    const leaveBtn = document.getElementById('shared-leave-btn');
+    if (statusEl) statusEl.textContent = 'Загрузка...';
+    try {
+        const res = await fetch(`/api/shared_wallet/status?user_id=${currentUser.id}`);
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+        sharedWalletState = { status: data.status || 'none', code: data.code || '', link: data.link || '' };
+        if (sharedWalletState.status === 'none') {
+            if (statusEl) statusEl.textContent = 'Общий кошелёк не подключен.';
+            if (actionsEl) actionsEl.style.display = 'block';
+            if (shareEl) shareEl.style.display = 'none';
+        } else if (sharedWalletState.status === 'owner') {
+            if (statusEl) statusEl.textContent = 'Вы владелец общего кошелька. Отправьте код другу.';
+            if (actionsEl) actionsEl.style.display = 'none';
+            if (shareEl) shareEl.style.display = 'grid';
+            if (codeEl) codeEl.textContent = sharedWalletState.code;
+            if (copyCodeBtn) copyCodeBtn.style.display = 'flex';
+            if (copyLinkBtn) copyLinkBtn.style.display = 'flex';
+            if (leaveBtn) leaveBtn.style.display = 'flex';
+        } else {
+            const ownerName = data.owner_name ? ` ${data.owner_name}` : '';
+            if (statusEl) statusEl.textContent = `Вы подключены к общему кошельку${ownerName ? ' владельца' + ownerName : ''}.`;
+            if (actionsEl) actionsEl.style.display = 'none';
+            if (shareEl) shareEl.style.display = 'grid';
+            if (codeEl) codeEl.textContent = '';
+            if (copyCodeBtn) copyCodeBtn.style.display = 'none';
+            if (copyLinkBtn) copyLinkBtn.style.display = 'none';
+            if (leaveBtn) leaveBtn.style.display = 'flex';
+        }
+        if (pendingInviteCode) {
+            const input = document.getElementById('shared-code-input');
+            if (input) input.value = pendingInviteCode;
+        }
+    } catch (e) {
+        if (statusEl) statusEl.textContent = 'Не удалось загрузить статус.';
+    }
+}
+
+async function createSharedWallet() {
+    if (!currentUser) return;
+    try {
+        const res = await fetch('/api/shared_wallet/create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_id: currentUser.id })
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+        sharedWalletState = { status: 'owner', code: data.code || '', link: data.link || '' };
+        showNotification('Кошелёк создан', 'success');
+        loadSharedWalletStatus();
+    } catch (e) {
+        showNotification('Не удалось создать общий кошелёк', 'error');
+    }
+}
+
+async function joinSharedWallet() {
+    if (!currentUser) return;
+    const input = document.getElementById('shared-code-input');
+    const code = (input?.value || '').trim().toUpperCase();
+    if (!code) {
+        showNotification('Введите код', 'error');
+        return;
+    }
+    try {
+        const res = await fetch('/api/shared_wallet/join', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_id: currentUser.id, code })
+        });
+        const data = await res.json();
+        if (data.error) {
+            const map = {
+                already_in: 'Вы уже подключены',
+                not_found: 'Неверный код',
+                full: 'Кошелёк уже заполнен',
+                owner: 'Это ваш код'
+            };
+            throw new Error(map[data.error] || 'Не удалось подключиться');
+        }
+        pendingInviteCode = null;
+        localStorage.removeItem('pending_invite_code');
+        showNotification('Вы подключились', 'success');
+        await initUser();
+        await loadPanelData();
+        loadSharedWalletStatus();
+    } catch (e) {
+        showNotification(e.message || 'Не удалось подключиться', 'error');
+    }
+}
+
+async function leaveSharedWallet() {
+    if (!currentUser) return;
+    try {
+        const res = await fetch('/api/shared_wallet/leave', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_id: currentUser.id })
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+        showNotification('Отключено', 'info');
+        await initUser();
+        await loadPanelData();
+        loadSharedWalletStatus();
+    } catch (e) {
+        showNotification('Не удалось отключиться', 'error');
+    }
+}
+
+function copySharedCode() {
+    if (!sharedWalletState.code) return;
+    navigator.clipboard?.writeText(sharedWalletState.code).then(() => {
+        showNotification('Код скопирован', 'success');
+    });
+}
+
+function copySharedLink() {
+    if (!sharedWalletState.link) return;
+    navigator.clipboard?.writeText(sharedWalletState.link).then(() => {
+        showNotification('Ссылка скопирована', 'success');
+    });
+}
+
+function initInviteFromUrl() {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get('invite');
+    if (!code) return;
+    pendingInviteCode = code.toUpperCase();
+    localStorage.setItem('pending_invite_code', pendingInviteCode);
+    if (window.history && window.history.replaceState) {
+        window.history.replaceState({}, document.title, window.location.pathname);
+    }
+}
+
+function handlePendingInvite() {
+    if (!pendingInviteCode) {
+        const saved = localStorage.getItem('pending_invite_code');
+        if (saved) pendingInviteCode = saved;
+    }
+    if (!pendingInviteCode) return;
+    openSharedWallet();
+    const input = document.getElementById('shared-code-input');
+    if (input) input.value = pendingInviteCode;
 }
 
 async function openMarketModal(item) {

@@ -1268,6 +1268,31 @@ body {
   color: #e9eef6;
 }
 
+/* Shared wallet */
+.shared-wallet-status {
+  font-size: 14px;
+  color: var(--ios-text-secondary);
+  margin-bottom: var(--spacing-md);
+}
+
+.shared-wallet-join {
+  display: grid;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-md);
+}
+
+.shared-wallet-share {
+  display: grid;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-md);
+}
+
+.shared-wallet-code {
+  font-size: 14px;
+  color: var(--ios-text-primary);
+  margin-bottom: var(--spacing-sm);
+}
+
 /* Articles */
 .articles-section {
   margin: var(--spacing-md);

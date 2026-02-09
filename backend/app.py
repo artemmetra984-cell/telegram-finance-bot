@@ -1,6 +1,8 @@
 # backend/app.py
 import os
 import sys
+import random
+import string
 from flask import Flask, render_template, jsonify, request, send_from_directory
 from flask_cors import CORS
 from dotenv import load_dotenv
@@ -34,6 +36,10 @@ PERSIST_KEYS = {'movers_stocks_all', 'movers_crypto_all'}
 
 MARKET_CACHE = {}
 MARKET_CACHE_TTL = int(os.getenv('MARKET_CACHE_TTL', '900'))  # seconds
+
+def generate_invite_code(length=7):
+    alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+    return ''.join(random.choice(alphabet) for _ in range(length))
 
 def _load_persisted_entry(key):
     if key not in PERSIST_KEYS:
@@ -287,6 +293,7 @@ def init_user():
         
         if db:
             stats = db.get_user_stats(user_id)
+            default_wallet = db.get_effective_default_wallet(user_id)
             
             categories = {'income': [], 'expense': [], 'savings': []}
             all_categories = db.get_categories(user_id)
@@ -377,6 +384,96 @@ def init_user():
         })
     except Exception as e:
         print(f"Init error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/shared_wallet/status')
+def shared_wallet_status():
+    try:
+        user_id = request.args.get('user_id', type=int)
+        if not user_id:
+            return jsonify({'error': 'Missing user_id'}), 400
+        if not db:
+            return jsonify({'error': 'Database error'}), 500
+        status = db.get_shared_wallet_status(user_id)
+        if not status:
+            return jsonify({'status': 'none'})
+        role = 'owner' if status['owner_id'] == user_id else 'member'
+        base_url = request.host_url.rstrip('/')
+        link = f"{base_url}/?invite={status['code']}" if status['code'] else ''
+        return jsonify({
+            'status': role,
+            'code': status['code'],
+            'link': link,
+            'owner_name': status['owner_name'] or status['owner_username'] or '',
+            'member_name': status['member_name'] or status['member_username'] or ''
+        })
+    except Exception as e:
+        print(f"Shared status error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/shared_wallet/create', methods=['POST'])
+def shared_wallet_create():
+    try:
+        data = request.json or {}
+        user_id = data.get('user_id')
+        if not user_id:
+            return jsonify({'error': 'Missing user_id'}), 400
+        if not db:
+            return jsonify({'error': 'Database error'}), 500
+        status = db.get_shared_wallet_status(user_id)
+        if status:
+            return jsonify({'error': 'Already in shared wallet'}), 400
+        code = None
+        for _ in range(10):
+            candidate = generate_invite_code()
+            try:
+                if db.create_shared_wallet(user_id, candidate):
+                    code = candidate
+                    break
+            except Exception:
+                code = None
+        if not code:
+            return jsonify({'error': 'Failed to create invite'}), 500
+        base_url = request.host_url.rstrip('/')
+        link = f"{base_url}/?invite={code}"
+        return jsonify({'status': 'owner', 'code': code, 'link': link})
+    except Exception as e:
+        print(f"Shared create error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/shared_wallet/join', methods=['POST'])
+def shared_wallet_join():
+    try:
+        data = request.json or {}
+        user_id = data.get('user_id')
+        code = (data.get('code') or '').strip().upper()
+        if not user_id or not code:
+            return jsonify({'error': 'Missing fields'}), 400
+        if not db:
+            return jsonify({'error': 'Database error'}), 500
+        result = db.join_shared_wallet(user_id, code)
+        if result.get('error'):
+            return jsonify({'error': result['error']}), 400
+        return jsonify({'status': 'member'})
+    except Exception as e:
+        print(f"Shared join error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/shared_wallet/leave', methods=['POST'])
+def shared_wallet_leave():
+    try:
+        data = request.json or {}
+        user_id = data.get('user_id')
+        if not user_id:
+            return jsonify({'error': 'Missing user_id'}), 400
+        if not db:
+            return jsonify({'error': 'Database error'}), 500
+        result = db.leave_shared_wallet(user_id)
+        if result.get('error'):
+            return jsonify({'error': result['error']}), 400
+        return jsonify({'success': True, 'role': result.get('role')})
+    except Exception as e:
+        print(f"Shared leave error: {e}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/transaction', methods=['POST'])
