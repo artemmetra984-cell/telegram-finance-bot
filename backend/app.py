@@ -29,11 +29,11 @@ print(f"🚀 Starting Flask app (iOS 26 Version)")
 MARKET_CACHE = {}
 MARKET_CACHE_TTL = 300  # seconds
 
-def cache_get(key):
+def cache_get(key, allow_stale=False):
     entry = MARKET_CACHE.get(key)
     if not entry:
         return None
-    if (datetime.utcnow() - entry['ts']).total_seconds() > MARKET_CACHE_TTL:
+    if (datetime.utcnow() - entry['ts']).total_seconds() > MARKET_CACHE_TTL and not allow_stale:
         return None
     return entry['data']
 
@@ -593,6 +593,59 @@ def get_market_movers(market):
             return jsonify({'items': cached})
         
         if market == 'crypto':
+            all_key = "movers_crypto_all"
+            all_cached = cache_get(all_key)
+            if not all_cached:
+                params = {
+                    'vs_currency': 'usd',
+                    'order': 'market_cap_desc',
+                    'per_page': 200,
+                    'page': 1,
+                    'sparkline': 'false',
+                    'price_change_percentage': '24h'
+                }
+                resp = requests.get(
+                    'https://api.coingecko.com/api/v3/coins/markets',
+                    params=params,
+                    headers={'User-Agent': 'Mozilla/5.0 (TelegramFinanceBot)'},
+                    timeout=10
+                )
+                if resp.status_code != 200:
+                    all_cached = cache_get(all_key, allow_stale=True)
+                    if not all_cached:
+                        return jsonify({'error': 'CoinGecko unavailable'}), 502
+                else:
+                    try:
+                        data = resp.json()
+                    except Exception:
+                        data = None
+                    if not data:
+                        all_cached = cache_get(all_key, allow_stale=True)
+                        if not all_cached:
+                            return jsonify({'error': 'CoinGecko invalid response'}), 502
+                    else:
+                        items = []
+                        for coin in data:
+                            change = coin.get('price_change_percentage_24h')
+                            if change is None:
+                                continue
+                            items.append({
+                                'id': coin.get('id'),
+                                'symbol': coin.get('symbol', '').upper(),
+                                'name': coin.get('name', ''),
+                                'change': float(change),
+                                'price': coin.get('current_price'),
+                                'image': coin.get('image')
+                            })
+                        cache_set(all_key, items)
+                        all_cached = items
+            items = all_cached or []
+            items.sort(key=lambda x: x['change'], reverse=(move_type == 'gainers'))
+            items = items[:8]
+            cache_set(cache_key, items)
+            return jsonify({'items': items})
+
+        if market == 'crypto_legacy':
             params = {
                 'vs_currency': 'usd',
                 'order': 'market_cap_desc',
@@ -651,13 +704,14 @@ def get_market_movers(market):
                     change = float(change_pct)
                 except ValueError:
                     change = 0.0
+                safe_symbol = ''.join(ch for ch in symbol if ch.isalnum())
                 items.append({
                     'id': symbol,
                     'symbol': symbol,
                     'name': symbol,
                     'change': change,
                     'price': item.get('price'),
-                    'logo': f"https://financialmodelingprep.com/image-stock/{symbol}.png"
+                    'logo': f"https://financialmodelingprep.com/image-stock/{safe_symbol}.png" if safe_symbol else ''
                 })
             cache_set(cache_key, items)
             return jsonify({'items': items})
