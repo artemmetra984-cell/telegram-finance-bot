@@ -596,13 +596,23 @@ def get_market_movers(market):
             params = {
                 'vs_currency': 'usd',
                 'order': 'market_cap_desc',
-                'per_page': 250,
+                'per_page': 200,
                 'page': 1,
                 'sparkline': 'false',
                 'price_change_percentage': '24h'
             }
-            resp = requests.get('https://api.coingecko.com/api/v3/coins/markets', params=params, timeout=10)
-            data = resp.json()
+            resp = requests.get(
+                'https://api.coingecko.com/api/v3/coins/markets',
+                params=params,
+                headers={'User-Agent': 'Mozilla/5.0 (TelegramFinanceBot)'},
+                timeout=10
+            )
+            if resp.status_code != 200:
+                return jsonify({'error': 'CoinGecko unavailable'}), 502
+            try:
+                data = resp.json()
+            except Exception:
+                return jsonify({'error': 'CoinGecko invalid response'}), 502
             items = []
             for coin in data:
                 change = coin.get('price_change_percentage_24h')
@@ -627,7 +637,10 @@ def get_market_movers(market):
                 return jsonify({'error': 'ALPHAVANTAGE_API_KEY is not set'}), 400
             params = {'function': 'TOP_GAINERS_LOSERS', 'apikey': api_key}
             resp = requests.get('https://www.alphavantage.co/query', params=params, timeout=10)
-            data = resp.json()
+            try:
+                data = resp.json()
+            except Exception:
+                return jsonify({'error': 'Alpha Vantage invalid response'}), 502
             key = 'top_gainers' if move_type == 'gainers' else 'top_losers'
             raw_items = data.get(key, [])
             items = []
@@ -667,8 +680,18 @@ def get_market_chart(market):
         
         if market == 'crypto':
             params = {'vs_currency': 'usd', 'days': 30}
-            resp = requests.get(f'https://api.coingecko.com/api/v3/coins/{item_id}/market_chart', params=params, timeout=10)
-            data = resp.json()
+            resp = requests.get(
+                f'https://api.coingecko.com/api/v3/coins/{item_id}/market_chart',
+                params=params,
+                headers={'User-Agent': 'Mozilla/5.0 (TelegramFinanceBot)'},
+                timeout=10
+            )
+            if resp.status_code != 200:
+                return jsonify({'error': 'CoinGecko unavailable'}), 502
+            try:
+                data = resp.json()
+            except Exception:
+                return jsonify({'error': 'CoinGecko invalid response'}), 502
             points = [{'t': p[0], 'v': p[1]} for p in data.get('prices', [])]
             cache_set(cache_key, points)
             return jsonify({'points': points})

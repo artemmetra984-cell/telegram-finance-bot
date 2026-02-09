@@ -996,12 +996,22 @@ function renderMarketGrid(container, items, market) {
                 data-name="${(item.name || '').replace(/"/g, '&quot;')}"
                 data-change="${change}"
                 data-price="${item.price || ''}">
-                <div class="invest-logo">${logo ? `<img src="${logo}" alt="${item.symbol}">` : `<div class="invest-logo-text">${symbol.slice(0, 3)}</div>`}</div>
+                <div class="invest-logo">
+                    ${logo ? `<img class="invest-logo-img" src="${logo}" alt="${item.symbol}">` : ''}
+                    <div class="invest-logo-text">${symbol.slice(0, 3)}</div>
+                </div>
                 <div class="invest-symbol">${symbol}</div>
                 <div class="invest-change ${changeClass}">${change >= 0 ? '↑' : '↓'} ${Math.abs(change).toFixed(2)}%</div>
             </button>
         `;
     }).join('');
+    container.querySelectorAll('.invest-logo-img').forEach(img => {
+        img.onerror = () => {
+            const wrap = img.closest('.invest-logo');
+            if (wrap) wrap.classList.add('logo-fallback');
+            img.remove();
+        };
+    });
     container.querySelectorAll('.invest-card').forEach(card => {
         card.onclick = () => {
             openMarketModal({

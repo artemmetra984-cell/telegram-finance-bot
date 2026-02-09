@@ -1439,6 +1439,7 @@ body {
   justify-content: center;
   overflow: hidden;
   margin-bottom: 8px;
+  position: relative;
 }
 
 .invest-logo img {
@@ -1451,6 +1452,15 @@ body {
   font-size: 12px;
   font-weight: 700;
   color: var(--ios-text-primary);
+  opacity: 0;
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.invest-logo.logo-fallback .invest-logo-text {
   opacity: 0.8;
 }
 
