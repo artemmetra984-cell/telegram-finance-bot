@@ -153,11 +153,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         // Telegram Web App
         if (window.Telegram && Telegram.WebApp) {
-            Telegram.WebApp.expand();
-            Telegram.WebApp.setHeaderColor('#000000');
-            Telegram.WebApp.setBackgroundColor('#000000');
-            Telegram.WebApp.ready();
-            Telegram.WebApp.setupClosingBehavior();
+            try { Telegram.WebApp.expand(); } catch (e) {}
+            try { Telegram.WebApp.setHeaderColor && Telegram.WebApp.setHeaderColor('#000000'); } catch (e) {}
+            try { Telegram.WebApp.setBackgroundColor && Telegram.WebApp.setBackgroundColor('#000000'); } catch (e) {}
+            try { Telegram.WebApp.ready && Telegram.WebApp.ready(); } catch (e) {}
+            try { Telegram.WebApp.setupClosingBehavior && Telegram.WebApp.setupClosingBehavior(); } catch (e) {}
         }
         
         console.log('✅ Приложение загружено в стиле iOS 26');
@@ -938,6 +938,7 @@ function updateOverviewChart(totalIncome, totalExpense) {
     }
     
     // Создаем новый график с улучшенным стилем
+    const spacing = -6;
     charts['overview-chart'] = new Chart(ctx, {
         type: 'doughnut',
         data: {
@@ -954,7 +955,7 @@ function updateOverviewChart(totalIncome, totalExpense) {
                 ],
                 borderWidth: 0,
                 borderRadius: { outerStart: 0, outerEnd: 18, innerStart: 0, innerEnd: 18 },
-                spacing: -10,
+                spacing: spacing,
                 borderAlign: 'inner',
                 borderJoinStyle: 'round',
                 hoverBackgroundColor: [
@@ -1068,6 +1069,7 @@ async function updateIncomeChart(transactions) {
     });
     
     // Создаем новый график с улучшенным стилем
+    const spacing = categories.length > 1 ? -6 : 0;
     charts['income-chart'] = new Chart(ctx, {
         type: 'doughnut',
         data: {
@@ -1078,7 +1080,7 @@ async function updateIncomeChart(transactions) {
                 borderColor: borderColors,
                 borderWidth: 0,
                 borderRadius: { outerStart: 0, outerEnd: 18, innerStart: 0, innerEnd: 18 },
-                spacing: -10,
+                spacing: spacing,
                 borderAlign: 'inner',
                 hoverBackgroundColor: hoverColors,
                 hoverBorderColor: 'rgba(255, 255, 255, 0.2)',
@@ -1183,6 +1185,7 @@ async function updateExpenseChart(transactions) {
     });
     
     // Создаем новый график с улучшенным стилем
+    const spacing = categories.length > 1 ? -6 : 0;
     charts['expense-chart'] = new Chart(ctx, {
         type: 'doughnut',
         data: {
@@ -1193,7 +1196,7 @@ async function updateExpenseChart(transactions) {
                 borderColor: borderColors,
                 borderWidth: 0,
                 borderRadius: { outerStart: 0, outerEnd: 18, innerStart: 0, innerEnd: 18 },
-                spacing: -10,
+                spacing: spacing,
                 borderAlign: 'inner',
                 hoverBackgroundColor: hoverColors,
                 hoverBorderColor: 'rgba(255, 255, 255, 0.2)',
@@ -1699,7 +1702,9 @@ function updateGoalsDisplay() {
     const symbol = currencySymbols[currentCurrency] || '₽';
     
     goalsData.forEach(goal => {
-        const progress = Math.min((goal.current_amount / goal.target_amount) * 100, 100);
+        const currentAmount = parseFloat(goal.current_amount) || 0;
+        const targetAmount = parseFloat(goal.target_amount) || 0;
+        const progress = targetAmount > 0 ? Math.min((currentAmount / targetAmount) * 100, 100) : 0;
         const color = goal.color || '#FF9500';
         const icon = goal.icon || '🎯';
         
