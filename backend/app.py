@@ -129,6 +129,79 @@ def fetch_yahoo_movers(move_type):
     except Exception:
         return []
 
+def fetch_yahoo_chart(symbol, range_key):
+    try:
+        range_map = {
+            '1d': ('1d', '5m'),
+            '1w': ('5d', '30m'),
+            '1m': ('1mo', '1d'),
+            'all': ('1y', '1d')
+        }
+        rng, interval = range_map.get(range_key, ('1mo', '1d'))
+        resp = requests.get(
+            f'https://query1.finance.yahoo.com/v8/finance/chart/{symbol}',
+            params={
+                'range': rng,
+                'interval': interval,
+                'includePrePost': 'false',
+                'events': 'div,splits'
+            },
+            headers={'User-Agent': 'Mozilla/5.0 (TelegramFinanceBot)'},
+            timeout=10
+        )
+        if resp.status_code != 200:
+            return []
+        data = resp.json()
+        result = data.get('chart', {}).get('result', [])
+        if not result:
+            return []
+        timestamps = result[0].get('timestamp') or []
+        closes = result[0].get('indicators', {}).get('quote', [{}])[0].get('close') or []
+        points = []
+        for ts, close in zip(timestamps, closes):
+            if close is None:
+                continue
+            points.append({'t': int(ts) * 1000, 'v': float(close)})
+        return points
+    except Exception:
+        return []
+
+def fetch_cryptocompare_chart(symbol, range_key):
+    try:
+        symbol = (symbol or '').upper()
+        if not symbol:
+            return []
+        if range_key in ('1d', '1w'):
+            limit = 24 if range_key == '1d' else 168
+            resp = requests.get(
+                'https://min-api.cryptocompare.com/data/v2/histohour',
+                params={'fsym': symbol, 'tsym': 'USD', 'limit': limit},
+                headers={'User-Agent': 'Mozilla/5.0 (TelegramFinanceBot)'},
+                timeout=10
+            )
+        else:
+            limit = 30 if range_key == '1m' else 365
+            resp = requests.get(
+                'https://min-api.cryptocompare.com/data/v2/histoday',
+                params={'fsym': symbol, 'tsym': 'USD', 'limit': limit},
+                headers={'User-Agent': 'Mozilla/5.0 (TelegramFinanceBot)'},
+                timeout=10
+            )
+        if resp.status_code != 200:
+            return []
+        data = resp.json()
+        points_raw = data.get('Data', {}).get('Data', [])
+        points = []
+        for item in points_raw:
+            close = item.get('close')
+            ts = item.get('time')
+            if close is None or ts is None:
+                continue
+            points.append({'t': int(ts) * 1000, 'v': float(close)})
+        return points
+    except Exception:
+        return []
+
 try:
     from database import db
     print("✅ Database imported")
@@ -850,6 +923,7 @@ def get_market_movers(market):
 def get_market_chart(market):
     try:
         item_id = request.args.get('id', '')
+        symbol = request.args.get('symbol', '')
         range_key = (request.args.get('range', '1m') or '1m').lower()
         if not item_id:
             return jsonify({'error': 'Missing id'}), 400
@@ -869,10 +943,24 @@ def get_market_chart(market):
                 timeout=10
             )
             if resp.status_code != 200:
+                cached = cache_get(cache_key, allow_stale=True)
+                if cached:
+                    return jsonify({'points': cached})
+                fallback_points = fetch_cryptocompare_chart(symbol, range_key)
+                if fallback_points:
+                    cache_set(cache_key, fallback_points)
+                    return jsonify({'points': fallback_points})
                 return jsonify({'error': 'CoinGecko unavailable'}), 502
             try:
                 data = resp.json()
             except Exception:
+                cached = cache_get(cache_key, allow_stale=True)
+                if cached:
+                    return jsonify({'points': cached})
+                fallback_points = fetch_cryptocompare_chart(symbol, range_key)
+                if fallback_points:
+                    cache_set(cache_key, fallback_points)
+                    return jsonify({'points': fallback_points})
                 return jsonify({'error': 'CoinGecko invalid response'}), 502
             points = [{'t': p[0], 'v': p[1]} for p in data.get('prices', [])]
             cache_set(cache_key, points)
@@ -896,6 +984,10 @@ def get_market_chart(market):
                 if 'Note' in data or 'Information' in data:
                     series_points = cache_get(series_key, allow_stale=True)
                     if not series_points:
+                        yahoo_points = fetch_yahoo_chart(item_id, range_key)
+                        if yahoo_points:
+                            cache_set(cache_key, yahoo_points)
+                            return jsonify({'points': yahoo_points})
                         return jsonify({'error': 'Alpha Vantage rate limit'}), 429
                 else:
                     series = data.get('Time Series (Daily)', {})
@@ -903,6 +995,10 @@ def get_market_chart(market):
                     series_points = [{'t': d, 'v': float(series[d]['4. close'])} for d in dates if '4. close' in series[d]]
                     cache_set(series_key, series_points)
             if not series_points:
+                yahoo_points = fetch_yahoo_chart(item_id, range_key)
+                if yahoo_points:
+                    cache_set(cache_key, yahoo_points)
+                    return jsonify({'points': yahoo_points})
                 return jsonify({'points': []})
             if range_key == '1d':
                 points = series_points[-2:]

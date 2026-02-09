@@ -1125,10 +1125,11 @@ async function openMarketModal(item) {
     modal.classList.add('active');
     marketChartState.market = item.market || '';
     marketChartState.id = item.id || item.symbol || '';
+    marketChartState.symbol = item.symbol || '';
     if (!marketChartState.range) marketChartState.range = '1m';
     setupMarketRangeButtons();
     setActiveMarketRange(marketChartState.range);
-    await loadMarketChart(marketChartState.market, marketChartState.id, marketChartState.range);
+    await loadMarketChart(marketChartState.market, marketChartState.id, marketChartState.range, marketChartState.symbol);
 }
 
 function closeMarketModal() {
@@ -1146,7 +1147,7 @@ function setupMarketRangeButtons() {
             marketChartState.range = range;
             setActiveMarketRange(range);
             if (marketChartState.market && marketChartState.id) {
-                loadMarketChart(marketChartState.market, marketChartState.id, range);
+                loadMarketChart(marketChartState.market, marketChartState.id, range, marketChartState.symbol || '');
             }
         };
     });
@@ -1170,12 +1171,13 @@ function formatMarketLabel(value, range) {
     return date.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' });
 }
 
-async function loadMarketChart(market, id, range = '1m') {
+async function loadMarketChart(market, id, range = '1m', symbol = '') {
     const canvas = document.getElementById('market-chart');
     if (!canvas) return;
     const cachedPoints = readMarketChartCache(market, id, range);
     try {
-        const res = await fetch(`/api/market_chart/${market}?id=${encodeURIComponent(id)}&range=${encodeURIComponent(range)}`);
+        const symbolParam = symbol ? `&symbol=${encodeURIComponent(symbol)}` : '';
+        const res = await fetch(`/api/market_chart/${market}?id=${encodeURIComponent(id)}&range=${encodeURIComponent(range)}${symbolParam}`);
         const data = await res.json();
         if (data.error) throw new Error(data.error);
         const points = data.points || [];
