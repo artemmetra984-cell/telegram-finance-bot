@@ -1503,6 +1503,34 @@ body {
   margin-bottom: var(--spacing-md);
 }
 
+.market-range {
+  display: flex;
+  gap: 6px;
+  background: rgba(0, 0, 0, 0.08);
+  padding: 4px;
+  border-radius: 999px;
+  margin-bottom: var(--spacing-md);
+}
+
+.market-range-btn {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: var(--ios-text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 8px 0;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.market-range-btn.active {
+  background: rgba(255, 255, 255, 0.9);
+  color: #111111;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
 .market-chart {
   position: relative;
   height: 260px;

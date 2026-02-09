@@ -1,6 +1,7 @@
 # backend/app.py
 import os
 import sys
+import json
 from flask import Flask, render_template, jsonify, request
 from flask_cors import CORS
 from dotenv import load_dotenv
@@ -26,11 +27,57 @@ WEBHOOK_URL = os.getenv('WEBHOOK_URL', 'https://telegram-finance-bot-1-8zea.onre
 
 print(f"🚀 Starting Flask app (iOS 26 Version)")
 
+CACHE_DIR = os.getenv('MARKET_CACHE_DIR')
+if not CACHE_DIR:
+    CACHE_DIR = '/data' if os.path.isdir('/data') else '/tmp'
+PERSIST_CACHE_PATH = os.path.join(CACHE_DIR, 'market_cache.json')
+PERSIST_KEYS = {'movers_stocks_all'}
+
 MARKET_CACHE = {}
-MARKET_CACHE_TTL = 300  # seconds
+MARKET_CACHE_TTL = int(os.getenv('MARKET_CACHE_TTL', '900'))  # seconds
+
+def _load_persisted_entry(key):
+    if key not in PERSIST_KEYS:
+        return None
+    try:
+        if not os.path.exists(PERSIST_CACHE_PATH):
+            return None
+        with open(PERSIST_CACHE_PATH, 'r', encoding='utf-8') as f:
+            payload = json.load(f)
+        entry = payload.get(key)
+        if not entry or 'data' not in entry:
+            return None
+        ts_raw = entry.get('ts')
+        ts = datetime.utcnow()
+        if isinstance(ts_raw, str):
+            try:
+                ts = datetime.fromisoformat(ts_raw)
+            except Exception:
+                ts = datetime.utcnow()
+        return {'ts': ts, 'data': entry['data']}
+    except Exception:
+        return None
+
+def _persist_entry(key, data):
+    if key not in PERSIST_KEYS:
+        return
+    try:
+        payload = {}
+        if os.path.exists(PERSIST_CACHE_PATH):
+            with open(PERSIST_CACHE_PATH, 'r', encoding='utf-8') as f:
+                payload = json.load(f)
+        payload[key] = {'ts': datetime.utcnow().isoformat(), 'data': data}
+        with open(PERSIST_CACHE_PATH, 'w', encoding='utf-8') as f:
+            json.dump(payload, f)
+    except Exception:
+        return
 
 def cache_get(key, allow_stale=False):
     entry = MARKET_CACHE.get(key)
+    if not entry:
+        entry = _load_persisted_entry(key)
+        if entry:
+            MARKET_CACHE[key] = entry
     if not entry:
         return None
     if (datetime.utcnow() - entry['ts']).total_seconds() > MARKET_CACHE_TTL and not allow_stale:
@@ -39,6 +86,7 @@ def cache_get(key, allow_stale=False):
 
 def cache_set(key, data):
     MARKET_CACHE[key] = {'ts': datetime.utcnow(), 'data': data}
+    _persist_entry(key, data)
 
 try:
     from database import db
@@ -700,6 +748,9 @@ def get_market_movers(market):
                 if 'Note' in data or 'Information' in data:
                     all_cached = cache_get(all_key, allow_stale=True)
                     if not all_cached:
+                        cached = cache_get(cache_key, allow_stale=True)
+                        if cached:
+                            return jsonify({'items': cached})
                         return jsonify({'error': 'Alpha Vantage rate limit'}), 429
                 else:
                     all_cached = {
@@ -751,15 +802,18 @@ def get_market_movers(market):
 def get_market_chart(market):
     try:
         item_id = request.args.get('id', '')
+        range_key = (request.args.get('range', '1m') or '1m').lower()
         if not item_id:
             return jsonify({'error': 'Missing id'}), 400
-        cache_key = f"chart_{market}_{item_id}"
+        cache_key = f"chart_{market}_{item_id}_{range_key}"
         cached = cache_get(cache_key)
         if cached:
             return jsonify({'points': cached})
         
         if market == 'crypto':
-            params = {'vs_currency': 'usd', 'days': 30}
+            days_map = {'1d': 1, '1w': 7, '1m': 30, 'all': 'max'}
+            days = days_map.get(range_key, 30)
+            params = {'vs_currency': 'usd', 'days': days}
             resp = requests.get(
                 f'https://api.coingecko.com/api/v3/coins/{item_id}/market_chart',
                 params=params,
@@ -780,17 +834,36 @@ def get_market_chart(market):
             api_key = os.getenv('ALPHAVANTAGE_API_KEY')
             if not api_key:
                 return jsonify({'error': 'ALPHAVANTAGE_API_KEY is not set'}), 400
-            params = {
-                'function': 'TIME_SERIES_DAILY',
-                'symbol': item_id,
-                'apikey': api_key,
-                'outputsize': 'compact'
-            }
-            resp = requests.get('https://www.alphavantage.co/query', params=params, timeout=10)
-            data = resp.json()
-            series = data.get('Time Series (Daily)', {})
-            dates = sorted(series.keys())[-30:]
-            points = [{'t': d, 'v': float(series[d]['4. close'])} for d in dates if '4. close' in series[d]]
+            series_key = f"chart_stocks_series_{item_id}"
+            series_points = cache_get(series_key)
+            if not series_points:
+                params = {
+                    'function': 'TIME_SERIES_DAILY',
+                    'symbol': item_id,
+                    'apikey': api_key,
+                    'outputsize': 'compact'
+                }
+                resp = requests.get('https://www.alphavantage.co/query', params=params, timeout=10)
+                data = resp.json()
+                if 'Note' in data or 'Information' in data:
+                    series_points = cache_get(series_key, allow_stale=True)
+                    if not series_points:
+                        return jsonify({'error': 'Alpha Vantage rate limit'}), 429
+                else:
+                    series = data.get('Time Series (Daily)', {})
+                    dates = sorted(series.keys())
+                    series_points = [{'t': d, 'v': float(series[d]['4. close'])} for d in dates if '4. close' in series[d]]
+                    cache_set(series_key, series_points)
+            if not series_points:
+                return jsonify({'points': []})
+            if range_key == '1d':
+                points = series_points[-2:]
+            elif range_key == '1w':
+                points = series_points[-7:]
+            elif range_key == '1m':
+                points = series_points[-30:]
+            else:
+                points = series_points
             cache_set(cache_key, points)
             return jsonify({'points': points})
         

@@ -29,6 +29,8 @@ let compoundListenersInitialized = false;
 const compoundStorageKey = 'finance_compound_calc';
 let marketState = { crypto: 'gainers', stocks: 'gainers' };
 let marketCache = { crypto: {}, stocks: {} };
+let marketRangeInitialized = false;
+let marketChartState = { market: '', id: '', range: '1m' };
 
 // Константы
 const currencySymbols = { 'RUB': '₽', 'USD': '$', 'EUR': '€', 'GEL': '₾' };
@@ -1062,7 +1064,12 @@ async function openMarketModal(item) {
     const symbol = currencySymbols[currentCurrency] || '₽';
     sub.textContent = `Изменение: ${item.change >= 0 ? '+' : ''}${item.change.toFixed(2)}%${item.price ? ` • Цена: ${item.price} ${item.market === 'crypto' ? '$' : symbol}` : ''}`;
     modal.classList.add('active');
-    await loadMarketChart(item.market, item.id || item.symbol);
+    marketChartState.market = item.market || '';
+    marketChartState.id = item.id || item.symbol || '';
+    if (!marketChartState.range) marketChartState.range = '1m';
+    setupMarketRangeButtons();
+    setActiveMarketRange(marketChartState.range);
+    await loadMarketChart(marketChartState.market, marketChartState.id, marketChartState.range);
 }
 
 function closeMarketModal() {
@@ -1070,19 +1077,54 @@ function closeMarketModal() {
     if (modal) modal.classList.remove('active');
 }
 
-async function loadMarketChart(market, id) {
+function setupMarketRangeButtons() {
+    if (marketRangeInitialized) return;
+    const wrap = document.getElementById('market-range');
+    if (!wrap) return;
+    wrap.querySelectorAll('.market-range-btn').forEach(btn => {
+        btn.onclick = () => {
+            const range = btn.dataset.range || '1m';
+            marketChartState.range = range;
+            setActiveMarketRange(range);
+            if (marketChartState.market && marketChartState.id) {
+                loadMarketChart(marketChartState.market, marketChartState.id, range);
+            }
+        };
+    });
+    marketRangeInitialized = true;
+}
+
+function setActiveMarketRange(range) {
+    const wrap = document.getElementById('market-range');
+    if (!wrap) return;
+    wrap.querySelectorAll('.market-range-btn').forEach(btn => {
+        btn.classList.toggle('active', (btn.dataset.range || '') === range);
+    });
+}
+
+function formatMarketLabel(value, range) {
+    const date = typeof value === 'number' ? new Date(value) : new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+    if (range === '1d') {
+        return date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+    }
+    return date.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' });
+}
+
+async function loadMarketChart(market, id, range = '1m') {
     const canvas = document.getElementById('market-chart');
     if (!canvas) return;
     try {
-        const res = await fetch(`/api/market_chart/${market}?id=${encodeURIComponent(id)}`);
+        const res = await fetch(`/api/market_chart/${market}?id=${encodeURIComponent(id)}&range=${encodeURIComponent(range)}`);
         const data = await res.json();
         if (data.error) throw new Error(data.error);
         const points = data.points || [];
         if (charts['market-chart']) charts['market-chart'].destroy();
+        const labels = points.map(p => formatMarketLabel(p.t, range));
         charts['market-chart'] = new Chart(canvas, {
             type: 'line',
             data: {
-                labels: points.map(p => p.t),
+                labels,
                 datasets: [{
                     data: points.map(p => p.v),
                     borderColor: 'rgba(93, 156, 236, 0.9)',
@@ -1098,7 +1140,11 @@ async function loadMarketChart(market, id) {
                 maintainAspectRatio: false,
                 plugins: { legend: { display: false } },
                 scales: {
-                    x: { display: false },
+                    x: {
+                        display: true,
+                        grid: { display: false },
+                        ticks: { color: '#8b8b90', maxTicksLimit: 6 }
+                    },
                     y: { display: false }
                 }
             }
