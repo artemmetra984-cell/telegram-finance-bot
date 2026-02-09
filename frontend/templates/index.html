@@ -179,6 +179,7 @@
                     <button class="filter-btn all active" data-filter="all">Все</button>
                     <button class="filter-btn income" data-filter="income">Доходы</button>
                     <button class="filter-btn expense" data-filter="expense">Расходы</button>
+                    <button class="filter-btn savings" data-filter="savings">Накопления</button>
                 </div>
 
                 <!-- Список транзакций -->
@@ -247,11 +248,13 @@
                     <div id="tab-income" class="report-section">
                         <div class="chart-container">
                             <div class="chart-title">Доходы по категориям</div>
-                            <div class="chart-wrapper">
-                                <canvas id="income-chart"></canvas>
-                            </div>
-                            <div class="chart-legend" id="income-legend">
-                                <!-- Легенда диаграммы -->
+                            <div class="chart-row">
+                                <div class="chart-wrapper">
+                                    <canvas id="income-chart"></canvas>
+                                </div>
+                                <div class="chart-legend" id="income-legend">
+                                    <!-- Легенда диаграммы -->
+                                </div>
                             </div>
                         </div>
                         
@@ -268,11 +271,13 @@
                     <div id="tab-expense" class="report-section">
                         <div class="chart-container">
                             <div class="chart-title">Расходы по категориям</div>
-                            <div class="chart-wrapper">
-                                <canvas id="expense-chart"></canvas>
-                            </div>
-                            <div class="chart-legend" id="expense-legend">
-                                <!-- Легенда диаграммы -->
+                            <div class="chart-row">
+                                <div class="chart-wrapper">
+                                    <canvas id="expense-chart"></canvas>
+                                </div>
+                                <div class="chart-legend" id="expense-legend">
+                                    <!-- Легенда диаграммы -->
+                                </div>
                             </div>
                         </div>
                         

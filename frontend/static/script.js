@@ -271,7 +271,7 @@ function updateSectionTotals() {
     // Цели
     let goalsTotal = 0;
     goalsData.forEach(goal => {
-        goalsTotal += goal.current_amount || 0;
+        goalsTotal += parseFloat(goal.current_amount) || 0;
     });
     document.getElementById('goals-summary').textContent = formatCurrency(goalsTotal) + ' ' + symbol;
     
@@ -476,7 +476,9 @@ function updatePanelGoals() {
     const symbol = currencySymbols[currentCurrency] || '₽';
     
     goalsData.forEach(goal => {
-        const progress = Math.min((goal.current_amount / goal.target_amount) * 100, 100);
+        const currentAmount = parseFloat(goal.current_amount) || 0;
+        const targetAmount = parseFloat(goal.target_amount) || 0;
+        const progress = targetAmount > 0 ? Math.min((currentAmount / targetAmount) * 100, 100) : 0;
         const color = goal.color || '#FF9500';
         const icon = goal.icon || '🎯';
         
@@ -489,7 +491,7 @@ function updatePanelGoals() {
                     <div class="category-name">
                         <span class="category-name-text">${goal.name}</span>
                     </div>
-                    <div class="category-stats">Цель: ${formatCurrency(goal.current_amount)} / ${formatCurrency(goal.target_amount)} ${symbol}</div>
+                    <div class="category-stats">Цель: ${formatCurrency(currentAmount)} / ${formatCurrency(targetAmount)} ${symbol}</div>
                 </div>
                 <div class="category-amount" style="color: ${color};">
                     ${progress.toFixed(0)}%
@@ -574,17 +576,14 @@ function updateRecentTransactions(transactions) {
         const amountSign = isIncome ? '+' : '−';
         const icon = isIncome ? '📈' : '📉';
         const iconClass = isIncome ? 'income' : 'expense';
-        const date = new Date(trans.date).toLocaleDateString('ru-RU', {
-            day: 'numeric',
-            month: 'short'
-        });
-        
         html += `
             <div class="transaction-item">
                 <div class="transaction-icon ${iconClass}">${icon}</div>
                 <div class="transaction-info">
-                    <div class="transaction-title">${trans.description || 'Без описания'}</div>
-                    <div class="transaction-details">${trans.category} • ${date}</div>
+                    <div class="transaction-title-row">
+                        <div class="transaction-title">${trans.description || 'Без описания'}</div>
+                        <div class="transaction-category">${trans.category}</div>
+                    </div>
                 </div>
                 <div class="transaction-amount ${amountClass}">
                     ${amountSign}${formatCurrency(trans.amount)} ${symbol}
@@ -657,6 +656,8 @@ function displayMonthTransactions(transactions) {
         filteredTransactions = transactions.filter(t => t.type === 'income');
     } else if (currentFilter === 'expense') {
         filteredTransactions = transactions.filter(t => t.type === 'expense');
+    } else if (currentFilter === 'savings') {
+        filteredTransactions = transactions.filter(t => t.category === 'Накопления');
     }
     
     let html = '';
@@ -885,8 +886,9 @@ function updateOverviewChart(totalIncome, totalExpense) {
                     'rgba(255, 69, 58, 1)'
                 ],
                 borderWidth: 0,
-                borderRadius: 14,
-                spacing: 4,
+                borderRadius: { outerStart: 0, outerEnd: 16, innerStart: 0, innerEnd: 16 },
+                spacing: -6,
+                borderAlign: 'inner',
                 borderJoinStyle: 'round',
                 hoverBackgroundColor: [
                     'rgba(48, 209, 88, 1)',
@@ -941,6 +943,7 @@ async function updateIncomeTab() {
         const response = await fetch(`/api/transactions/${currentUser.id}?limit=1000`);
         const transactions = await response.json();
         await updateIncomeChart(transactions);
+        updateIncomeStats(transactions);
     } catch (error) {
         console.error('❌ Ошибка обновления доходов:', error);
     }
@@ -998,8 +1001,9 @@ async function updateIncomeChart(transactions) {
                 backgroundColor: backgroundColors,
                 borderColor: borderColors,
                 borderWidth: 0,
-                borderRadius: 12,
-                spacing: 4,
+                borderRadius: { outerStart: 0, outerEnd: 16, innerStart: 0, innerEnd: 16 },
+                spacing: -6,
+                borderAlign: 'inner',
                 hoverBackgroundColor: hoverColors,
                 hoverBorderColor: 'rgba(255, 255, 255, 0.2)',
                 hoverBorderWidth: 0,
@@ -1045,6 +1049,7 @@ async function updateExpenseTab() {
         const response = await fetch(`/api/transactions/${currentUser.id}?limit=1000`);
         const transactions = await response.json();
         await updateExpenseChart(transactions);
+        updateExpenseTop(transactions);
     } catch (error) {
         console.error('❌ Ошибка обновления расходов:', error);
     }
@@ -1054,7 +1059,7 @@ async function updateExpenseChart(transactions) {
     const ctx = document.getElementById('expense-chart');
     if (!ctx) return;
     
-    const expenseTransactions = transactions.filter(t => t.type === 'expense' && t.category !== 'Накопления');
+    const expenseTransactions = transactions.filter(t => t.type === 'expense');
     
     if (expenseTransactions.length === 0) {
         ctx.innerHTML = `
@@ -1102,8 +1107,9 @@ async function updateExpenseChart(transactions) {
                 backgroundColor: backgroundColors,
                 borderColor: borderColors,
                 borderWidth: 0,
-                borderRadius: 12,
-                spacing: 4,
+                borderRadius: { outerStart: 0, outerEnd: 16, innerStart: 0, innerEnd: 16 },
+                spacing: -6,
+                borderAlign: 'inner',
                 hoverBackgroundColor: hoverColors,
                 hoverBorderColor: 'rgba(255, 255, 255, 0.2)',
                 hoverBorderWidth: 0,
@@ -1140,6 +1146,66 @@ async function updateExpenseChart(transactions) {
             }
         }
     });
+}
+
+function updateIncomeStats(transactions) {
+    const container = document.getElementById('income-stats');
+    if (!container) return;
+    
+    const incomeTransactions = transactions.filter(t => t.type === 'income');
+    if (incomeTransactions.length === 0) {
+        container.textContent = 'Нет доходов за период';
+        return;
+    }
+    
+    const symbol = currencySymbols[currentCurrency] || '₽';
+    const total = incomeTransactions.reduce((sum, t) => sum + t.amount, 0);
+    const avg = total / incomeTransactions.length;
+    const byCategory = {};
+    incomeTransactions.forEach(t => {
+        byCategory[t.category] = (byCategory[t.category] || 0) + t.amount;
+    });
+    const top = Object.entries(byCategory).sort((a, b) => b[1] - a[1])[0];
+    
+    container.innerHTML = `
+        <div style="display: grid; gap: 8px; text-align: left;">
+            <div>Всего: <strong>${formatCurrency(total)} ${symbol}</strong></div>
+            <div>Средний доход: <strong>${formatCurrency(avg)} ${symbol}</strong></div>
+            <div>Топ категория: <strong>${top[0]}</strong> (${formatCurrency(top[1])} ${symbol})</div>
+        </div>
+    `;
+}
+
+function updateExpenseTop(transactions) {
+    const container = document.getElementById('expense-top');
+    if (!container) return;
+    
+    const expenseTransactions = transactions.filter(t => t.type === 'expense');
+    if (expenseTransactions.length === 0) {
+        container.textContent = 'Нет расходов за период';
+        return;
+    }
+    
+    const symbol = currencySymbols[currentCurrency] || '₽';
+    const byCategory = {};
+    expenseTransactions.forEach(t => {
+        byCategory[t.category] = (byCategory[t.category] || 0) + t.amount;
+    });
+    
+    const top = Object.entries(byCategory)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5);
+    
+    container.innerHTML = `
+        <div style="display: grid; gap: 8px; text-align: left;">
+            ${top.map(([name, amount]) => `
+                <div style="display: flex; justify-content: space-between; gap: 12px;">
+                    <span>${name}</span>
+                    <strong>${formatCurrency(amount)} ${symbol}</strong>
+                </div>
+            `).join('')}
+        </div>
+    `;
 }
 
 async function updateSavingsTab() {
@@ -1552,7 +1618,7 @@ function updateGoalsDisplay() {
                         <div class="goal-name">${goal.name}</div>
                         <div class="goal-date">${goal.deadline || 'Бессрочная'}</div>
                     </div>
-                    <div style="font-size: 16px; font-weight: 600; text-shadow: 0 0 10px ${color}80;">${formatCurrency(goal.current_amount)} / ${formatCurrency(goal.target_amount)} ${symbol}</div>
+                    <div style="font-size: 16px; font-weight: 600; text-shadow: 0 0 10px ${color}80;">${formatCurrency(currentAmount)} / ${formatCurrency(targetAmount)} ${symbol}</div>
                 </div>
                 <div class="goal-progress">
                     <div class="progress-bar">
@@ -1568,7 +1634,7 @@ function updateGoalsDisplay() {
     });
     
     html += `
-        <button class="add-goal-btn" onclick="showAddGoalModal()" style="padding: 20px; margin-top: 16px;">
+        <button class="add-goal-btn" onclick="showAddGoalModal()" style="margin-top: 12px;">
             <div style="font-size: 20px; margin-bottom: 4px;">+</div>
             <div style="font-size: 15px; font-weight: 500;">Добавить цель</div>
         </button>
@@ -1601,8 +1667,13 @@ async function addToGoalApi(goalId, amount) {
         const data = await response.json();
         if (data.error) throw new Error(data.error);
         
-        // Обновляем цели
+        // Обновляем цели и связанные показатели
         await loadGoals();
+        if (currentPage === 'panel') {
+            await loadPanelData();
+        } else if (currentPage === 'report') {
+            await loadReportData();
+        }
         
         return data.success;
         
@@ -1995,7 +2066,9 @@ function generateGoalOptions() {
     const symbol = currencySymbols[currentCurrency] || '₽';
     
     return goalsData.map(goal => {
-        const progress = Math.min((goal.current_amount / goal.target_amount) * 100, 100);
+        const currentAmount = parseFloat(goal.current_amount) || 0;
+        const targetAmount = parseFloat(goal.target_amount) || 0;
+        const progress = targetAmount > 0 ? Math.min((currentAmount / targetAmount) * 100, 100) : 0;
         const isSelected = goal.id === selectedGoalId;
         const color = goal.color || '#FF9500';
         
@@ -2007,7 +2080,7 @@ function generateGoalOptions() {
                 <div class="goal-option-info">
                     <div class="goal-option-name">${goal.name}</div>
                     <div class="goal-option-details">
-                        ${formatCurrency(goal.current_amount)} / ${formatCurrency(goal.target_amount)} ${symbol} (${progress.toFixed(1)}%)
+                        ${formatCurrency(currentAmount)} / ${formatCurrency(targetAmount)} ${symbol} (${progress.toFixed(1)}%)
                     </div>
                 </div>
                 <div class="goal-option-check">

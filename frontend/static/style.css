@@ -9,8 +9,8 @@
   --ios-bg: #000000;
   --ios-secondary: rgba(28, 28, 30, 0.9);
   --ios-tertiary: rgba(44, 44, 46, 0.7);
-  --ios-surface: rgba(44, 44, 46, 0.8);
-  --ios-elevated: rgba(58, 58, 60, 0.8);
+  --ios-surface: radial-gradient(120% 120% at 10% 0%, #2a2a2e 0%, #1b1b1f 45%, #141417 100%);
+  --ios-elevated: radial-gradient(120% 120% at 10% 0%, #303036 0%, #202025 45%, #17171b 100%);
   --ios-text-primary: #ffffff;
   --ios-text-secondary: rgba(152, 152, 157, 0.9);
   --ios-text-tertiary: #6c6c70;
@@ -262,12 +262,12 @@ body {
 
 /* Balance Card - благородный серый */
 .balance-card {
-  background: linear-gradient(135deg, var(--noble-gray) 0%, var(--noble-gray-dark) 100%);
+  background: var(--ios-surface);
   border-radius: var(--border-radius-large);
   margin: var(--spacing-md);
   padding: var(--spacing-lg) var(--spacing-md);
   text-align: center;
-  box-shadow: var(--shadow-medium), 0 0 20px var(--noble-gray-glow);
+  box-shadow: var(--shadow-medium), 0 0 20px rgba(0, 0, 0, 0.35);
   position: relative;
   overflow: hidden;
   min-height: 70px;
@@ -295,7 +295,7 @@ body {
 }
 
 .balance-amount {
-  font-size: 26px;
+  font-size: 30px;
   font-weight: 700;
   margin-bottom: var(--spacing-xs);
   letter-spacing: -0.5px;
@@ -638,7 +638,7 @@ body {
 }
 
 .transaction-item {
-  background: var(--ios-elevated);
+  background: var(--ios-surface);
   border-radius: var(--border-radius);
   padding: var(--spacing-md);
   display: flex;
@@ -676,13 +676,30 @@ body {
   min-width: 0;
 }
 
+.transaction-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
 .transaction-title {
   font-size: 15px;
   font-weight: 500;
-  margin-bottom: 2px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.transaction-category {
+  font-size: 12px;
+  color: var(--ios-text-secondary);
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .transaction-details {
@@ -813,6 +830,11 @@ body {
   box-shadow: 0 0 10px var(--pastel-red-glow);
 }
 
+.filter-btn.savings.active {
+  background: var(--pastel-yellow);
+  box-shadow: 0 0 10px var(--pastel-yellow-glow);
+}
+
 /* ==================== */
 /* REPORT PAGE - ОБЫЧНЫЙ ЦВЕТ */
 /* ==================== */
@@ -863,7 +885,7 @@ body {
 
 /* Chart Container with обычный цвет */
 .chart-container {
-  background: radial-gradient(120% 120% at 10% 0%, #2a2a2e 0%, #1b1b1f 45%, #141417 100%);
+  background: var(--ios-surface);
   border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: var(--border-radius-large);
   padding: var(--spacing-lg);
@@ -905,6 +927,27 @@ body {
   flex-wrap: wrap;
   gap: 10px;
   margin-top: var(--spacing-xl);
+}
+
+.chart-row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-lg);
+}
+
+.chart-row .chart-wrapper {
+  flex: 0 0 220px;
+  height: 220px;
+  margin: 0;
+}
+
+.chart-row .chart-legend {
+  margin-top: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  max-height: 220px;
+  overflow-y: auto;
+  padding-right: 4px;
 }
 
 .legend-item {
@@ -1049,12 +1092,12 @@ body {
 /* Add Goal Button */
 .add-goal-btn {
   width: 100%;
-  padding: var(--spacing-xl);
+  padding: var(--spacing-md);
   background: var(--ios-surface);
   border: 2px dashed rgba(255, 255, 255, 0.15);
   border-radius: var(--border-radius);
   color: var(--ios-text-secondary);
-  font-size: 16px;
+  font-size: 14px;
   cursor: pointer;
   display: flex;
   flex-direction: column;
