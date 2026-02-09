@@ -388,6 +388,15 @@
                         </div>
                     </div>
 
+                    <!-- Калькулятор -->
+                    <div class="service-card">
+                        <div class="service-title">Калькулятор</div>
+                        <button class="service-link" onclick="openCompoundCalculator()">
+                            <span>Сложные проценты</span>
+                            <span class="service-link-arrow">→</span>
+                        </button>
+                    </div>
+
                     <!-- Статьи -->
                     <div class="service-card">
                         <div class="service-title">Статьи</div>
@@ -427,6 +436,65 @@
                     <button class="article-close" onclick="closeArticle()">✕</button>
                 </div>
                 <div class="article-modal-body" id="article-modal-body"></div>
+            </div>
+        </div>
+
+        <!-- Калькулятор сложных процентов -->
+        <div id="compound-modal" class="modal-overlay">
+            <div class="modal-content calc-modal">
+                <div class="modal-header">
+                    <div class="modal-title">Сложные проценты</div>
+                    <button class="article-close" onclick="closeCompoundCalculator()">✕</button>
+                </div>
+                <form id="compound-form" onsubmit="return false;">
+                    <div class="form-group">
+                        <label class="form-label">Стартовый капитал</label>
+                        <input type="number" class="form-input" id="calc-principal" placeholder="0" min="0" step="1">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Ежемесячное пополнение</label>
+                        <input type="number" class="form-input" id="calc-monthly" placeholder="0" min="0" step="1">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Годовая ставка, %</label>
+                        <input type="number" class="form-input" id="calc-rate" placeholder="0" min="0" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Начисление процентов</label>
+                        <select class="form-select" id="calc-frequency">
+                            <option value="12">Ежемесячно</option>
+                            <option value="4">Ежеквартально</option>
+                            <option value="1">Ежегодно</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Срок, лет</label>
+                        <input type="number" class="form-input" id="calc-years" placeholder="0" min="0" step="1">
+                    </div>
+                    <button type="button" class="modal-btn primary" onclick="calculateCompound()" style="width: 100%;">Рассчитать</button>
+                </form>
+                <div class="calc-result" id="calc-result" style="display: none;">
+                    <div class="calc-result-title">Результат</div>
+                    <div class="calc-result-row">
+                        <span>Итоговая сумма</span>
+                        <strong id="calc-total">0</strong>
+                    </div>
+                    <div class="calc-result-row">
+                        <span>Взносы всего</span>
+                        <strong id="calc-contrib">0</strong>
+                    </div>
+                    <div class="calc-result-row">
+                        <span>Проценты</span>
+                        <strong id="calc-interest">0</strong>
+                    </div>
+                    <div class="calc-note">Расчет учитывает ежемесячное начисление и пополнение.</div>
+                </div>
+                <div class="calc-chart" id="calc-chart-wrap" style="display: none;">
+                    <div class="calc-chart-title">Рост капитала</div>
+                    <div class="calc-chart-canvas">
+                        <canvas id="compound-chart"></canvas>
+                    </div>
+                </div>
             </div>
         </div>
 

@@ -25,6 +25,8 @@ let allTransactions = [];
 let currentSavingsDestination = 'piggybank';
 let selectedGoalId = null;
 let isCreatingGoal = false;
+let compoundListenersInitialized = false;
+const compoundStorageKey = 'finance_compound_calc';
 
 // Константы
 const currencySymbols = { 'RUB': '₽', 'USD': '$', 'EUR': '€', 'GEL': '₾' };
@@ -3235,6 +3237,165 @@ function exportData() {
     }, 1000);
 }
 
+function openCompoundCalculator() {
+    const modal = document.getElementById('compound-modal');
+    if (!modal) return;
+    modal.classList.add('active');
+    const result = document.getElementById('calc-result');
+    if (result) result.style.display = 'none';
+    const chartWrap = document.getElementById('calc-chart-wrap');
+    if (chartWrap) chartWrap.style.display = 'none';
+    loadCompoundState();
+    if (!compoundListenersInitialized) {
+        ['calc-principal', 'calc-monthly', 'calc-rate', 'calc-years', 'calc-frequency'].forEach(id => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            const handler = () => saveCompoundState();
+            el.addEventListener('input', handler);
+            el.addEventListener('change', handler);
+        });
+        compoundListenersInitialized = true;
+    }
+}
+
+function calculateCompound() {
+    const principalInput = document.getElementById('calc-principal');
+    const monthlyInput = document.getElementById('calc-monthly');
+    const rateInput = document.getElementById('calc-rate');
+    const yearsInput = document.getElementById('calc-years');
+    const result = document.getElementById('calc-result');
+    if (!principalInput || !monthlyInput || !rateInput || !yearsInput || !result) return;
+    
+    const principal = parseFloat((principalInput.value || '0').replace(',', '.')) || 0;
+    const monthly = parseFloat((monthlyInput.value || '0').replace(',', '.')) || 0;
+    const rate = parseFloat((rateInput.value || '0').replace(',', '.')) || 0;
+    const years = parseFloat((yearsInput.value || '0').replace(',', '.')) || 0;
+    const frequencyInput = document.getElementById('calc-frequency');
+    const frequency = parseInt(frequencyInput?.value || '12', 10);
+    
+    const periods = Math.max(0, Math.round(years * 12));
+    const monthlyRate = frequency > 0
+        ? Math.pow(1 + rate / 100 / frequency, frequency / 12) - 1
+        : 0;
+    let total = principal;
+    if (periods > 0) {
+        if (monthlyRate > 0) {
+            total = principal * Math.pow(1 + monthlyRate, periods) +
+                monthly * ((Math.pow(1 + monthlyRate, periods) - 1) / monthlyRate);
+        } else {
+            total = principal + monthly * periods;
+        }
+    }
+    const contributions = principal + monthly * periods;
+    const interest = total - contributions;
+    const symbol = currencySymbols[currentCurrency] || '₽';
+    
+    const totalEl = document.getElementById('calc-total');
+    const contribEl = document.getElementById('calc-contrib');
+    const interestEl = document.getElementById('calc-interest');
+    if (totalEl) totalEl.textContent = `${formatCurrency(Math.max(0, total))} ${symbol}`;
+    if (contribEl) contribEl.textContent = `${formatCurrency(Math.max(0, contributions))} ${symbol}`;
+    if (interestEl) interestEl.textContent = `${formatCurrency(Math.max(0, interest))} ${symbol}`;
+    result.style.display = 'block';
+    saveCompoundState();
+    renderCompoundChart(principal, monthly, monthlyRate, periods);
+}
+
+function closeCompoundCalculator() {
+    const modal = document.getElementById('compound-modal');
+    if (modal) modal.classList.remove('active');
+}
+
+function saveCompoundState() {
+    const principalInput = document.getElementById('calc-principal');
+    const monthlyInput = document.getElementById('calc-monthly');
+    const rateInput = document.getElementById('calc-rate');
+    const yearsInput = document.getElementById('calc-years');
+    const frequencyInput = document.getElementById('calc-frequency');
+    if (!principalInput || !monthlyInput || !rateInput || !yearsInput || !frequencyInput) return;
+    const payload = {
+        principal: principalInput.value || '',
+        monthly: monthlyInput.value || '',
+        rate: rateInput.value || '',
+        years: yearsInput.value || '',
+        frequency: frequencyInput.value || '12'
+    };
+    localStorage.setItem(compoundStorageKey, JSON.stringify(payload));
+}
+
+function loadCompoundState() {
+    const raw = localStorage.getItem(compoundStorageKey);
+    if (!raw) return;
+    try {
+        const data = JSON.parse(raw);
+        const principalInput = document.getElementById('calc-principal');
+        const monthlyInput = document.getElementById('calc-monthly');
+        const rateInput = document.getElementById('calc-rate');
+        const yearsInput = document.getElementById('calc-years');
+        const frequencyInput = document.getElementById('calc-frequency');
+        if (principalInput && data.principal !== undefined) principalInput.value = data.principal;
+        if (monthlyInput && data.monthly !== undefined) monthlyInput.value = data.monthly;
+        if (rateInput && data.rate !== undefined) rateInput.value = data.rate;
+        if (yearsInput && data.years !== undefined) yearsInput.value = data.years;
+        if (frequencyInput && data.frequency !== undefined) frequencyInput.value = data.frequency;
+    } catch (e) {
+        // ignore
+    }
+}
+
+function renderCompoundChart(principal, monthly, monthlyRate, periods) {
+    const canvas = document.getElementById('compound-chart');
+    const wrap = document.getElementById('calc-chart-wrap');
+    if (!canvas || !wrap) return;
+    const dataPoints = [];
+    let balance = principal;
+    dataPoints.push(balance);
+    for (let i = 1; i <= periods; i += 1) {
+        balance = balance * (1 + monthlyRate) + monthly;
+        dataPoints.push(balance);
+    }
+    if (charts['compound-chart']) {
+        charts['compound-chart'].destroy();
+    }
+    charts['compound-chart'] = new Chart(canvas, {
+        type: 'line',
+        data: {
+            labels: dataPoints.map((_, i) => i),
+            datasets: [{
+                data: dataPoints,
+                borderColor: 'rgba(93, 156, 236, 0.9)',
+                backgroundColor: 'rgba(93, 156, 236, 0.2)',
+                pointRadius: 0,
+                borderWidth: 2,
+                tension: 0.35,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                x: {
+                    grid: { display: false },
+                    ticks: { display: false }
+                },
+                y: {
+                    grid: { color: 'rgba(255, 255, 255, 0.08)' },
+                    ticks: {
+                        color: 'rgba(255, 255, 255, 0.6)',
+                        callback: (value) => {
+                            const symbol = currencySymbols[currentCurrency] || '₽';
+                            return `${formatCurrency(value)} ${symbol}`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+    wrap.style.display = 'block';
+}
+
 function openArticlesLibrary() {
     switchPage('articles');
     const servicesNav = document.querySelector('.nav-item[data-page="services"]');
@@ -3285,3 +3446,6 @@ window.toggleCollapsibleSection = toggleCollapsibleSection;
 window.openArticlesLibrary = openArticlesLibrary;
 window.openArticle = openArticle;
 window.closeArticle = closeArticle;
+window.openCompoundCalculator = openCompoundCalculator;
+window.calculateCompound = calculateCompound;
+window.closeCompoundCalculator = closeCompoundCalculator;
