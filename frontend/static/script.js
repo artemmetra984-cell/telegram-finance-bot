@@ -722,7 +722,6 @@ function setupHistoryControls() {
 
 function loadReportPage() {
     setupReportTabs();
-    loadReportData();
     loadGoals();
     setupBalancePeriods();
 }

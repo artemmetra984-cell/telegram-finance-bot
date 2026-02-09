@@ -853,7 +853,12 @@ body {
 
 /* Report Sections */
 .report-section {
+  display: none;
   margin: var(--spacing-md);
+}
+
+.report-section.active {
+  display: block;
 }
 
 /* Chart Container with обычный цвет */
