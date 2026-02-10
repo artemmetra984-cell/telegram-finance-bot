@@ -1378,6 +1378,12 @@ body {
   border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
+.subscription-admin-note {
+  font-size: 12px;
+  color: var(--ios-text-secondary);
+  margin-bottom: var(--spacing-sm);
+}
+
 .subscription-admin-title {
   font-size: 13px;
   color: var(--ios-text-secondary);

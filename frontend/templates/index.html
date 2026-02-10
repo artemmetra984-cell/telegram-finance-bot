@@ -669,7 +669,7 @@
                             <div class="subscription-address-label">Сумма</div>
                             <div class="subscription-address-value" id="subscription-amount"></div>
                         </div>
-                        <button class="service-link subscription-confirm" onclick="createNowPayment()">
+                        <button class="service-link subscription-confirm" id="subscription-create" onclick="createNowPayment()">
                             <span>Создать оплату</span>
                             <span class="service-link-arrow">→</span>
                         </button>
@@ -691,8 +691,13 @@
                         </button>
                     </div>
 
-                    <div class="subscription-admin">
+                    <div class="subscription-admin" id="subscription-admin">
                         <div class="subscription-admin-title">Админ доступ</div>
+                        <div class="subscription-admin-note">Ваш ID: <span id="subscription-user-id">—</span></div>
+                        <button class="service-link service-link-compact" onclick="prefillAdminUserId()">
+                            <span>Использовать мой ID</span>
+                            <span class="service-link-arrow">→</span>
+                        </button>
                         <div class="subscription-admin-form">
                             <input class="form-input" id="subscription-admin-user" placeholder="User ID" />
                             <input class="form-input" id="subscription-admin-key" placeholder="Admin key" />

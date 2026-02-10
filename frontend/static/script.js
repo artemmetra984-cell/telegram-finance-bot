@@ -36,6 +36,7 @@ let pendingInviteCode = null;
 let subscriptionActive = false;
 let subscriptionPayment = {
     paymentId: null,
+    orderId: null,
     status: '',
     address: '',
     amount: '',
@@ -400,7 +401,8 @@ async function initUser() {
             id: data.user_id,
             telegramId: data.telegram_id,
             firstName: data.first_name,
-            sessionToken: data.session_token
+            sessionToken: data.session_token,
+            username: username
         };
         
         // Восстанавливаем выбранную валюту
@@ -1236,11 +1238,12 @@ function updateSubscriptionUI() {
     const amountWrap = document.getElementById('subscription-amount-wrap');
     const addressEl = document.getElementById('subscription-address');
     const amountEl = document.getElementById('subscription-amount');
-    const createBtn = document.querySelector('.subscription-confirm');
+    const createBtn = document.getElementById('subscription-create');
     const copyAddrBtn = document.getElementById('subscription-copy-address');
     const copyAmtBtn = document.getElementById('subscription-copy-amount');
     const openInvoiceBtn = document.getElementById('subscription-open-invoice');
     const checkBtn = document.getElementById('subscription-check');
+    const adminBlock = document.getElementById('subscription-admin');
     if (subscriptionActive) {
         if (statusEl) statusEl.textContent = 'Подписка активна.';
         if (createBtn) createBtn.style.display = 'none';
@@ -1250,19 +1253,23 @@ function updateSubscriptionUI() {
         if (copyAmtBtn) copyAmtBtn.style.display = 'none';
         if (openInvoiceBtn) openInvoiceBtn.style.display = 'none';
         if (checkBtn) checkBtn.style.display = 'none';
+        if (adminBlock) adminBlock.style.display = isAdminUser() ? 'block' : 'none';
         return;
     }
     if (statusEl) statusEl.textContent = formatSubscriptionStatus(subscriptionPayment.status) || 'Создайте оплату';
     if (addressEl) addressEl.textContent = subscriptionPayment.address || '';
     if (amountEl) amountEl.textContent = subscriptionPayment.amount ? `${subscriptionPayment.amount} ${subscriptionPayment.currency}` : '';
-    const hasPayment = !!subscriptionPayment.paymentId;
-    if (addressWrap) addressWrap.style.display = hasPayment ? 'block' : 'none';
-    if (amountWrap) amountWrap.style.display = hasPayment ? 'block' : 'none';
-    if (createBtn) createBtn.style.display = hasPayment ? 'none' : 'flex';
-    if (copyAddrBtn) copyAddrBtn.style.display = hasPayment ? 'flex' : 'none';
-    if (copyAmtBtn) copyAmtBtn.style.display = hasPayment ? 'flex' : 'none';
+    const hasInvoice = !!subscriptionPayment.orderId || !!subscriptionPayment.invoiceUrl || !!subscriptionPayment.paymentId;
+    if (addressWrap) addressWrap.style.display = subscriptionPayment.address ? 'block' : 'none';
+    if (amountWrap) amountWrap.style.display = subscriptionPayment.amount ? 'block' : 'none';
+    if (createBtn) createBtn.style.display = hasInvoice ? 'none' : 'flex';
+    if (copyAddrBtn) copyAddrBtn.style.display = subscriptionPayment.address ? 'flex' : 'none';
+    if (copyAmtBtn) copyAmtBtn.style.display = subscriptionPayment.amount ? 'flex' : 'none';
     if (openInvoiceBtn) openInvoiceBtn.style.display = subscriptionPayment.invoiceUrl ? 'flex' : 'none';
-    if (checkBtn) checkBtn.style.display = hasPayment ? 'flex' : 'none';
+    if (checkBtn) checkBtn.style.display = hasInvoice ? 'flex' : 'none';
+    if (adminBlock) adminBlock.style.display = isAdminUser() ? 'block' : 'none';
+    const userIdEl = document.getElementById('subscription-user-id');
+    if (userIdEl) userIdEl.textContent = currentUser?.id ? String(currentUser.id) : '—';
 }
 
 function formatSubscriptionStatus(status) {
@@ -1296,6 +1303,7 @@ async function createNowPayment() {
         }
         subscriptionPayment = {
             paymentId: data.payment_id || null,
+            orderId: data.order_id || null,
             status: data.payment_status || 'Ожидает оплаты',
             address: data.pay_address || '',
             amount: data.pay_amount ? String(data.pay_amount) : '',
@@ -1306,20 +1314,25 @@ async function createNowPayment() {
         updateSubscriptionUI();
         startSubscriptionPolling();
     } catch (e) {
-        showNotification('Не удалось создать оплату', 'error');
+        showNotification(e.message || 'Не удалось создать оплату', 'error');
     }
 }
 
 async function checkSubscriptionStatus() {
-    if (!subscriptionPayment.paymentId) return;
+    const hasPayment = !!subscriptionPayment.paymentId;
+    const hasOrder = !!subscriptionPayment.orderId;
+    if (!hasPayment && !hasOrder) return;
     try {
-        const res = await fetch(`/api/subscription/nowpayments/status?payment_id=${subscriptionPayment.paymentId}`);
+        const query = hasPayment
+            ? `payment_id=${subscriptionPayment.paymentId}`
+            : `order_id=${encodeURIComponent(subscriptionPayment.orderId)}`;
+        const res = await fetch(`/api/subscription/nowpayments/status?${query}`);
         const data = await res.json();
         if (data.error) throw new Error(data.error);
         subscriptionPayment.status = data.payment_status || subscriptionPayment.status;
         if (data.active) {
             subscriptionActive = true;
-            subscriptionPayment = { paymentId: null, status: '', address: '', amount: '', currency: '', invoiceUrl: '' };
+            subscriptionPayment = { paymentId: null, orderId: null, status: '', address: '', amount: '', currency: '', invoiceUrl: '' };
             saveSubscriptionState();
             showNotification('Подписка активирована', 'success');
             updateSubscriptionUI();
@@ -1334,7 +1347,7 @@ async function checkSubscriptionStatus() {
 
 function startSubscriptionPolling() {
     if (subscriptionPoller) return;
-    if (!subscriptionPayment.paymentId || subscriptionActive) return;
+    if ((!subscriptionPayment.paymentId && !subscriptionPayment.orderId) || subscriptionActive) return;
     subscriptionPoller = setInterval(() => {
         checkSubscriptionStatus();
     }, 15000);
@@ -1348,7 +1361,13 @@ function stopSubscriptionPolling() {
 }
 
 async function grantSubscriptionManual() {
-    const userId = parseInt(document.getElementById('subscription-admin-user')?.value || '0', 10);
+    if (!isAdminUser()) {
+        showNotification('Недостаточно прав', 'error');
+        return;
+    }
+    const rawUser = document.getElementById('subscription-admin-user')?.value || '';
+    const match = rawUser.match(/\d+/);
+    const userId = match ? parseInt(match[0], 10) : 0;
     const adminKey = document.getElementById('subscription-admin-key')?.value || '';
     if (!userId || !adminKey) {
         showNotification('Введите ID и ключ', 'error');
@@ -1364,7 +1383,19 @@ async function grantSubscriptionManual() {
         if (data.error) throw new Error(data.error);
         showNotification('Подписка выдана', 'success');
     } catch (e) {
-        showNotification('Ошибка выдачи', 'error');
+        showNotification(e.message || 'Ошибка выдачи', 'error');
+    }
+}
+
+function isAdminUser() {
+    const name = (currentUser?.username || '').replace('@', '').toLowerCase();
+    return name === 'artem_katsay';
+}
+
+function prefillAdminUserId() {
+    const input = document.getElementById('subscription-admin-user');
+    if (input && currentUser?.id) {
+        input.value = String(currentUser.id);
     }
 }
 
@@ -4250,6 +4281,7 @@ window.checkSubscriptionStatus = checkSubscriptionStatus;
 window.openSubscriptionInvoice = openSubscriptionInvoice;
 window.copySubscriptionAmount = copySubscriptionAmount;
 window.grantSubscriptionManual = grantSubscriptionManual;
+window.prefillAdminUserId = prefillAdminUserId;
 window.openSharedWallet = openSharedWallet;
 window.closeSharedWallet = closeSharedWallet;
 window.copySharedCode = copySharedCode;

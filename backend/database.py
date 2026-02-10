@@ -541,6 +541,13 @@ class Database:
         ''', (payment_id,))
         return cursor.fetchone()
 
+    def get_nowpayment_by_order(self, order_id):
+        cursor = self.conn.cursor()
+        cursor.execute('''
+            SELECT * FROM nowpayments_payments WHERE order_id = ?
+        ''', (order_id,))
+        return cursor.fetchone()
+
     def get_latest_nowpayment(self, user_id):
         cursor = self.conn.cursor()
         owner_id = self._resolve_owner_id(user_id)
