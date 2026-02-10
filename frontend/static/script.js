@@ -324,7 +324,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         updateCurrencyDisplay();
         setupAddButton();
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).then((reg) => {
+            navigator.serviceWorker.register('/sw.js?v=3', { updateViaCache: 'none' }).then((reg) => {
                 reg.update().catch(() => {});
             }).catch(() => {});
         }
