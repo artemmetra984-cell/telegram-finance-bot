@@ -34,6 +34,9 @@ NOWPAYMENTS_IPN_SECRET = os.getenv('NOWPAYMENTS_IPN_SECRET', '')
 CRYPTOCLOUD_API_KEY = os.getenv('CRYPTOCLOUD_API_KEY', '')
 CRYPTOCLOUD_SHOP_ID = os.getenv('CRYPTOCLOUD_SHOP_ID', '')
 CRYPTOCLOUD_POSTBACK_SECRET = os.getenv('CRYPTOCLOUD_POSTBACK_SECRET', '')
+LECRYPTIO_API_KEY = os.getenv('LECRYPTIO_API_KEY', '')
+LECRYPTIO_SIGNING_SECRET = os.getenv('LECRYPTIO_SIGNING_SECRET', '')
+LECRYPTIO_WEBHOOK_SECRET = os.getenv('LECRYPTIO_WEBHOOK_SECRET', '')
 
 print(f"🚀 Starting Flask app (iOS 26 Version)")
 
@@ -86,6 +89,43 @@ def normalize_cryptocloud_currency(value):
     if isinstance(value, dict):
         return value.get('fullcode') or value.get('code') or value.get('name') or ''
     return value or ''
+
+def normalize_lecryptio_invoice(payload):
+    invoice = payload.get('invoice') if isinstance(payload, dict) else None
+    if not invoice:
+        invoice = payload.get('data') if isinstance(payload, dict) else None
+    if not invoice:
+        invoice = payload if isinstance(payload, dict) else {}
+    return invoice
+
+def is_lecryptio_paid(status):
+    return status in ('paid', 'success')
+
+def lecryptio_matches_subscription(amount, currency, network):
+    try:
+        amt = float(amount) if amount is not None else None
+    except Exception:
+        amt = None
+    cur = (currency or '').upper()
+    net = (network or '').upper()
+    if amt is None:
+        return False
+    return abs(amt - 2.5) < 0.0001 and cur == 'USDT' and net == 'TRC20'
+
+def verify_lecryptio_signature(raw_body, timestamp, signature, secret):
+    if not raw_body or not timestamp or not signature or not secret:
+        return False
+    try:
+        message = f"{timestamp}.{raw_body}".encode()
+        digest = hmac.new(secret.encode(), message, hashlib.sha256).digest()
+        hex_sig = digest.hex()
+        b64_sig = base64.b64encode(digest).decode()
+        sig = signature.strip()
+        if sig.startswith('sha256='):
+            sig = sig.split('=', 1)[1]
+        return hmac.compare_digest(sig, hex_sig) or hmac.compare_digest(sig, b64_sig)
+    except Exception:
+        return False
 
 def parse_user_from_order(order_id):
     try:
@@ -575,6 +615,123 @@ def subscription_grant():
         return jsonify({'success': True})
     except Exception as e:
         print(f"Subscription grant error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/subscription/lecryptio/create', methods=['POST'])
+def lecryptio_create():
+    try:
+        data = request.json or {}
+        user_id = data.get('user_id')
+        if not user_id:
+            return jsonify({'error': 'Missing user_id'}), 400
+        if not db:
+            return jsonify({'error': 'Database error'}), 500
+        if db.get_subscription_status(user_id):
+            return jsonify({'active': True})
+        if not LECRYPTIO_API_KEY:
+            return jsonify({'error': 'LECRYPTIO_API_KEY is not set'}), 500
+
+        order_id = f"sub_{user_id}_{int(datetime.utcnow().timestamp())}"
+        payload = {
+            'amount': 2.5,
+            'currency': 'USDT',
+            'network': 'TRC20',
+            'order_id': order_id,
+            'description': 'Subscription',
+            'return_url': request.host_url
+        }
+        resp = requests.post(
+            'https://api.lecryptio.com/v1/invoices',
+            headers={'Authorization': f'Bearer {LECRYPTIO_API_KEY}', 'Content-Type': 'application/json'},
+            json=payload,
+            timeout=15
+        )
+        if resp.status_code >= 400:
+            return jsonify({'error': f'LeCryptio error: {resp.text}'}), 502
+        body = resp.json()
+        invoice = normalize_lecryptio_invoice(body)
+        uuid_value = invoice.get('uuid') or invoice.get('id')
+        if not uuid_value:
+            return jsonify({'error': 'LeCryptio invalid response'}), 502
+        status = invoice.get('status') or 'created'
+        pay_url = invoice.get('payment_url') or invoice.get('checkout_url') or invoice.get('url') or invoice.get('pay_url') or ''
+        address = invoice.get('pay_address') or invoice.get('address') or ''
+        amount = invoice.get('amount') or payload['amount']
+        currency = invoice.get('currency') or payload['currency']
+        network = invoice.get('network') or payload['network']
+        order_ref = invoice.get('order_id') or invoice.get('external_id') or order_id
+        db.create_lecryptio_invoice(user_id, uuid_value, order_ref, status, amount, currency, network, address, pay_url)
+        return jsonify({
+            'uuid': uuid_value,
+            'order_id': order_ref,
+            'status': status,
+            'pay_url': pay_url,
+            'address': address,
+            'amount': amount,
+            'currency': f"{currency} {network}".strip()
+        })
+    except Exception as e:
+        print(f"LeCryptio create error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/subscription/lecryptio/status')
+def lecryptio_status():
+    try:
+        uuid_value = request.args.get('uuid', '').strip()
+        order_id = request.args.get('order_id', '').strip()
+        if not uuid_value and not order_id:
+            return jsonify({'error': 'Missing uuid'}), 400
+        if not db:
+            return jsonify({'error': 'Database error'}), 500
+
+        invoice = None
+        if not uuid_value and order_id:
+            invoice = db.get_lecryptio_invoice_by_order(order_id)
+            uuid_value = invoice['uuid'] if invoice else ''
+        if uuid_value:
+            invoice = invoice or db.get_lecryptio_invoice(uuid_value)
+        status = invoice['status'] if invoice else 'created'
+        if invoice and is_lecryptio_paid(status):
+            if lecryptio_matches_subscription(invoice['amount'], invoice['currency'], invoice['network']):
+                db.set_subscription_active(invoice['user_id'], True)
+                return jsonify({'status': status, 'active': True})
+        return jsonify({'status': status})
+    except Exception as e:
+        print(f"LeCryptio status error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/lecryptio/webhook', methods=['POST'])
+def lecryptio_webhook():
+    try:
+        if not db:
+            return jsonify({'error': 'Database error'}), 500
+        raw = request.get_data(as_text=True) or ''
+        signature = request.headers.get('X-LeCryptio-Signature', '')
+        timestamp = request.headers.get('X-LeCryptio-Timestamp', '')
+        if LECRYPTIO_SIGNING_SECRET:
+            if not verify_lecryptio_signature(raw, timestamp, signature, LECRYPTIO_SIGNING_SECRET):
+                return jsonify({'error': 'Invalid signature'}), 400
+        payload = request.get_json(silent=True) or {}
+        event = payload.get('event') or ''
+        invoice = normalize_lecryptio_invoice(payload)
+        uuid_value = invoice.get('uuid') or invoice.get('id')
+        status = invoice.get('status') or ''
+        order_id = invoice.get('external_id') or invoice.get('order_id') or ''
+        amount = invoice.get('amount')
+        currency = invoice.get('currency')
+        network = invoice.get('network')
+        address = invoice.get('pay_address') or invoice.get('address') or ''
+        pay_url = invoice.get('payment_url') or invoice.get('checkout_url') or invoice.get('url') or ''
+        user_id = parse_user_from_order(order_id)
+        if uuid_value and user_id:
+            db.create_lecryptio_invoice(user_id, uuid_value, order_id, status or event, amount, currency, network, address, pay_url)
+            if (is_lecryptio_paid(status) or event == 'invoice.paid') and lecryptio_matches_subscription(amount, currency, network):
+                db.set_subscription_active(user_id, True)
+        elif uuid_value and status:
+            db.update_lecryptio_status(uuid_value, status)
+        return jsonify({'success': True})
+    except Exception as e:
+        print(f"LeCryptio webhook error: {e}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/subscription/cryptocloud/create', methods=['POST'])

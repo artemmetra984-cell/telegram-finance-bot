@@ -1275,19 +1275,22 @@ function updateSubscriptionUI() {
 function formatSubscriptionStatus(status) {
     const map = {
         created: 'Ожидает оплаты',
+        pending: 'Ожидает подтверждения',
+        processing: 'Обработка оплаты',
         paid: 'Оплата завершена',
+        success: 'Оплата завершена',
         partial: 'Частичная оплата',
         overpaid: 'Оплата с избытком',
         canceled: 'Платёж отменён',
-        success: 'Оплата завершена'
+        expired: 'Счёт истёк'
     };
     return map[status] || status;
 }
 
-async function createCryptoPayment() {
+async function createLecryptioPayment() {
     if (!currentUser) return;
     try {
-        const res = await fetch('/api/subscription/cryptocloud/create', {
+        const res = await fetch('/api/subscription/lecryptio/create', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ user_id: currentUser.id })
@@ -1324,7 +1327,7 @@ async function checkSubscriptionStatus() {
         const query = hasPayment
             ? `uuid=${encodeURIComponent(subscriptionPayment.invoiceUuid)}`
             : `order_id=${encodeURIComponent(subscriptionPayment.orderId)}`;
-        const res = await fetch(`/api/subscription/cryptocloud/status?${query}`);
+        const res = await fetch(`/api/subscription/lecryptio/status?${query}`);
         const data = await res.json();
         if (data.error) throw new Error(data.error);
         subscriptionPayment.status = data.status || subscriptionPayment.status;
@@ -4276,7 +4279,7 @@ window.closeMarketModal = closeMarketModal;
 window.openSubscriptionModal = openSubscriptionModal;
 window.closeSubscriptionModal = closeSubscriptionModal;
 window.copySubscriptionAddress = copySubscriptionAddress;
-window.createCryptoPayment = createCryptoPayment;
+window.createLecryptioPayment = createLecryptioPayment;
 window.checkSubscriptionStatus = checkSubscriptionStatus;
 window.openSubscriptionInvoice = openSubscriptionInvoice;
 window.copySubscriptionAmount = copySubscriptionAmount;

@@ -8,6 +8,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Финансы">
+    <meta name="lecryptio-verification" content="lc_3747b2198692e4e473ee1d460cf3a248">
     
     <!-- Стили -->
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
@@ -669,7 +670,7 @@
                             <div class="subscription-address-label">Сумма</div>
                             <div class="subscription-address-value" id="subscription-amount"></div>
                         </div>
-                        <button class="service-link subscription-confirm" id="subscription-create" onclick="createCryptoPayment()">
+                        <button class="service-link subscription-confirm" id="subscription-create" onclick="createLecryptioPayment()">
                             <span>Создать оплату</span>
                             <span class="service-link-arrow">→</span>
                         </button>
