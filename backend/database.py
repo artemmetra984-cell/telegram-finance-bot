@@ -131,6 +131,24 @@ class Database:
                 FOREIGN KEY (user_id) REFERENCES users (id)
             )
         ''')
+
+        # Таблица счетов CryptoCloud
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS cryptocloud_invoices (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                uuid TEXT UNIQUE NOT NULL,
+                order_id TEXT,
+                status TEXT,
+                amount REAL,
+                currency TEXT,
+                address TEXT,
+                pay_url TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users (id)
+            )
+        ''')
         
         # Индексы для быстрого поиска
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_transactions_user_id ON transactions(user_id)')
@@ -143,6 +161,7 @@ class Database:
         cursor.execute('CREATE UNIQUE INDEX IF NOT EXISTS idx_shared_member ON shared_wallets(member_id)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_subscriptions_user_id ON subscriptions(user_id)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_nowpayments_user_id ON nowpayments_payments(user_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_cryptocloud_user_id ON cryptocloud_invoices(user_id)')
         
         self.conn.commit()
         print("✅ Tables ready")
@@ -561,6 +580,50 @@ class Database:
         owner_id = self._resolve_owner_id(user_id)
         cursor.execute('''
             SELECT * FROM nowpayments_payments
+            WHERE user_id = ?
+            ORDER BY id DESC LIMIT 1
+        ''', (owner_id,))
+        return cursor.fetchone()
+
+    def create_cryptocloud_invoice(self, user_id, uuid_value, order_id, status, amount, currency, address, pay_url):
+        cursor = self.conn.cursor()
+        owner_id = self._resolve_owner_id(user_id)
+        cursor.execute('''
+            INSERT OR REPLACE INTO cryptocloud_invoices
+            (user_id, uuid, order_id, status, amount, currency, address, pay_url, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        ''', (owner_id, uuid_value, order_id, status, amount, currency, address, pay_url))
+        self.conn.commit()
+        return True
+
+    def update_cryptocloud_status(self, uuid_value, status):
+        cursor = self.conn.cursor()
+        cursor.execute('''
+            UPDATE cryptocloud_invoices SET status = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE uuid = ?
+        ''', (status, uuid_value))
+        self.conn.commit()
+        return True
+
+    def get_cryptocloud_invoice(self, uuid_value):
+        cursor = self.conn.cursor()
+        cursor.execute('''
+            SELECT * FROM cryptocloud_invoices WHERE uuid = ?
+        ''', (uuid_value,))
+        return cursor.fetchone()
+
+    def get_cryptocloud_invoice_by_order(self, order_id):
+        cursor = self.conn.cursor()
+        cursor.execute('''
+            SELECT * FROM cryptocloud_invoices WHERE order_id = ?
+        ''', (order_id,))
+        return cursor.fetchone()
+
+    def get_latest_cryptocloud_invoice(self, user_id):
+        cursor = self.conn.cursor()
+        owner_id = self._resolve_owner_id(user_id)
+        cursor.execute('''
+            SELECT * FROM cryptocloud_invoices
             WHERE user_id = ?
             ORDER BY id DESC LIMIT 1
         ''', (owner_id,))

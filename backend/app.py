@@ -6,6 +6,7 @@ import string
 import hmac
 import hashlib
 import json
+import base64
 from flask import Flask, render_template, jsonify, request, send_from_directory
 from flask_cors import CORS
 from dotenv import load_dotenv
@@ -30,6 +31,9 @@ TELEGRAM_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 WEBHOOK_URL = os.getenv('WEBHOOK_URL', 'https://telegram-finance-bot-1-8zea.onrender.com')
 NOWPAYMENTS_API_KEY = os.getenv('NOWPAYMENTS_API_KEY', '')
 NOWPAYMENTS_IPN_SECRET = os.getenv('NOWPAYMENTS_IPN_SECRET', '')
+CRYPTOCLOUD_API_KEY = os.getenv('CRYPTOCLOUD_API_KEY', '')
+CRYPTOCLOUD_SHOP_ID = os.getenv('CRYPTOCLOUD_SHOP_ID', '')
+CRYPTOCLOUD_POSTBACK_SECRET = os.getenv('CRYPTOCLOUD_POSTBACK_SECRET', '')
 
 print(f"🚀 Starting Flask app (iOS 26 Version)")
 
@@ -52,6 +56,36 @@ def sort_payload(value):
     if isinstance(value, list):
         return [sort_payload(v) for v in value]
     return value
+
+def base64url_decode(value):
+    if isinstance(value, str):
+        value = value.encode()
+    padding = b'=' * (-len(value) % 4)
+    return base64.urlsafe_b64decode(value + padding)
+
+def decode_cryptocloud_token(token, secret):
+    try:
+        parts = token.split('.')
+        if len(parts) != 3:
+            return None
+        header_b64, payload_b64, sig_b64 = parts
+        signing_input = f"{header_b64}.{payload_b64}".encode()
+        signature = base64url_decode(sig_b64)
+        expected = hmac.new(secret.encode(), signing_input, hashlib.sha256).digest()
+        if not hmac.compare_digest(signature, expected):
+            return None
+        payload = json.loads(base64url_decode(payload_b64))
+        return payload
+    except Exception:
+        return None
+
+def is_cryptocloud_paid(status):
+    return status in ('paid', 'overpaid', 'success')
+
+def normalize_cryptocloud_currency(value):
+    if isinstance(value, dict):
+        return value.get('fullcode') or value.get('code') or value.get('name') or ''
+    return value or ''
 
 def parse_user_from_order(order_id):
     try:
@@ -541,6 +575,158 @@ def subscription_grant():
         return jsonify({'success': True})
     except Exception as e:
         print(f"Subscription grant error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/subscription/cryptocloud/create', methods=['POST'])
+def cryptocloud_create():
+    try:
+        data = request.json or {}
+        user_id = data.get('user_id')
+        if not user_id:
+            return jsonify({'error': 'Missing user_id'}), 400
+        if not db:
+            return jsonify({'error': 'Database error'}), 500
+        if db.get_subscription_status(user_id):
+            return jsonify({'active': True})
+        if not CRYPTOCLOUD_API_KEY or not CRYPTOCLOUD_SHOP_ID:
+            return jsonify({'error': 'CRYPTOCLOUD_API_KEY or CRYPTOCLOUD_SHOP_ID is not set'}), 500
+
+        order_id = f"sub_{user_id}_{int(datetime.utcnow().timestamp())}"
+        payload = {
+            'shop_id': CRYPTOCLOUD_SHOP_ID,
+            'amount': 2.5,
+            'currency': 'USD',
+            'order_id': order_id,
+            'add_fields': {'cryptocurrency': 'USDT_TRC20'}
+        }
+        resp = requests.post(
+            'https://api.cryptocloud.plus/v2/invoice/create',
+            headers={'Authorization': f'Token {CRYPTOCLOUD_API_KEY}', 'Content-Type': 'application/json'},
+            json=payload,
+            timeout=15
+        )
+        if resp.status_code >= 400:
+            return jsonify({'error': f'CryptoCloud error: {resp.text}'}), 502
+        body = resp.json()
+        result = body.get('result') or {}
+        if isinstance(result, list) and result:
+            result = result[0]
+        uuid_value = result.get('uuid') or result.get('invoice_uuid')
+        if not uuid_value:
+            return jsonify({'error': 'CryptoCloud invalid response'}), 502
+        status = result.get('status') or 'created'
+        pay_url = result.get('link') or result.get('pay_url') or result.get('url') or ''
+        address = result.get('address') or ''
+        amount = result.get('amount_to_pay') or result.get('amount') or payload['amount']
+        currency = normalize_cryptocloud_currency(result.get('currency')) or 'USDT_TRC20'
+        db.create_cryptocloud_invoice(user_id, uuid_value, order_id, status, amount, currency, address, pay_url)
+        return jsonify({
+            'uuid': uuid_value,
+            'order_id': order_id,
+            'status': status,
+            'pay_url': pay_url,
+            'address': address,
+            'amount': amount,
+            'currency': currency
+        })
+    except Exception as e:
+        print(f"CryptoCloud create error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/subscription/cryptocloud/status')
+def cryptocloud_status():
+    try:
+        uuid_value = request.args.get('uuid', '').strip()
+        order_id = request.args.get('order_id', '').strip()
+        if not uuid_value and not order_id:
+            return jsonify({'error': 'Missing uuid'}), 400
+        if not db:
+            return jsonify({'error': 'Database error'}), 500
+
+        invoice = None
+        if not uuid_value and order_id:
+            invoice = db.get_cryptocloud_invoice_by_order(order_id)
+            uuid_value = invoice['uuid'] if invoice else ''
+        if uuid_value:
+            invoice = invoice or db.get_cryptocloud_invoice(uuid_value)
+        status = invoice['status'] if invoice else 'created'
+        if invoice and is_cryptocloud_paid(status):
+            db.set_subscription_active(invoice['user_id'], True)
+            return jsonify({'status': status, 'active': True})
+
+        if CRYPTOCLOUD_API_KEY and uuid_value:
+            resp = requests.post(
+                'https://api.cryptocloud.plus/v2/invoice/merchant/info',
+                headers={'Authorization': f'Token {CRYPTOCLOUD_API_KEY}', 'Content-Type': 'application/json'},
+                json={'uuids': [uuid_value]},
+                timeout=15
+            )
+            if resp.status_code < 400:
+                body = resp.json()
+                result = body.get('result')
+                info = None
+                if isinstance(result, list) and result:
+                    info = next((item for item in result if item.get('uuid') == uuid_value), result[0])
+                elif isinstance(result, dict):
+                    info = result
+                if info:
+                    status = info.get('status') or status
+                    amount = info.get('amount_to_pay') or info.get('amount') or (invoice['amount'] if invoice else None)
+                    currency = normalize_cryptocloud_currency(info.get('currency')) or (invoice['currency'] if invoice else '')
+                    address = info.get('address') or (invoice['address'] if invoice else '')
+                    pay_url = info.get('link') or info.get('pay_url') or (invoice['pay_url'] if invoice else '')
+                    order_id = info.get('order_id') or order_id
+                    user_id = invoice['user_id'] if invoice else parse_user_from_order(order_id)
+                    if user_id and uuid_value:
+                        db.create_cryptocloud_invoice(user_id, uuid_value, order_id, status, amount, currency, address, pay_url)
+                        invoice = db.get_cryptocloud_invoice(uuid_value)
+        if invoice and is_cryptocloud_paid(status):
+            db.set_subscription_active(invoice['user_id'], True)
+            return jsonify({'status': status, 'active': True})
+        return jsonify({'status': status})
+    except Exception as e:
+        print(f"CryptoCloud status error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/cryptocloud/postback', methods=['POST'])
+def cryptocloud_postback():
+    try:
+        if not CRYPTOCLOUD_POSTBACK_SECRET:
+            return jsonify({'error': 'Postback secret not set'}), 500
+        if not db:
+            return jsonify({'error': 'Database error'}), 500
+        data = request.get_json(silent=True) or {}
+        if not data:
+            data = request.form.to_dict() if request.form else {}
+        token = data.get('token') or data.get('Token')
+        if not token:
+            return jsonify({'error': 'Missing token'}), 400
+        payload = decode_cryptocloud_token(token, CRYPTOCLOUD_POSTBACK_SECRET)
+        if not payload:
+            return jsonify({'error': 'Invalid token'}), 400
+        uuid_value = payload.get('uuid') or payload.get('invoice_uuid')
+        status = payload.get('status') or payload.get('invoice_status') or ''
+        order_id = payload.get('order_id') or ''
+        amount = payload.get('amount_to_pay') or payload.get('amount')
+        currency = normalize_cryptocloud_currency(payload.get('currency'))
+        address = payload.get('address') or ''
+        pay_url = payload.get('link') or payload.get('pay_url') or ''
+        user_id = parse_user_from_order(order_id)
+        if not user_id and uuid_value:
+            invoice = db.get_cryptocloud_invoice(uuid_value)
+            if invoice:
+                user_id = invoice['user_id']
+                if not order_id:
+                    order_id = invoice['order_id']
+        if user_id and uuid_value:
+            db.create_cryptocloud_invoice(user_id, uuid_value, order_id, status, amount, currency, address, pay_url)
+            if is_cryptocloud_paid(status):
+                db.set_subscription_active(user_id, True)
+        elif uuid_value and status:
+            db.update_cryptocloud_status(uuid_value, status)
+        return jsonify({'success': True})
+    except Exception as e:
+        print(f"CryptoCloud postback error: {e}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/subscription/nowpayments/create', methods=['POST'])

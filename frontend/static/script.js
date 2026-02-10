@@ -35,7 +35,7 @@ let sharedWalletState = { status: 'none', code: '', link: '' };
 let pendingInviteCode = null;
 let subscriptionActive = false;
 let subscriptionPayment = {
-    paymentId: null,
+    invoiceUuid: null,
     orderId: null,
     status: '',
     address: '',
@@ -420,7 +420,7 @@ async function initUser() {
         allTransactions = data.recent_transactions || [];
         subscriptionActive = !!data.subscription_active;
         if (subscriptionActive) {
-            subscriptionPayment = { paymentId: null, status: '', address: '', amount: '', currency: '', invoiceUrl: '' };
+            subscriptionPayment = { invoiceUuid: null, orderId: null, status: '', address: '', amount: '', currency: '', invoiceUrl: '' };
             try { localStorage.removeItem('subscription_payment'); } catch {}
         }
         
@@ -1259,7 +1259,7 @@ function updateSubscriptionUI() {
     if (statusEl) statusEl.textContent = formatSubscriptionStatus(subscriptionPayment.status) || 'Создайте оплату';
     if (addressEl) addressEl.textContent = subscriptionPayment.address || '';
     if (amountEl) amountEl.textContent = subscriptionPayment.amount ? `${subscriptionPayment.amount} ${subscriptionPayment.currency}` : '';
-    const hasInvoice = !!subscriptionPayment.orderId || !!subscriptionPayment.invoiceUrl || !!subscriptionPayment.paymentId;
+    const hasInvoice = !!subscriptionPayment.orderId || !!subscriptionPayment.invoiceUrl || !!subscriptionPayment.invoiceUuid;
     if (addressWrap) addressWrap.style.display = subscriptionPayment.address ? 'block' : 'none';
     if (amountWrap) amountWrap.style.display = subscriptionPayment.amount ? 'block' : 'none';
     if (createBtn) createBtn.style.display = hasInvoice ? 'none' : 'flex';
@@ -1274,22 +1274,20 @@ function updateSubscriptionUI() {
 
 function formatSubscriptionStatus(status) {
     const map = {
-        waiting: 'Ожидает оплаты',
-        confirming: 'Подтверждение оплаты',
-        confirmed: 'Подтверждено сетью',
-        sending: 'Отправка средств',
-        partially_paid: 'Частичная оплата',
-        finished: 'Оплата завершена',
-        failed: 'Платёж отменён',
-        expired: 'Счёт истёк'
+        created: 'Ожидает оплаты',
+        paid: 'Оплата завершена',
+        partial: 'Частичная оплата',
+        overpaid: 'Оплата с избытком',
+        canceled: 'Платёж отменён',
+        success: 'Оплата завершена'
     };
     return map[status] || status;
 }
 
-async function createNowPayment() {
+async function createCryptoPayment() {
     if (!currentUser) return;
     try {
-        const res = await fetch('/api/subscription/nowpayments/create', {
+        const res = await fetch('/api/subscription/cryptocloud/create', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ user_id: currentUser.id })
@@ -1302,13 +1300,13 @@ async function createNowPayment() {
             return;
         }
         subscriptionPayment = {
-            paymentId: data.payment_id || null,
+            invoiceUuid: data.uuid || null,
             orderId: data.order_id || null,
-            status: data.payment_status || 'Ожидает оплаты',
-            address: data.pay_address || '',
-            amount: data.pay_amount ? String(data.pay_amount) : '',
-            currency: (data.pay_currency || '').toUpperCase(),
-            invoiceUrl: data.invoice_url || ''
+            status: data.status || 'created',
+            address: data.address || '',
+            amount: data.amount ? String(data.amount) : '',
+            currency: (data.currency || '').toUpperCase(),
+            invoiceUrl: data.pay_url || ''
         };
         saveSubscriptionState();
         updateSubscriptionUI();
@@ -1319,20 +1317,20 @@ async function createNowPayment() {
 }
 
 async function checkSubscriptionStatus() {
-    const hasPayment = !!subscriptionPayment.paymentId;
+    const hasPayment = !!subscriptionPayment.invoiceUuid;
     const hasOrder = !!subscriptionPayment.orderId;
     if (!hasPayment && !hasOrder) return;
     try {
         const query = hasPayment
-            ? `payment_id=${subscriptionPayment.paymentId}`
+            ? `uuid=${encodeURIComponent(subscriptionPayment.invoiceUuid)}`
             : `order_id=${encodeURIComponent(subscriptionPayment.orderId)}`;
-        const res = await fetch(`/api/subscription/nowpayments/status?${query}`);
+        const res = await fetch(`/api/subscription/cryptocloud/status?${query}`);
         const data = await res.json();
         if (data.error) throw new Error(data.error);
-        subscriptionPayment.status = data.payment_status || subscriptionPayment.status;
+        subscriptionPayment.status = data.status || subscriptionPayment.status;
         if (data.active) {
             subscriptionActive = true;
-            subscriptionPayment = { paymentId: null, orderId: null, status: '', address: '', amount: '', currency: '', invoiceUrl: '' };
+            subscriptionPayment = { invoiceUuid: null, orderId: null, status: '', address: '', amount: '', currency: '', invoiceUrl: '' };
             saveSubscriptionState();
             showNotification('Подписка активирована', 'success');
             updateSubscriptionUI();
@@ -1347,7 +1345,7 @@ async function checkSubscriptionStatus() {
 
 function startSubscriptionPolling() {
     if (subscriptionPoller) return;
-    if ((!subscriptionPayment.paymentId && !subscriptionPayment.orderId) || subscriptionActive) return;
+    if ((!subscriptionPayment.invoiceUuid && !subscriptionPayment.orderId) || subscriptionActive) return;
     subscriptionPoller = setInterval(() => {
         checkSubscriptionStatus();
     }, 15000);
@@ -4278,7 +4276,7 @@ window.closeMarketModal = closeMarketModal;
 window.openSubscriptionModal = openSubscriptionModal;
 window.closeSubscriptionModal = closeSubscriptionModal;
 window.copySubscriptionAddress = copySubscriptionAddress;
-window.createNowPayment = createNowPayment;
+window.createCryptoPayment = createCryptoPayment;
 window.checkSubscriptionStatus = checkSubscriptionStatus;
 window.openSubscriptionInvoice = openSubscriptionInvoice;
 window.copySubscriptionAmount = copySubscriptionAmount;
