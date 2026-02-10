@@ -34,6 +34,7 @@ let marketChartState = { market: '', id: '', range: '1m' };
 let sharedWalletState = { status: 'none', code: '', link: '' };
 let pendingInviteCode = null;
 let subscriptionActive = false;
+const subscriptionProvider = 'cryptopay';
 let subscriptionPayment = {
     invoiceId: null,
     status: '',
@@ -315,8 +316,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         try {
             const url = new URL(window.location.href);
             const ver = url.searchParams.get('v');
-            if (ver !== '5') {
-                url.searchParams.set('v', '5');
+            if (ver !== '6') {
+                url.searchParams.set('v', '6');
                 window.location.replace(url.toString());
                 return;
             }
@@ -348,7 +349,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         updateCurrencyDisplay();
         setupAddButton();
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/sw.js?v=5', { updateViaCache: 'none' }).then((reg) => {
+            navigator.serviceWorker.register('/sw.js?v=6', { updateViaCache: 'none' }).then((reg) => {
                 reg.update().catch(() => {});
             }).catch(() => {});
         }
@@ -1250,6 +1251,16 @@ function loadSubscriptionState() {
         if (!raw) return;
         const parsed = JSON.parse(raw);
         subscriptionPayment = { ...subscriptionPayment, ...parsed };
+        const url = (subscriptionPayment.invoiceUrl || '') +
+            (subscriptionPayment.webAppUrl || '') +
+            (subscriptionPayment.miniAppUrl || '') +
+            (subscriptionPayment.botUrl || '');
+        const badProvider = url.includes('lecryptio') || url.includes('cryptocloud');
+        const providerMismatch = parsed && parsed.provider && parsed.provider !== subscriptionProvider;
+        if (badProvider || providerMismatch) {
+            subscriptionPayment = { invoiceId: null, status: '', asset: 'USDT', amount: '', currency: '', invoiceUrl: '', miniAppUrl: '', webAppUrl: '', botUrl: '' };
+            localStorage.removeItem('subscription_payment');
+        }
         if (parsed && parsed.asset) {
             subscriptionAsset = parsed.asset;
         }
@@ -1264,7 +1275,7 @@ function loadSubscriptionState() {
 
 function saveSubscriptionState() {
     try {
-        localStorage.setItem('subscription_payment', JSON.stringify(subscriptionPayment));
+        localStorage.setItem('subscription_payment', JSON.stringify({ ...subscriptionPayment, provider: subscriptionProvider }));
     } catch {}
 }
 
