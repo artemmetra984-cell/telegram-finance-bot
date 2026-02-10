@@ -177,6 +177,96 @@ def cryptopay_matches_subscription(amount, asset):
     asset = (asset or '').upper()
     return abs(amt - 2.0) < 0.0001 and asset in ('USDT', 'TON')
 
+def create_cryptopay_invoice_for_user(user_id, asset='USDT'):
+    if not CRYPTOPAY_API_TOKEN:
+        return None, 'CRYPTOPAY_API_TOKEN is not set'
+    asset = asset.upper() if asset else 'USDT'
+    if asset not in ('USDT', 'TON'):
+        asset = 'USDT'
+    order_id = f"sub_{user_id}_{int(datetime.utcnow().timestamp())}"
+    payload = {
+        'asset': asset,
+        'amount': '2',
+        'description': 'Subscription',
+        'payload': order_id,
+        'allow_comments': False,
+        'allow_anonymous': False,
+        'expires_in': 3600
+    }
+    body_str = json.dumps(payload, separators=(',', ':'), ensure_ascii=False)
+    resp = requests.post(
+        'https://pay.crypt.bot/api/createInvoice',
+        headers={'Crypto-Pay-API-Token': CRYPTOPAY_API_TOKEN, 'Content-Type': 'application/json'},
+        data=body_str,
+        timeout=15
+    )
+    if resp.status_code >= 400:
+        return None, f'CryptoPay error: {resp.text}'
+    body = resp.json() or {}
+    if not body.get('ok'):
+        return None, body.get('error') or 'CryptoPay create failed'
+    invoice = body.get('result') or {}
+    invoice_id = invoice.get('invoice_id')
+    if not invoice_id:
+        return None, 'CryptoPay invalid response'
+    status = invoice.get('status') or 'active'
+    amount = invoice.get('amount') or payload['amount']
+    asset = invoice.get('asset') or asset
+    bot_url = invoice.get('bot_invoice_url') or invoice.get('pay_url') or ''
+    mini_url = invoice.get('mini_app_invoice_url') or ''
+    web_url = invoice.get('web_app_invoice_url') or ''
+    db.create_cryptopay_invoice(user_id, int(invoice_id), status, asset, amount, order_id, bot_url, mini_url, web_url)
+    return {
+        'invoice_id': int(invoice_id),
+        'status': status,
+        'asset': asset,
+        'amount': amount,
+        'bot_invoice_url': bot_url,
+        'mini_app_invoice_url': mini_url,
+        'web_app_invoice_url': web_url,
+        'payload': order_id
+    }, None
+
+def resolve_cryptopay_invoice_id(uuid_value, order_id):
+    invoice_id = None
+    if uuid_value and str(uuid_value).isdigit():
+        invoice_id = int(uuid_value)
+    if not invoice_id and order_id:
+        found = db.get_cryptopay_invoice_by_payload(order_id)
+        if found:
+            invoice_id = int(found['invoice_id'])
+    return invoice_id
+
+def refresh_cryptopay_invoice(invoice_id):
+    invoice = db.get_cryptopay_invoice(invoice_id)
+    status = invoice['status'] if invoice else 'active'
+    if CRYPTOPAY_API_TOKEN:
+        resp = requests.post(
+            'https://pay.crypt.bot/api/getInvoices',
+            headers={'Crypto-Pay-API-Token': CRYPTOPAY_API_TOKEN, 'Content-Type': 'application/json'},
+            json={'invoice_ids': str(invoice_id)},
+            timeout=15
+        )
+        if resp.status_code < 400:
+            body = resp.json() or {}
+            if body.get('ok'):
+                result = body.get('result') or {}
+                items = result.get('items') if isinstance(result, dict) else result
+                if isinstance(items, list) and items:
+                    remote = items[0]
+                    status = remote.get('status') or status
+                    amount = remote.get('amount') or (invoice['amount'] if invoice else None)
+                    asset = remote.get('asset') or (invoice['asset'] if invoice else '')
+                    bot_url = remote.get('bot_invoice_url') or (invoice['bot_invoice_url'] if invoice else '')
+                    mini_url = remote.get('mini_app_invoice_url') or (invoice['mini_app_invoice_url'] if invoice else '')
+                    web_url = remote.get('web_app_invoice_url') or (invoice['web_app_invoice_url'] if invoice else '')
+                    payload_ref = remote.get('payload') or (invoice['payload'] if invoice else '')
+                    user_ref = invoice['user_id'] if invoice else parse_user_from_order(payload_ref)
+                    if user_ref:
+                        db.create_cryptopay_invoice(user_ref, invoice_id, status, asset, amount, payload_ref, bot_url, mini_url, web_url)
+                        invoice = db.get_cryptopay_invoice(invoice_id)
+    return invoice, status
+
 def parse_user_from_order(order_id):
     try:
         if not order_id:
@@ -690,53 +780,23 @@ def lecryptio_create():
             return jsonify({'error': 'Database error'}), 500
         if db.get_subscription_status(user_id):
             return jsonify({'active': True})
-        if not LECRYPTIO_API_KEY or not LECRYPTIO_SIGNING_SECRET:
-            return jsonify({'error': 'LECRYPTIO_API_KEY or LECRYPTIO_SIGNING_SECRET is not set'}), 500
-
-        order_id = f"sub_{user_id}_{int(datetime.utcnow().timestamp())}"
-        payload = {
-            'amount': 2.0,
-            'currency': 'USDT',
-            'network': 'TRC-20',
-            'order_id': order_id,
-            'description': 'Subscription',
-            'return_url': request.host_url
-        }
-        body_str = json.dumps(payload, separators=(',', ':'), ensure_ascii=False)
-        headers = lecryptio_signed_headers(body_str)
-        if not headers:
-            return jsonify({'error': 'LeCryptio signing config missing'}), 500
-        headers['Content-Type'] = 'application/json'
-        headers['Idempotency-Key'] = order_id
-        resp = requests.post(
-            'https://api.lecryptio.com/v1/invoices',
-            headers=headers,
-            data=body_str,
-            timeout=15
-        )
-        if resp.status_code >= 400:
-            return jsonify({'error': f'LeCryptio error: {resp.text}'}), 502
-        body = resp.json()
-        invoice = normalize_lecryptio_invoice(body)
-        uuid_value = invoice.get('uuid') or invoice.get('id')
-        if not uuid_value:
-            return jsonify({'error': 'LeCryptio invalid response'}), 502
-        status = invoice.get('status') or 'pending'
-        pay_url = invoice.get('checkout_url') or invoice.get('payment_url') or invoice.get('url') or invoice.get('pay_url') or ''
-        address = invoice.get('pay_address') or invoice.get('address') or ''
-        amount = invoice.get('amount') or payload['amount']
-        currency = invoice.get('currency') or payload['currency']
-        network = invoice.get('network') or payload['network']
-        order_ref = invoice.get('external_id') or invoice.get('order_id') or order_id
-        db.create_lecryptio_invoice(user_id, uuid_value, order_ref, status, amount, currency, network, address, pay_url)
+        result, err = create_cryptopay_invoice_for_user(user_id, 'USDT')
+        if err:
+            return jsonify({'error': err}), 502
+        pay_url = result.get('mini_app_invoice_url') or result.get('web_app_invoice_url') or result.get('bot_invoice_url') or ''
+        uuid_value = str(result.get('invoice_id'))
+        order_ref = result.get('payload')
+        status = result.get('status') or 'active'
+        amount = result.get('amount') or '2'
+        currency = result.get('asset') or 'USDT'
         return jsonify({
             'uuid': uuid_value,
             'order_id': order_ref,
             'status': status,
             'pay_url': pay_url,
-            'address': address,
+            'address': '',
             'amount': amount,
-            'currency': f"{currency} {network}".strip()
+            'currency': currency
         })
     except Exception as e:
         print(f"LeCryptio create error: {e}")
@@ -751,47 +811,12 @@ def lecryptio_status():
             return jsonify({'error': 'Missing uuid'}), 400
         if not db:
             return jsonify({'error': 'Database error'}), 500
-
-        invoice = None
-        if not uuid_value and order_id:
-            invoice = db.get_lecryptio_invoice_by_order(order_id)
-            uuid_value = invoice['uuid'] if invoice else ''
-        if uuid_value:
-            invoice = invoice or db.get_lecryptio_invoice(uuid_value)
-        status = invoice['status'] if invoice else 'created'
-        if invoice and is_lecryptio_paid(status):
-            if lecryptio_matches_subscription(invoice['amount'], invoice['currency'], invoice['network']):
-                db.set_subscription_active(invoice['user_id'], True)
-                return jsonify({'status': status, 'active': True})
-
-        if LECRYPTIO_API_KEY and LECRYPTIO_SIGNING_SECRET and uuid_value:
-            headers = lecryptio_signed_headers('')
-            if headers:
-                resp = requests.get(
-                    f'https://api.lecryptio.com/v1/invoices/{uuid_value}/status',
-                    headers=headers,
-                    timeout=15
-                )
-                if resp.status_code < 400:
-                    remote = resp.json() or {}
-                    status = remote.get('status') or status
-                    raw_amount = remote.get('amount')
-                    if isinstance(raw_amount, dict):
-                        amount = raw_amount.get('fiat') or raw_amount.get('crypto') or raw_amount.get('amount')
-                        currency = raw_amount.get('currency') or raw_amount.get('fiat_code') or (invoice['currency'] if invoice else '')
-                        network = raw_amount.get('network') or (invoice['network'] if invoice else '')
-                    else:
-                        amount = raw_amount or (invoice['amount'] if invoice else None)
-                        currency = remote.get('currency') or (invoice['currency'] if invoice else '')
-                        network = remote.get('network') or (invoice['network'] if invoice else '')
-                    pay_url = remote.get('checkout_url') or (invoice['pay_url'] if invoice else '')
-                    order_ref = invoice['order_id'] if invoice else order_id
-                    user_ref = invoice['user_id'] if invoice else parse_user_from_order(order_ref)
-                    if user_ref and uuid_value:
-                        db.create_lecryptio_invoice(user_ref, uuid_value, order_ref, status, amount, currency, network, invoice['address'] if invoice else '', pay_url)
-                        invoice = db.get_lecryptio_invoice(uuid_value)
-        if invoice and is_lecryptio_paid(status):
-            if lecryptio_matches_subscription(invoice['amount'], invoice['currency'], invoice['network']):
+        invoice_id = resolve_cryptopay_invoice_id(uuid_value, order_id)
+        if not invoice_id:
+            return jsonify({'status': 'active'})
+        invoice, status = refresh_cryptopay_invoice(invoice_id)
+        if invoice and is_cryptopay_paid(status):
+            if cryptopay_matches_subscription(invoice['amount'], invoice['asset']):
                 db.set_subscription_active(invoice['user_id'], True)
                 return jsonify({'status': status, 'active': True})
         return jsonify({'status': status})
@@ -847,52 +872,10 @@ def cryptopay_create():
             return jsonify({'error': 'Database error'}), 500
         if db.get_subscription_status(user_id):
             return jsonify({'active': True})
-        if not CRYPTOPAY_API_TOKEN:
-            return jsonify({'error': 'CRYPTOPAY_API_TOKEN is not set'}), 500
-
-        order_id = f"sub_{user_id}_{int(datetime.utcnow().timestamp())}"
-        payload = {
-            'asset': asset,
-            'amount': '2',
-            'description': 'Subscription',
-            'payload': order_id,
-            'allow_comments': False,
-            'allow_anonymous': False,
-            'expires_in': 3600
-        }
-        body_str = json.dumps(payload, separators=(',', ':'), ensure_ascii=False)
-        resp = requests.post(
-            'https://pay.crypt.bot/api/createInvoice',
-            headers={'Crypto-Pay-API-Token': CRYPTOPAY_API_TOKEN, 'Content-Type': 'application/json'},
-            data=body_str,
-            timeout=15
-        )
-        if resp.status_code >= 400:
-            return jsonify({'error': f'CryptoPay error: {resp.text}'}), 502
-        body = resp.json() or {}
-        if not body.get('ok'):
-            return jsonify({'error': body.get('error') or 'CryptoPay create failed'}), 502
-        invoice = body.get('result') or {}
-        invoice_id = invoice.get('invoice_id')
-        if not invoice_id:
-            return jsonify({'error': 'CryptoPay invalid response'}), 502
-        status = invoice.get('status') or 'active'
-        amount = invoice.get('amount') or payload['amount']
-        asset = invoice.get('asset') or asset
-        bot_url = invoice.get('bot_invoice_url') or invoice.get('pay_url') or ''
-        mini_url = invoice.get('mini_app_invoice_url') or ''
-        web_url = invoice.get('web_app_invoice_url') or ''
-        db.create_cryptopay_invoice(user_id, int(invoice_id), status, asset, amount, order_id, bot_url, mini_url, web_url)
-        return jsonify({
-            'invoice_id': int(invoice_id),
-            'status': status,
-            'asset': asset,
-            'amount': amount,
-            'bot_invoice_url': bot_url,
-            'mini_app_invoice_url': mini_url,
-            'web_app_invoice_url': web_url,
-            'payload': order_id
-        })
+        result, err = create_cryptopay_invoice_for_user(user_id, asset)
+        if err:
+            return jsonify({'error': err}), 502
+        return jsonify(result)
     except Exception as e:
         print(f"CryptoPay create error: {e}")
         return jsonify({'error': str(e)}), 500
@@ -905,38 +888,11 @@ def cryptopay_status():
             return jsonify({'error': 'Missing invoice_id'}), 400
         if not db:
             return jsonify({'error': 'Database error'}), 500
-        invoice = db.get_cryptopay_invoice(invoice_id)
-        status = invoice['status'] if invoice else 'active'
+        invoice, status = refresh_cryptopay_invoice(invoice_id)
         if invoice and is_cryptopay_paid(status):
             if cryptopay_matches_subscription(invoice['amount'], invoice['asset']):
                 db.set_subscription_active(invoice['user_id'], True)
                 return jsonify({'status': status, 'active': True})
-        if CRYPTOPAY_API_TOKEN:
-            payload = {'invoice_ids': str(invoice_id)}
-            resp = requests.post(
-                'https://pay.crypt.bot/api/getInvoices',
-                headers={'Crypto-Pay-API-Token': CRYPTOPAY_API_TOKEN, 'Content-Type': 'application/json'},
-                json=payload,
-                timeout=15
-            )
-            if resp.status_code < 400:
-                body = resp.json() or {}
-                if body.get('ok'):
-                    result = body.get('result') or {}
-                    items = result.get('items') if isinstance(result, dict) else result
-                    if isinstance(items, list) and items:
-                        remote = items[0]
-                        status = remote.get('status') or status
-                        amount = remote.get('amount') or (invoice['amount'] if invoice else None)
-                        asset = remote.get('asset') or (invoice['asset'] if invoice else '')
-                        bot_url = remote.get('bot_invoice_url') or (invoice['bot_invoice_url'] if invoice else '')
-                        mini_url = remote.get('mini_app_invoice_url') or (invoice['mini_app_invoice_url'] if invoice else '')
-                        web_url = remote.get('web_app_invoice_url') or (invoice['web_app_invoice_url'] if invoice else '')
-                        payload_ref = remote.get('payload') or (invoice['payload'] if invoice else '')
-                        user_ref = invoice['user_id'] if invoice else parse_user_from_order(payload_ref)
-                        if user_ref:
-                            db.create_cryptopay_invoice(user_ref, invoice_id, status, asset, amount, payload_ref, bot_url, mini_url, web_url)
-                            invoice = db.get_cryptopay_invoice(invoice_id)
         if invoice and is_cryptopay_paid(status):
             if cryptopay_matches_subscription(invoice['amount'], invoice['asset']):
                 db.set_subscription_active(invoice['user_id'], True)
@@ -1005,44 +961,21 @@ def cryptocloud_create():
             return jsonify({'error': 'Database error'}), 500
         if db.get_subscription_status(user_id):
             return jsonify({'active': True})
-        if not CRYPTOCLOUD_API_KEY or not CRYPTOCLOUD_SHOP_ID:
-            return jsonify({'error': 'CRYPTOCLOUD_API_KEY or CRYPTOCLOUD_SHOP_ID is not set'}), 500
-
-        order_id = f"sub_{user_id}_{int(datetime.utcnow().timestamp())}"
-        payload = {
-            'shop_id': CRYPTOCLOUD_SHOP_ID,
-            'amount': 2.0,
-            'currency': 'USD',
-            'order_id': order_id,
-            'add_fields': {'cryptocurrency': 'USDT_TRC20'}
-        }
-        resp = requests.post(
-            'https://api.cryptocloud.plus/v2/invoice/create',
-            headers={'Authorization': f'Token {CRYPTOCLOUD_API_KEY}', 'Content-Type': 'application/json'},
-            json=payload,
-            timeout=15
-        )
-        if resp.status_code >= 400:
-            return jsonify({'error': f'CryptoCloud error: {resp.text}'}), 502
-        body = resp.json()
-        result = body.get('result') or {}
-        if isinstance(result, list) and result:
-            result = result[0]
-        uuid_value = result.get('uuid') or result.get('invoice_uuid')
-        if not uuid_value:
-            return jsonify({'error': 'CryptoCloud invalid response'}), 502
-        status = result.get('status') or 'created'
-        pay_url = result.get('link') or result.get('pay_url') or result.get('url') or ''
-        address = result.get('address') or ''
-        amount = result.get('amount_to_pay') or result.get('amount') or payload['amount']
-        currency = normalize_cryptocloud_currency(result.get('currency')) or 'USDT_TRC20'
-        db.create_cryptocloud_invoice(user_id, uuid_value, order_id, status, amount, currency, address, pay_url)
+        result, err = create_cryptopay_invoice_for_user(user_id, 'USDT')
+        if err:
+            return jsonify({'error': err}), 502
+        pay_url = result.get('mini_app_invoice_url') or result.get('web_app_invoice_url') or result.get('bot_invoice_url') or ''
+        uuid_value = str(result.get('invoice_id'))
+        order_id = result.get('payload')
+        status = result.get('status') or 'active'
+        amount = result.get('amount') or '2'
+        currency = result.get('asset') or 'USDT'
         return jsonify({
             'uuid': uuid_value,
             'order_id': order_id,
             'status': status,
             'pay_url': pay_url,
-            'address': address,
+            'address': '',
             'amount': amount,
             'currency': currency
         })
@@ -1059,47 +992,14 @@ def cryptocloud_status():
             return jsonify({'error': 'Missing uuid'}), 400
         if not db:
             return jsonify({'error': 'Database error'}), 500
-
-        invoice = None
-        if not uuid_value and order_id:
-            invoice = db.get_cryptocloud_invoice_by_order(order_id)
-            uuid_value = invoice['uuid'] if invoice else ''
-        if uuid_value:
-            invoice = invoice or db.get_cryptocloud_invoice(uuid_value)
-        status = invoice['status'] if invoice else 'created'
-        if invoice and is_cryptocloud_paid(status):
-            db.set_subscription_active(invoice['user_id'], True)
-            return jsonify({'status': status, 'active': True})
-
-        if CRYPTOCLOUD_API_KEY and uuid_value:
-            resp = requests.post(
-                'https://api.cryptocloud.plus/v2/invoice/merchant/info',
-                headers={'Authorization': f'Token {CRYPTOCLOUD_API_KEY}', 'Content-Type': 'application/json'},
-                json={'uuids': [uuid_value]},
-                timeout=15
-            )
-            if resp.status_code < 400:
-                body = resp.json()
-                result = body.get('result')
-                info = None
-                if isinstance(result, list) and result:
-                    info = next((item for item in result if item.get('uuid') == uuid_value), result[0])
-                elif isinstance(result, dict):
-                    info = result
-                if info:
-                    status = info.get('status') or status
-                    amount = info.get('amount_to_pay') or info.get('amount') or (invoice['amount'] if invoice else None)
-                    currency = normalize_cryptocloud_currency(info.get('currency')) or (invoice['currency'] if invoice else '')
-                    address = info.get('address') or (invoice['address'] if invoice else '')
-                    pay_url = info.get('link') or info.get('pay_url') or (invoice['pay_url'] if invoice else '')
-                    order_id = info.get('order_id') or order_id
-                    user_id = invoice['user_id'] if invoice else parse_user_from_order(order_id)
-                    if user_id and uuid_value:
-                        db.create_cryptocloud_invoice(user_id, uuid_value, order_id, status, amount, currency, address, pay_url)
-                        invoice = db.get_cryptocloud_invoice(uuid_value)
-        if invoice and is_cryptocloud_paid(status):
-            db.set_subscription_active(invoice['user_id'], True)
-            return jsonify({'status': status, 'active': True})
+        invoice_id = resolve_cryptopay_invoice_id(uuid_value, order_id)
+        if not invoice_id:
+            return jsonify({'status': 'active'})
+        invoice, status = refresh_cryptopay_invoice(invoice_id)
+        if invoice and is_cryptopay_paid(status):
+            if cryptopay_matches_subscription(invoice['amount'], invoice['asset']):
+                db.set_subscription_active(invoice['user_id'], True)
+                return jsonify({'status': status, 'active': True})
         return jsonify({'status': status})
     except Exception as e:
         print(f"CryptoCloud status error: {e}")
