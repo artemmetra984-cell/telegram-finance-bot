@@ -116,7 +116,7 @@ def lecryptio_matches_subscription(amount, currency, network):
     net = ''.join(ch for ch in net if ch.isalnum())
     if amt is None:
         return False
-    return abs(amt - 2.5) < 0.0001 and cur == 'USDT' and net == 'TRC20'
+    return abs(amt - 2.0) < 0.0001 and cur == 'USDT' and net == 'TRC20'
 
 def lecryptio_signed_headers(body_str):
     if not LECRYPTIO_API_KEY or not LECRYPTIO_SIGNING_SECRET:
@@ -659,7 +659,7 @@ def lecryptio_create():
 
         order_id = f"sub_{user_id}_{int(datetime.utcnow().timestamp())}"
         payload = {
-            'amount': 2.5,
+            'amount': 2.0,
             'currency': 'USDT',
             'network': 'TRC-20',
             'order_id': order_id,
@@ -814,7 +814,7 @@ def cryptocloud_create():
         order_id = f"sub_{user_id}_{int(datetime.utcnow().timestamp())}"
         payload = {
             'shop_id': CRYPTOCLOUD_SHOP_ID,
-            'amount': 2.5,
+            'amount': 2.0,
             'currency': 'USD',
             'order_id': order_id,
             'add_fields': {'cryptocurrency': 'USDT_TRC20'}
@@ -966,7 +966,7 @@ def nowpayments_create():
         order_id = f"sub_{user_id}_{int(datetime.utcnow().timestamp())}"
         ipn_url = f"{request.host_url.rstrip('/')}/api/nowpayments/ipn"
         payload = {
-            'price_amount': 2.5,
+            'price_amount': 2.0,
             'price_currency': 'usd',
             'pay_currency': 'usdttrc20',
             'order_id': order_id,
