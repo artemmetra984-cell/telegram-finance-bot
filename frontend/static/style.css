@@ -1327,7 +1327,20 @@ body {
   margin-bottom: var(--spacing-md);
 }
 
+.subscription-status {
+  font-size: 13px;
+  color: var(--ios-text-secondary);
+  margin-bottom: var(--spacing-md);
+}
+
 .subscription-address {
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: var(--border-radius-small);
+  padding: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+}
+
+.subscription-amount {
   background: rgba(255, 255, 255, 0.06);
   border-radius: var(--border-radius-small);
   padding: var(--spacing-md);

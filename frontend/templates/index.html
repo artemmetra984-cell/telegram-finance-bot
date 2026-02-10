@@ -660,16 +660,33 @@
                         <div class="subscription-title">Полный доступ</div>
                         <div class="subscription-price">$2.5</div>
                         <div class="subscription-note">Оплата в USDT (TRC20)</div>
-                        <div class="subscription-address">
+                        <div class="subscription-status" id="subscription-status">Создайте оплату</div>
+                        <div class="subscription-address" id="subscription-address-wrap" style="display: none;">
                             <div class="subscription-address-label">Адрес</div>
-                            <div class="subscription-address-value" id="subscription-address">TJc9xPuVjWCBoj4aWbWsnmJJpS9VMCUyEi</div>
+                            <div class="subscription-address-value" id="subscription-address"></div>
                         </div>
-                        <button class="service-link subscription-copy" onclick="copySubscriptionAddress()">
+                        <div class="subscription-amount" id="subscription-amount-wrap" style="display: none;">
+                            <div class="subscription-address-label">Сумма</div>
+                            <div class="subscription-address-value" id="subscription-amount"></div>
+                        </div>
+                        <button class="service-link subscription-confirm" onclick="createNowPayment()">
+                            <span>Создать оплату</span>
+                            <span class="service-link-arrow">→</span>
+                        </button>
+                        <button class="service-link subscription-copy" id="subscription-copy-address" onclick="copySubscriptionAddress()" style="display: none;">
                             <span>Скопировать адрес</span>
                             <span class="service-link-arrow">→</span>
                         </button>
-                        <button class="service-link subscription-confirm" onclick="confirmSubscriptionPayment()">
-                            <span>Я оплатил</span>
+                        <button class="service-link subscription-copy" id="subscription-copy-amount" onclick="copySubscriptionAmount()" style="display: none;">
+                            <span>Скопировать сумму</span>
+                            <span class="service-link-arrow">→</span>
+                        </button>
+                        <button class="service-link subscription-copy" id="subscription-open-invoice" onclick="openSubscriptionInvoice()" style="display: none;">
+                            <span>Открыть оплату</span>
+                            <span class="service-link-arrow">→</span>
+                        </button>
+                        <button class="service-link subscription-confirm" id="subscription-check" onclick="checkSubscriptionStatus()" style="display: none;">
+                            <span>Проверить оплату</span>
                             <span class="service-link-arrow">→</span>
                         </button>
                     </div>

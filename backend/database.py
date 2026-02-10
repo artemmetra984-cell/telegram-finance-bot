@@ -112,6 +112,25 @@ class Database:
                 FOREIGN KEY (user_id) REFERENCES users (id)
             )
         ''')
+
+        # Таблица платежей NOWPayments
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS nowpayments_payments (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                payment_id INTEGER UNIQUE NOT NULL,
+                payment_status TEXT,
+                price_amount REAL,
+                price_currency TEXT,
+                pay_amount REAL,
+                pay_currency TEXT,
+                pay_address TEXT,
+                order_id TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users (id)
+            )
+        ''')
         
         # Индексы для быстрого поиска
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_transactions_user_id ON transactions(user_id)')
@@ -123,6 +142,7 @@ class Database:
         cursor.execute('CREATE UNIQUE INDEX IF NOT EXISTS idx_shared_owner ON shared_wallets(owner_id)')
         cursor.execute('CREATE UNIQUE INDEX IF NOT EXISTS idx_shared_member ON shared_wallets(member_id)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_subscriptions_user_id ON subscriptions(user_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_nowpayments_user_id ON nowpayments_payments(user_id)')
         
         self.conn.commit()
         print("✅ Tables ready")
@@ -493,6 +513,43 @@ class Database:
             ''', (owner_id, 1 if active else 0))
         self.conn.commit()
         return True
+
+    def create_nowpayment(self, user_id, payment_id, status, price_amount, price_currency, pay_amount, pay_currency, pay_address, order_id):
+        cursor = self.conn.cursor()
+        owner_id = self._resolve_owner_id(user_id)
+        cursor.execute('''
+            INSERT OR REPLACE INTO nowpayments_payments
+            (user_id, payment_id, payment_status, price_amount, price_currency, pay_amount, pay_currency, pay_address, order_id, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        ''', (owner_id, payment_id, status, price_amount, price_currency, pay_amount, pay_currency, pay_address, order_id))
+        self.conn.commit()
+        return True
+
+    def update_nowpayment_status(self, payment_id, status):
+        cursor = self.conn.cursor()
+        cursor.execute('''
+            UPDATE nowpayments_payments SET payment_status = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE payment_id = ?
+        ''', (status, payment_id))
+        self.conn.commit()
+        return True
+
+    def get_nowpayment(self, payment_id):
+        cursor = self.conn.cursor()
+        cursor.execute('''
+            SELECT * FROM nowpayments_payments WHERE payment_id = ?
+        ''', (payment_id,))
+        return cursor.fetchone()
+
+    def get_latest_nowpayment(self, user_id):
+        cursor = self.conn.cursor()
+        owner_id = self._resolve_owner_id(user_id)
+        cursor.execute('''
+            SELECT * FROM nowpayments_payments
+            WHERE user_id = ?
+            ORDER BY id DESC LIMIT 1
+        ''', (owner_id,))
+        return cursor.fetchone()
     
     def update_user_currency(self, user_id, currency):
         cursor = self.conn.cursor()

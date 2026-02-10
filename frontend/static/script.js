@@ -34,6 +34,15 @@ let marketChartState = { market: '', id: '', range: '1m' };
 let sharedWalletState = { status: 'none', code: '', link: '' };
 let pendingInviteCode = null;
 let subscriptionActive = false;
+let subscriptionPayment = {
+    paymentId: null,
+    status: '',
+    address: '',
+    amount: '',
+    currency: '',
+    invoiceUrl: ''
+};
+let subscriptionPoller = null;
 const marketCacheKey = (market, kind) => `market_cache_${market}_${kind}`;
 const marketChartCacheKey = (market, id, range) => `market_chart_${market}_${id}_${range}`;
 
@@ -408,6 +417,10 @@ async function initUser() {
         categoryStats = data.category_stats || { income: {}, expense: {}, wallets: {} };
         allTransactions = data.recent_transactions || [];
         subscriptionActive = !!data.subscription_active;
+        if (subscriptionActive) {
+            subscriptionPayment = { paymentId: null, status: '', address: '', amount: '', currency: '', invoiceUrl: '' };
+            try { localStorage.removeItem('subscription_payment'); } catch {}
+        }
         
         // Обновляем отображение
         updateCurrencyDisplay();
@@ -1168,35 +1181,169 @@ function openSharedWallet() {
 function openSubscriptionModal() {
     const modal = document.getElementById('subscription-modal');
     if (modal) modal.classList.add('active');
+    loadSubscriptionState();
+    updateSubscriptionUI();
+    startSubscriptionPolling();
 }
 
 function closeSubscriptionModal() {
     const modal = document.getElementById('subscription-modal');
     if (modal) modal.classList.remove('active');
+    stopSubscriptionPolling();
 }
 
 function copySubscriptionAddress() {
-    const address = 'TJc9xPuVjWCBoj4aWbWsnmJJpS9VMCUyEi';
-    navigator.clipboard?.writeText(address).then(() => {
+    if (!subscriptionPayment.address) return;
+    navigator.clipboard?.writeText(subscriptionPayment.address).then(() => {
         showNotification('Адрес скопирован', 'success');
     });
 }
 
-async function confirmSubscriptionPayment() {
+function copySubscriptionAmount() {
+    if (!subscriptionPayment.amount) return;
+    navigator.clipboard?.writeText(subscriptionPayment.amount).then(() => {
+        showNotification('Сумма скопирована', 'success');
+    });
+}
+
+function openSubscriptionInvoice() {
+    if (!subscriptionPayment.invoiceUrl) return;
+    if (window.Telegram && Telegram.WebApp && Telegram.WebApp.openLink) {
+        Telegram.WebApp.openLink(subscriptionPayment.invoiceUrl);
+        return;
+    }
+    window.open(subscriptionPayment.invoiceUrl, '_blank');
+}
+
+function loadSubscriptionState() {
+    try {
+        const raw = localStorage.getItem('subscription_payment');
+        if (!raw) return;
+        const parsed = JSON.parse(raw);
+        subscriptionPayment = { ...subscriptionPayment, ...parsed };
+    } catch {}
+}
+
+function saveSubscriptionState() {
+    try {
+        localStorage.setItem('subscription_payment', JSON.stringify(subscriptionPayment));
+    } catch {}
+}
+
+function updateSubscriptionUI() {
+    const statusEl = document.getElementById('subscription-status');
+    const addressWrap = document.getElementById('subscription-address-wrap');
+    const amountWrap = document.getElementById('subscription-amount-wrap');
+    const addressEl = document.getElementById('subscription-address');
+    const amountEl = document.getElementById('subscription-amount');
+    const createBtn = document.querySelector('.subscription-confirm');
+    const copyAddrBtn = document.getElementById('subscription-copy-address');
+    const copyAmtBtn = document.getElementById('subscription-copy-amount');
+    const openInvoiceBtn = document.getElementById('subscription-open-invoice');
+    const checkBtn = document.getElementById('subscription-check');
+    if (subscriptionActive) {
+        if (statusEl) statusEl.textContent = 'Подписка активна.';
+        if (createBtn) createBtn.style.display = 'none';
+        if (addressWrap) addressWrap.style.display = 'none';
+        if (amountWrap) amountWrap.style.display = 'none';
+        if (copyAddrBtn) copyAddrBtn.style.display = 'none';
+        if (copyAmtBtn) copyAmtBtn.style.display = 'none';
+        if (openInvoiceBtn) openInvoiceBtn.style.display = 'none';
+        if (checkBtn) checkBtn.style.display = 'none';
+        return;
+    }
+    if (statusEl) statusEl.textContent = formatSubscriptionStatus(subscriptionPayment.status) || 'Создайте оплату';
+    if (addressEl) addressEl.textContent = subscriptionPayment.address || '';
+    if (amountEl) amountEl.textContent = subscriptionPayment.amount ? `${subscriptionPayment.amount} ${subscriptionPayment.currency}` : '';
+    const hasPayment = !!subscriptionPayment.paymentId;
+    if (addressWrap) addressWrap.style.display = hasPayment ? 'block' : 'none';
+    if (amountWrap) amountWrap.style.display = hasPayment ? 'block' : 'none';
+    if (createBtn) createBtn.style.display = hasPayment ? 'none' : 'flex';
+    if (copyAddrBtn) copyAddrBtn.style.display = hasPayment ? 'flex' : 'none';
+    if (copyAmtBtn) copyAmtBtn.style.display = hasPayment ? 'flex' : 'none';
+    if (openInvoiceBtn) openInvoiceBtn.style.display = subscriptionPayment.invoiceUrl ? 'flex' : 'none';
+    if (checkBtn) checkBtn.style.display = hasPayment ? 'flex' : 'none';
+}
+
+function formatSubscriptionStatus(status) {
+    const map = {
+        waiting: 'Ожидает оплаты',
+        confirming: 'Подтверждение оплаты',
+        confirmed: 'Подтверждено сетью',
+        sending: 'Отправка средств',
+        partially_paid: 'Частичная оплата',
+        finished: 'Оплата завершена',
+        failed: 'Платёж отменён',
+        expired: 'Счёт истёк'
+    };
+    return map[status] || status;
+}
+
+async function createNowPayment() {
     if (!currentUser) return;
     try {
-        const res = await fetch('/api/subscription/activate', {
+        const res = await fetch('/api/subscription/nowpayments/create', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ user_id: currentUser.id })
         });
         const data = await res.json();
         if (data.error) throw new Error(data.error);
-        subscriptionActive = true;
-        showNotification('Подписка активирована', 'success');
-        closeSubscriptionModal();
+        if (data.active) {
+            subscriptionActive = true;
+            updateSubscriptionUI();
+            return;
+        }
+        subscriptionPayment = {
+            paymentId: data.payment_id || null,
+            status: data.payment_status || 'Ожидает оплаты',
+            address: data.pay_address || '',
+            amount: data.pay_amount ? String(data.pay_amount) : '',
+            currency: (data.pay_currency || '').toUpperCase(),
+            invoiceUrl: data.invoice_url || ''
+        };
+        saveSubscriptionState();
+        updateSubscriptionUI();
+        startSubscriptionPolling();
     } catch (e) {
-        showNotification('Не удалось активировать', 'error');
+        showNotification('Не удалось создать оплату', 'error');
+    }
+}
+
+async function checkSubscriptionStatus() {
+    if (!subscriptionPayment.paymentId) return;
+    try {
+        const res = await fetch(`/api/subscription/nowpayments/status?payment_id=${subscriptionPayment.paymentId}`);
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+        subscriptionPayment.status = data.payment_status || subscriptionPayment.status;
+        if (data.active) {
+            subscriptionActive = true;
+            subscriptionPayment = { paymentId: null, status: '', address: '', amount: '', currency: '', invoiceUrl: '' };
+            saveSubscriptionState();
+            showNotification('Подписка активирована', 'success');
+            updateSubscriptionUI();
+            return;
+        }
+        saveSubscriptionState();
+        updateSubscriptionUI();
+    } catch (e) {
+        showNotification('Не удалось проверить оплату', 'error');
+    }
+}
+
+function startSubscriptionPolling() {
+    if (subscriptionPoller) return;
+    if (!subscriptionPayment.paymentId || subscriptionActive) return;
+    subscriptionPoller = setInterval(() => {
+        checkSubscriptionStatus();
+    }, 15000);
+}
+
+function stopSubscriptionPolling() {
+    if (subscriptionPoller) {
+        clearInterval(subscriptionPoller);
+        subscriptionPoller = null;
     }
 }
 
@@ -4098,7 +4245,10 @@ window.closeMarketModal = closeMarketModal;
 window.openSubscriptionModal = openSubscriptionModal;
 window.closeSubscriptionModal = closeSubscriptionModal;
 window.copySubscriptionAddress = copySubscriptionAddress;
-window.confirmSubscriptionPayment = confirmSubscriptionPayment;
+window.createNowPayment = createNowPayment;
+window.checkSubscriptionStatus = checkSubscriptionStatus;
+window.openSubscriptionInvoice = openSubscriptionInvoice;
+window.copySubscriptionAmount = copySubscriptionAmount;
 window.grantSubscriptionManual = grantSubscriptionManual;
 window.openSharedWallet = openSharedWallet;
 window.closeSharedWallet = closeSharedWallet;

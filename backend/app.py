@@ -3,6 +3,9 @@ import os
 import sys
 import random
 import string
+import hmac
+import hashlib
+import json
 from flask import Flask, render_template, jsonify, request, send_from_directory
 from flask_cors import CORS
 from dotenv import load_dotenv
@@ -25,6 +28,8 @@ app.secret_key = os.getenv('SECRET_KEY', 'dev-secret-key-123')
 
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 WEBHOOK_URL = os.getenv('WEBHOOK_URL', 'https://telegram-finance-bot-1-8zea.onrender.com')
+NOWPAYMENTS_API_KEY = os.getenv('NOWPAYMENTS_API_KEY', '')
+NOWPAYMENTS_IPN_SECRET = os.getenv('NOWPAYMENTS_IPN_SECRET', '')
 
 print(f"🚀 Starting Flask app (iOS 26 Version)")
 
@@ -40,6 +45,13 @@ MARKET_CACHE_TTL = int(os.getenv('MARKET_CACHE_TTL', '900'))  # seconds
 def generate_invite_code(length=7):
     alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
     return ''.join(random.choice(alphabet) for _ in range(length))
+
+def sort_payload(value):
+    if isinstance(value, dict):
+        return {k: sort_payload(value[k]) for k in sorted(value.keys())}
+    if isinstance(value, list):
+        return [sort_payload(v) for v in value]
+    return value
 
 def _load_persisted_entry(key):
     if key not in PERSIST_KEYS:
@@ -484,8 +496,12 @@ def subscription_activate():
     try:
         data = request.json or {}
         user_id = data.get('user_id')
+        admin_key = data.get('admin_key', '')
         if not user_id:
             return jsonify({'error': 'Missing user_id'}), 400
+        secret = os.getenv('ADMIN_SECRET')
+        if not secret or admin_key != secret:
+            return jsonify({'error': 'Forbidden'}), 403
         if not db:
             return jsonify({'error': 'Database error'}), 500
         db.set_subscription_active(user_id, True)
@@ -511,6 +527,139 @@ def subscription_grant():
         return jsonify({'success': True})
     except Exception as e:
         print(f"Subscription grant error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/subscription/nowpayments/create', methods=['POST'])
+def nowpayments_create():
+    try:
+        data = request.json or {}
+        user_id = data.get('user_id')
+        if not user_id:
+            return jsonify({'error': 'Missing user_id'}), 400
+        if not db:
+            return jsonify({'error': 'Database error'}), 500
+        if db.get_subscription_status(user_id):
+            return jsonify({'active': True})
+        if not NOWPAYMENTS_API_KEY:
+            return jsonify({'error': 'NOWPAYMENTS_API_KEY is not set'}), 500
+
+        latest = db.get_latest_nowpayment(user_id)
+        if latest and latest['payment_status'] in ('waiting', 'confirming', 'partially_paid'):
+            return jsonify({
+                'payment_id': latest['payment_id'],
+                'payment_status': latest['payment_status'],
+                'pay_address': latest['pay_address'],
+                'pay_amount': latest['pay_amount'],
+                'pay_currency': latest['pay_currency'],
+                'invoice_url': ''
+            })
+
+        order_id = f"sub_{user_id}_{int(datetime.utcnow().timestamp())}"
+        ipn_url = f"{request.host_url.rstrip('/')}/api/nowpayments/ipn"
+        payload = {
+            'price_amount': 2.5,
+            'price_currency': 'usd',
+            'pay_currency': 'usdttrc20',
+            'order_id': order_id,
+            'order_description': 'Subscription',
+            'ipn_callback_url': ipn_url
+        }
+        resp = requests.post(
+            'https://api.nowpayments.io/v1/payment',
+            headers={'x-api-key': NOWPAYMENTS_API_KEY, 'Content-Type': 'application/json'},
+            data=json.dumps(payload),
+            timeout=15
+        )
+        if resp.status_code >= 400:
+            return jsonify({'error': 'NOWPayments error'}), 502
+        payment = resp.json()
+        payment_id = payment.get('payment_id')
+        if not payment_id:
+            return jsonify({'error': 'NOWPayments invalid response'}), 502
+        db.create_nowpayment(
+            user_id,
+            int(payment_id),
+            payment.get('payment_status', 'waiting'),
+            payment.get('price_amount'),
+            payment.get('price_currency'),
+            payment.get('pay_amount'),
+            payment.get('pay_currency'),
+            payment.get('pay_address'),
+            order_id
+        )
+        return jsonify({
+            'payment_id': payment_id,
+            'payment_status': payment.get('payment_status', 'waiting'),
+            'pay_address': payment.get('pay_address', ''),
+            'pay_amount': payment.get('pay_amount', ''),
+            'pay_currency': payment.get('pay_currency', ''),
+            'invoice_url': payment.get('invoice_url', '')
+        })
+    except Exception as e:
+        print(f"NowPayments create error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/subscription/nowpayments/status')
+def nowpayments_status():
+    try:
+        payment_id = request.args.get('payment_id', type=int)
+        if not payment_id:
+            return jsonify({'error': 'Missing payment_id'}), 400
+        if not db:
+            return jsonify({'error': 'Database error'}), 500
+        payment = db.get_nowpayment(payment_id)
+        if payment and payment['payment_status'] in ('finished', 'confirmed'):
+            db.set_subscription_active(payment['user_id'], True)
+            return jsonify({'payment_status': payment['payment_status'], 'active': True})
+        if not NOWPAYMENTS_API_KEY:
+            status = payment['payment_status'] if payment else 'unknown'
+            return jsonify({'payment_status': status})
+        resp = requests.get(
+            f'https://api.nowpayments.io/v1/payment/{payment_id}',
+            headers={'x-api-key': NOWPAYMENTS_API_KEY},
+            timeout=15
+        )
+        if resp.status_code >= 400:
+            status = payment['payment_status'] if payment else 'unknown'
+            return jsonify({'payment_status': status})
+        remote = resp.json()
+        status = remote.get('payment_status', '')
+        if status:
+            db.update_nowpayment_status(payment_id, status)
+        if payment and status in ('finished', 'confirmed'):
+            db.set_subscription_active(payment['user_id'], True)
+            return jsonify({'payment_status': status, 'active': True})
+        return jsonify({'payment_status': status})
+    except Exception as e:
+        print(f"NowPayments status error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/nowpayments/ipn', methods=['POST'])
+def nowpayments_ipn():
+    try:
+        if not NOWPAYMENTS_IPN_SECRET:
+            return jsonify({'error': 'IPN secret not set'}), 500
+        signature = request.headers.get('x-nowpayments-sig', '')
+        raw = request.get_data(as_text=True)
+        try:
+            payload = json.loads(raw) if raw else {}
+        except Exception:
+            return jsonify({'error': 'Invalid JSON'}), 400
+        sorted_payload = sort_payload(payload)
+        sorted_json = json.dumps(sorted_payload, separators=(',', ':'), ensure_ascii=False)
+        check = hmac.new(NOWPAYMENTS_IPN_SECRET.encode(), sorted_json.encode(), hashlib.sha512).hexdigest()
+        if not hmac.compare_digest(check, signature):
+            return jsonify({'error': 'Invalid signature'}), 400
+        payment_id = payload.get('payment_id')
+        status = payload.get('payment_status')
+        if payment_id:
+            db.update_nowpayment_status(int(payment_id), status)
+            payment = db.get_nowpayment(int(payment_id))
+            if payment and status in ('finished', 'confirmed'):
+                db.set_subscription_active(payment['user_id'], True)
+        return jsonify({'success': True})
+    except Exception as e:
+        print(f"NowPayments IPN error: {e}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/transaction', methods=['POST'])
