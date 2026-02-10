@@ -526,14 +526,17 @@ def subscription_grant():
     try:
         data = request.json or {}
         user_id = data.get('user_id')
+        username = (data.get('username') or '').lstrip('@').strip()
         admin_key = data.get('admin_key', '')
-        if not user_id:
-            return jsonify({'error': 'Missing user_id'}), 400
         secret = os.getenv('ADMIN_SECRET')
         if not secret or admin_key != secret:
             return jsonify({'error': 'Forbidden'}), 403
         if not db:
             return jsonify({'error': 'Database error'}), 500
+        if not user_id and username:
+            user_id = db.get_user_id_by_username(username)
+        if not user_id:
+            return jsonify({'error': 'User not found'}), 404
         db.set_subscription_active(user_id, True)
         return jsonify({'success': True})
     except Exception as e:

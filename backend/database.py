@@ -216,6 +216,14 @@ class Database:
         ''', (session_token,))
         return cursor.fetchone()
 
+    def get_user_id_by_username(self, username):
+        cursor = self.conn.cursor()
+        cursor.execute('''
+            SELECT id FROM users WHERE lower(username) = lower(?)
+        ''', (username,))
+        row = cursor.fetchone()
+        return row['id'] if row else None
+
     def _resolve_owner_id(self, user_id):
         cursor = self.conn.cursor()
         cursor.execute('''

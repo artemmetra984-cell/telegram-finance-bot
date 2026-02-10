@@ -1268,8 +1268,8 @@ function updateSubscriptionUI() {
     if (openInvoiceBtn) openInvoiceBtn.style.display = subscriptionPayment.invoiceUrl ? 'flex' : 'none';
     if (checkBtn) checkBtn.style.display = hasInvoice ? 'flex' : 'none';
     if (adminBlock) adminBlock.style.display = isAdminUser() ? 'block' : 'none';
-    const userIdEl = document.getElementById('subscription-user-id');
-    if (userIdEl) userIdEl.textContent = currentUser?.id ? String(currentUser.id) : '—';
+    const userNameEl = document.getElementById('subscription-user-name');
+    if (userNameEl) userNameEl.textContent = currentUser?.username ? '@' + currentUser.username : '—';
 }
 
 function formatSubscriptionStatus(status) {
@@ -1366,18 +1366,20 @@ async function grantSubscriptionManual() {
         return;
     }
     const rawUser = document.getElementById('subscription-admin-user')?.value || '';
-    const match = rawUser.match(/\d+/);
-    const userId = match ? parseInt(match[0], 10) : 0;
+    const trimmed = rawUser.trim();
+    const username = trimmed.replace('@', '').trim();
+    const match = trimmed.match(/^\d+$/);
+    const userId = match ? parseInt(trimmed, 10) : 0;
     const adminKey = document.getElementById('subscription-admin-key')?.value || '';
-    if (!userId || !adminKey) {
-        showNotification('Введите ID и ключ', 'error');
+    if ((!userId && !username) || !adminKey) {
+        showNotification('Введите ID/username и ключ', 'error');
         return;
     }
     try {
         const res = await fetch('/api/subscription/grant', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ user_id: userId, admin_key: adminKey })
+            body: JSON.stringify({ user_id: userId || undefined, username: userId ? undefined : username, admin_key: adminKey })
         });
         const data = await res.json();
         if (data.error) throw new Error(data.error);
@@ -1392,10 +1394,10 @@ function isAdminUser() {
     return name === 'artem_katsay';
 }
 
-function prefillAdminUserId() {
+function prefillAdminUsername() {
     const input = document.getElementById('subscription-admin-user');
-    if (input && currentUser?.id) {
-        input.value = String(currentUser.id);
+    if (input && currentUser?.username) {
+        input.value = '@' + currentUser.username;
     }
 }
 
@@ -4281,7 +4283,7 @@ window.checkSubscriptionStatus = checkSubscriptionStatus;
 window.openSubscriptionInvoice = openSubscriptionInvoice;
 window.copySubscriptionAmount = copySubscriptionAmount;
 window.grantSubscriptionManual = grantSubscriptionManual;
-window.prefillAdminUserId = prefillAdminUserId;
+window.prefillAdminUsername = prefillAdminUsername;
 window.openSharedWallet = openSharedWallet;
 window.closeSharedWallet = closeSharedWallet;
 window.copySharedCode = copySharedCode;

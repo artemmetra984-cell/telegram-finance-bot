@@ -693,13 +693,13 @@
 
                     <div class="subscription-admin" id="subscription-admin">
                         <div class="subscription-admin-title">Админ доступ</div>
-                        <div class="subscription-admin-note">Ваш ID: <span id="subscription-user-id">—</span></div>
-                        <button class="service-link service-link-compact" onclick="prefillAdminUserId()">
-                            <span>Использовать мой ID</span>
+                        <div class="subscription-admin-note">Ваш username: <span id="subscription-user-name">—</span></div>
+                        <button class="service-link service-link-compact" onclick="prefillAdminUsername()">
+                            <span>Использовать мой username</span>
                             <span class="service-link-arrow">→</span>
                         </button>
                         <div class="subscription-admin-form">
-                            <input class="form-input" id="subscription-admin-user" placeholder="User ID" />
+                            <input class="form-input" id="subscription-admin-user" placeholder="User ID или @username" />
                             <input class="form-input" id="subscription-admin-key" placeholder="Admin key" />
                             <button class="service-link" onclick="grantSubscriptionManual()">
                                 <span>Выдать подписку</span>
