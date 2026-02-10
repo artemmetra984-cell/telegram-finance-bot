@@ -26,6 +26,7 @@ app = Flask(__name__,
            template_folder=TEMPLATE_DIR)
 CORS(app)
 app.secret_key = os.getenv('SECRET_KEY', 'dev-secret-key-123')
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 WEBHOOK_URL = os.getenv('WEBHOOK_URL', 'https://telegram-finance-bot-1-8zea.onrender.com')
@@ -238,6 +239,18 @@ def cache_get(key, allow_stale=False):
 def cache_set(key, data):
     MARKET_CACHE[key] = {'ts': datetime.utcnow(), 'data': data}
     _persist_entry(key, data)
+
+@app.after_request
+def add_cache_headers(response):
+    try:
+        path = request.path or ''
+        if path == '/' or path.endswith('.html') or path.endswith('.js') or path.endswith('.css') or path.endswith('.json'):
+            response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+            response.headers['Pragma'] = 'no-cache'
+            response.headers['Expires'] = '0'
+    except Exception:
+        pass
+    return response
 
 def fetch_yahoo_movers(move_type):
     try:

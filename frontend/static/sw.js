@@ -1,4 +1,4 @@
-const CACHE_NAME = 'finance-pwa-v4';
+const CACHE_NAME = 'finance-pwa-v5';
 const CORE_ASSETS = [
   '/static/style.css',
   '/static/manifest.json',

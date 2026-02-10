@@ -315,12 +315,24 @@ document.addEventListener('DOMContentLoaded', async () => {
         try {
             const url = new URL(window.location.href);
             const ver = url.searchParams.get('v');
-            if (ver !== '4') {
-                url.searchParams.set('v', '4');
+            if (ver !== '5') {
+                url.searchParams.set('v', '5');
                 window.location.replace(url.toString());
                 return;
             }
         } catch {}
+        if ('serviceWorker' in navigator) {
+            const forced = localStorage.getItem('sw_force_v5');
+            if (!forced) {
+                navigator.serviceWorker.getRegistrations().then((regs) => {
+                    regs.forEach((reg) => reg.unregister());
+                }).catch(() => {});
+                if (window.caches && caches.keys) {
+                    caches.keys().then((keys) => keys.forEach((key) => caches.delete(key))).catch(() => {});
+                }
+                localStorage.setItem('sw_force_v5', '1');
+            }
+        }
         initInviteFromUrl();
         // Восстанавливаем сессию
         sessionToken = localStorage.getItem('finance_session_token');
@@ -336,7 +348,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         updateCurrencyDisplay();
         setupAddButton();
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/sw.js?v=4', { updateViaCache: 'none' }).then((reg) => {
+            navigator.serviceWorker.register('/sw.js?v=5', { updateViaCache: 'none' }).then((reg) => {
                 reg.update().catch(() => {});
             }).catch(() => {});
         }
@@ -1242,6 +1254,12 @@ function loadSubscriptionState() {
             subscriptionAsset = parsed.asset;
         }
     } catch {}
+    try {
+        const savedAsset = localStorage.getItem('subscription_asset');
+        if (savedAsset) {
+            subscriptionAsset = savedAsset.toUpperCase() === 'TON' ? 'TON' : 'USDT';
+        }
+    } catch {}
 }
 
 function saveSubscriptionState() {
@@ -1323,6 +1341,7 @@ function getSubscriptionInvoiceUrl() {
 function setSubscriptionAsset(asset) {
     subscriptionAsset = asset === 'TON' ? 'TON' : 'USDT';
     subscriptionPayment.asset = subscriptionAsset;
+    try { localStorage.setItem('subscription_asset', subscriptionAsset); } catch {}
     saveSubscriptionState();
     updateSubscriptionUI();
 }
