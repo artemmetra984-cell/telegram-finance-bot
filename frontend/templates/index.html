@@ -457,6 +457,14 @@
                         </button>
                     </div>
 
+                    <!-- Подписка -->
+                    <div class="service-card">
+                        <button class="service-link service-link-compact" onclick="openSubscriptionModal()">
+                            <span>Подписка</span>
+                            <span class="service-link-arrow">→</span>
+                        </button>
+                    </div>
+
                 </div>
             </div>
 
@@ -635,6 +643,47 @@
                             <span>Отключиться</span>
                             <span class="service-link-arrow">→</span>
                         </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Модалка: подписка -->
+        <div id="subscription-modal" class="modal-overlay">
+            <div class="modal-content subscription-modal">
+                <div class="article-modal-header">
+                    <div class="article-modal-title">Подписка</div>
+                    <button class="article-close" onclick="closeSubscriptionModal()">✕</button>
+                </div>
+                <div class="article-modal-body">
+                    <div class="subscription-card">
+                        <div class="subscription-title">Полный доступ</div>
+                        <div class="subscription-price">$2.5</div>
+                        <div class="subscription-note">Оплата в USDT (TRC20)</div>
+                        <div class="subscription-address">
+                            <div class="subscription-address-label">Адрес</div>
+                            <div class="subscription-address-value" id="subscription-address">TJc9xPuVjWCBoj4aWbWsnmJJpS9VMCUyEi</div>
+                        </div>
+                        <button class="service-link subscription-copy" onclick="copySubscriptionAddress()">
+                            <span>Скопировать адрес</span>
+                            <span class="service-link-arrow">→</span>
+                        </button>
+                        <button class="service-link subscription-confirm" onclick="confirmSubscriptionPayment()">
+                            <span>Я оплатил</span>
+                            <span class="service-link-arrow">→</span>
+                        </button>
+                    </div>
+
+                    <div class="subscription-admin">
+                        <div class="subscription-admin-title">Админ доступ</div>
+                        <div class="subscription-admin-form">
+                            <input class="form-input" id="subscription-admin-user" placeholder="User ID" />
+                            <input class="form-input" id="subscription-admin-key" placeholder="Admin key" />
+                            <button class="service-link" onclick="grantSubscriptionManual()">
+                                <span>Выдать подписку</span>
+                                <span class="service-link-arrow">→</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>

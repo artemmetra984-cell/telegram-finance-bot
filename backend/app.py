@@ -294,6 +294,7 @@ def init_user():
         if db:
             stats = db.get_user_stats(user_id)
             default_wallet = db.get_effective_default_wallet(user_id)
+            subscription_active = db.get_subscription_status(user_id)
             
             categories = {'income': [], 'expense': [], 'savings': []}
             all_categories = db.get_categories(user_id)
@@ -363,6 +364,7 @@ def init_user():
             total_transactions = 0
             currency = 'RUB'
             default_wallet = 'Наличные'
+            subscription_active = False
         
         return jsonify({
             'user_id': user_id,
@@ -380,7 +382,8 @@ def init_user():
             'recent_transactions': recent_transactions,
             'total_transactions': total_transactions,
             'currency': currency,
-            'default_wallet': default_wallet
+            'default_wallet': default_wallet,
+            'subscription_active': subscription_active
         })
     except Exception as e:
         print(f"Init error: {e}")
@@ -476,6 +479,40 @@ def shared_wallet_leave():
         print(f"Shared leave error: {e}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/subscription/activate', methods=['POST'])
+def subscription_activate():
+    try:
+        data = request.json or {}
+        user_id = data.get('user_id')
+        if not user_id:
+            return jsonify({'error': 'Missing user_id'}), 400
+        if not db:
+            return jsonify({'error': 'Database error'}), 500
+        db.set_subscription_active(user_id, True)
+        return jsonify({'success': True})
+    except Exception as e:
+        print(f"Subscription activate error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/subscription/grant', methods=['POST'])
+def subscription_grant():
+    try:
+        data = request.json or {}
+        user_id = data.get('user_id')
+        admin_key = data.get('admin_key', '')
+        if not user_id:
+            return jsonify({'error': 'Missing user_id'}), 400
+        secret = os.getenv('ADMIN_SECRET')
+        if not secret or admin_key != secret:
+            return jsonify({'error': 'Forbidden'}), 403
+        if not db:
+            return jsonify({'error': 'Database error'}), 500
+        db.set_subscription_active(user_id, True)
+        return jsonify({'success': True})
+    except Exception as e:
+        print(f"Subscription grant error: {e}")
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/transaction', methods=['POST'])
 def add_transaction():
     try:
@@ -489,6 +526,9 @@ def add_transaction():
         
         if not all([user_id, trans_type, amount, category]):
             return jsonify({'error': 'Missing fields'}), 400
+
+        if db and not db.get_subscription_status(user_id):
+            return jsonify({'error': 'subscription_required'}), 402
         
         if trans_type not in ['income', 'expense']:
             return jsonify({'error': 'Invalid type'}), 400

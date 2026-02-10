@@ -101,6 +101,17 @@ class Database:
                 FOREIGN KEY (member_id) REFERENCES users (id)
             )
         ''')
+
+        # Таблица подписок
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS subscriptions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER UNIQUE NOT NULL,
+                active INTEGER DEFAULT 0,
+                activated_at TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users (id)
+            )
+        ''')
         
         # Индексы для быстрого поиска
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_transactions_user_id ON transactions(user_id)')
@@ -111,6 +122,7 @@ class Database:
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_goals_user_id ON goals(user_id)')
         cursor.execute('CREATE UNIQUE INDEX IF NOT EXISTS idx_shared_owner ON shared_wallets(owner_id)')
         cursor.execute('CREATE UNIQUE INDEX IF NOT EXISTS idx_shared_member ON shared_wallets(member_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_subscriptions_user_id ON subscriptions(user_id)')
         
         self.conn.commit()
         print("✅ Tables ready")
@@ -458,6 +470,29 @@ class Database:
         cursor.execute('SELECT default_wallet FROM users WHERE id = ?', (owner_id,))
         result = cursor.fetchone()
         return result['default_wallet'] if result and result['default_wallet'] else 'Наличные'
+
+    def get_subscription_status(self, user_id):
+        cursor = self.conn.cursor()
+        owner_id = self._resolve_owner_id(user_id)
+        cursor.execute('SELECT active FROM subscriptions WHERE user_id = ?', (owner_id,))
+        row = cursor.fetchone()
+        return bool(row['active']) if row else False
+
+    def set_subscription_active(self, user_id, active=True):
+        cursor = self.conn.cursor()
+        owner_id = self._resolve_owner_id(user_id)
+        cursor.execute('SELECT id FROM subscriptions WHERE user_id = ?', (owner_id,))
+        if cursor.fetchone():
+            cursor.execute('''
+                UPDATE subscriptions SET active = ?, activated_at = CURRENT_TIMESTAMP WHERE user_id = ?
+            ''', (1 if active else 0, owner_id))
+        else:
+            cursor.execute('''
+                INSERT INTO subscriptions (user_id, active, activated_at)
+                VALUES (?, ?, CURRENT_TIMESTAMP)
+            ''', (owner_id, 1 if active else 0))
+        self.conn.commit()
+        return True
     
     def update_user_currency(self, user_id, currency):
         cursor = self.conn.cursor()

@@ -33,6 +33,7 @@ let marketRangeInitialized = false;
 let marketChartState = { market: '', id: '', range: '1m' };
 let sharedWalletState = { status: 'none', code: '', link: '' };
 let pendingInviteCode = null;
+let subscriptionActive = false;
 const marketCacheKey = (market, kind) => `market_cache_${market}_${kind}`;
 const marketChartCacheKey = (market, id, range) => `market_chart_${market}_${id}_${range}`;
 
@@ -382,9 +383,9 @@ async function initUser() {
             })
         });
         
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-        const data = await response.json();
-        if (data.error) throw new Error(data.error);
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    const data = await response.json();
+    if (data.error) throw new Error(data.error);
         
         currentUser = {
             id: data.user_id,
@@ -406,6 +407,7 @@ async function initUser() {
         goalsData = data.goals || [];
         categoryStats = data.category_stats || { income: {}, expense: {}, wallets: {} };
         allTransactions = data.recent_transactions || [];
+        subscriptionActive = !!data.subscription_active;
         
         // Обновляем отображение
         updateCurrencyDisplay();
@@ -1161,6 +1163,62 @@ function openSharedWallet() {
     const modal = document.getElementById('shared-wallet-modal');
     if (modal) modal.classList.add('active');
     loadSharedWalletStatus();
+}
+
+function openSubscriptionModal() {
+    const modal = document.getElementById('subscription-modal');
+    if (modal) modal.classList.add('active');
+}
+
+function closeSubscriptionModal() {
+    const modal = document.getElementById('subscription-modal');
+    if (modal) modal.classList.remove('active');
+}
+
+function copySubscriptionAddress() {
+    const address = 'TJc9xPuVjWCBoj4aWbWsnmJJpS9VMCUyEi';
+    navigator.clipboard?.writeText(address).then(() => {
+        showNotification('Адрес скопирован', 'success');
+    });
+}
+
+async function confirmSubscriptionPayment() {
+    if (!currentUser) return;
+    try {
+        const res = await fetch('/api/subscription/activate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_id: currentUser.id })
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+        subscriptionActive = true;
+        showNotification('Подписка активирована', 'success');
+        closeSubscriptionModal();
+    } catch (e) {
+        showNotification('Не удалось активировать', 'error');
+    }
+}
+
+async function grantSubscriptionManual() {
+    const userId = parseInt(document.getElementById('subscription-admin-user')?.value || '0', 10);
+    const adminKey = document.getElementById('subscription-admin-key')?.value || '';
+    if (!userId || !adminKey) {
+        showNotification('Введите ID и ключ', 'error');
+        return;
+    }
+    try {
+        const res = await fetch('/api/subscription/grant', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_id: userId, admin_key: adminKey })
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+        showNotification('Подписка выдана', 'success');
+    } catch (e) {
+        showNotification('Ошибка выдачи', 'error');
+    }
 }
 
 function closeSharedWallet() {
@@ -2685,6 +2743,10 @@ async function selectDefaultWallet(walletName) {
 // ==================== //
 
 function showAddTransactionModal(prefilledCategory = null) {
+    if (!subscriptionActive) {
+        openSubscriptionModal();
+        return;
+    }
     const modal = document.getElementById('add-transaction-modal');
     if (!modal) return;
     
@@ -2991,7 +3053,14 @@ async function submitTransaction(e) {
         
         const data = await response.json();
         
-        if (data.error) throw new Error(data.error);
+        if (data.error) {
+            if (data.error === 'subscription_required') {
+                closeModal('add-transaction-modal');
+                openSubscriptionModal();
+                return;
+            }
+            throw new Error(data.error);
+        }
         
         // Обновляем данные
         categoryStats = data.category_stats || categoryStats;
@@ -4026,3 +4095,12 @@ window.calculateCompound = calculateCompound;
 window.closeCompoundCalculator = closeCompoundCalculator;
 window.openInvestAll = openInvestAll;
 window.closeMarketModal = closeMarketModal;
+window.openSubscriptionModal = openSubscriptionModal;
+window.closeSubscriptionModal = closeSubscriptionModal;
+window.copySubscriptionAddress = copySubscriptionAddress;
+window.confirmSubscriptionPayment = confirmSubscriptionPayment;
+window.grantSubscriptionManual = grantSubscriptionManual;
+window.openSharedWallet = openSharedWallet;
+window.closeSharedWallet = closeSharedWallet;
+window.copySharedCode = copySharedCode;
+window.copySharedLink = copySharedLink;
