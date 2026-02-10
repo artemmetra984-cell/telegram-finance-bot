@@ -102,28 +102,54 @@ def is_lecryptio_paid(status):
     return status in ('paid', 'success')
 
 def lecryptio_matches_subscription(amount, currency, network):
+    amt_val = amount
+    if isinstance(amount, dict):
+        amt_val = amount.get('fiat') or amount.get('crypto') or amount.get('amount')
+        if amt_val is None:
+            amt_val = amount.get('fiat_amount') or amount.get('crypto_amount')
     try:
-        amt = float(amount) if amount is not None else None
+        amt = float(amt_val) if amt_val is not None else None
     except Exception:
         amt = None
     cur = (currency or '').upper()
     net = (network or '').upper()
+    net = ''.join(ch for ch in net if ch.isalnum())
     if amt is None:
         return False
     return abs(amt - 2.5) < 0.0001 and cur == 'USDT' and net == 'TRC20'
 
-def verify_lecryptio_signature(raw_body, timestamp, signature, secret):
-    if not raw_body or not timestamp or not signature or not secret:
+def lecryptio_signed_headers(body_str):
+    if not LECRYPTIO_API_KEY or not LECRYPTIO_SIGNING_SECRET:
+        return None
+    timestamp = str(int(datetime.utcnow().timestamp()))
+    signing_string = f"{timestamp}.{body_str}"
+    signature = hmac.new(LECRYPTIO_SIGNING_SECRET.encode(), signing_string.encode(), hashlib.sha256).hexdigest()
+    return {
+        'Authorization': f'Bearer {LECRYPTIO_API_KEY}',
+        'X-LC-Timestamp': timestamp,
+        'X-LC-Signature': f'v1={signature}'
+    }
+
+def verify_lecryptio_webhook(raw_body, timestamp_header, signature_header, secret):
+    if not raw_body or not timestamp_header or not signature_header or not secret:
         return False
     try:
-        message = f"{timestamp}.{raw_body}".encode()
-        digest = hmac.new(secret.encode(), message, hashlib.sha256).digest()
-        hex_sig = digest.hex()
-        b64_sig = base64.b64encode(digest).decode()
-        sig = signature.strip()
-        if sig.startswith('sha256='):
-            sig = sig.split('=', 1)[1]
-        return hmac.compare_digest(sig, hex_sig) or hmac.compare_digest(sig, b64_sig)
+        parts = {}
+        for piece in signature_header.split(','):
+            piece = piece.strip()
+            if not piece:
+                continue
+            key, value = (piece.split('=', 1) + [None])[:2]
+            parts[(key or '').strip()] = (value or '').strip()
+        timestamp_sig = parts.get('t')
+        signature = parts.get('v1')
+        if not signature:
+            return False
+        if timestamp_sig and timestamp_sig != timestamp_header:
+            return False
+        signing_string = f"{timestamp_header}.{raw_body}"
+        expected = hmac.new(secret.encode(), signing_string.encode(), hashlib.sha256).hexdigest()
+        return hmac.compare_digest(signature, expected)
     except Exception:
         return False
 
@@ -628,22 +654,28 @@ def lecryptio_create():
             return jsonify({'error': 'Database error'}), 500
         if db.get_subscription_status(user_id):
             return jsonify({'active': True})
-        if not LECRYPTIO_API_KEY:
-            return jsonify({'error': 'LECRYPTIO_API_KEY is not set'}), 500
+        if not LECRYPTIO_API_KEY or not LECRYPTIO_SIGNING_SECRET:
+            return jsonify({'error': 'LECRYPTIO_API_KEY or LECRYPTIO_SIGNING_SECRET is not set'}), 500
 
         order_id = f"sub_{user_id}_{int(datetime.utcnow().timestamp())}"
         payload = {
             'amount': 2.5,
             'currency': 'USDT',
-            'network': 'TRC20',
+            'network': 'TRC-20',
             'order_id': order_id,
             'description': 'Subscription',
             'return_url': request.host_url
         }
+        body_str = json.dumps(payload, separators=(',', ':'), ensure_ascii=False)
+        headers = lecryptio_signed_headers(body_str)
+        if not headers:
+            return jsonify({'error': 'LeCryptio signing config missing'}), 500
+        headers['Content-Type'] = 'application/json'
+        headers['Idempotency-Key'] = order_id
         resp = requests.post(
             'https://api.lecryptio.com/v1/invoices',
-            headers={'Authorization': f'Bearer {LECRYPTIO_API_KEY}', 'Content-Type': 'application/json'},
-            json=payload,
+            headers=headers,
+            data=body_str,
             timeout=15
         )
         if resp.status_code >= 400:
@@ -653,13 +685,13 @@ def lecryptio_create():
         uuid_value = invoice.get('uuid') or invoice.get('id')
         if not uuid_value:
             return jsonify({'error': 'LeCryptio invalid response'}), 502
-        status = invoice.get('status') or 'created'
-        pay_url = invoice.get('payment_url') or invoice.get('checkout_url') or invoice.get('url') or invoice.get('pay_url') or ''
+        status = invoice.get('status') or 'pending'
+        pay_url = invoice.get('checkout_url') or invoice.get('payment_url') or invoice.get('url') or invoice.get('pay_url') or ''
         address = invoice.get('pay_address') or invoice.get('address') or ''
         amount = invoice.get('amount') or payload['amount']
         currency = invoice.get('currency') or payload['currency']
         network = invoice.get('network') or payload['network']
-        order_ref = invoice.get('order_id') or invoice.get('external_id') or order_id
+        order_ref = invoice.get('external_id') or invoice.get('order_id') or order_id
         db.create_lecryptio_invoice(user_id, uuid_value, order_ref, status, amount, currency, network, address, pay_url)
         return jsonify({
             'uuid': uuid_value,
@@ -695,6 +727,37 @@ def lecryptio_status():
             if lecryptio_matches_subscription(invoice['amount'], invoice['currency'], invoice['network']):
                 db.set_subscription_active(invoice['user_id'], True)
                 return jsonify({'status': status, 'active': True})
+
+        if LECRYPTIO_API_KEY and LECRYPTIO_SIGNING_SECRET and uuid_value:
+            headers = lecryptio_signed_headers('')
+            if headers:
+                resp = requests.get(
+                    f'https://api.lecryptio.com/v1/invoices/{uuid_value}/status',
+                    headers=headers,
+                    timeout=15
+                )
+                if resp.status_code < 400:
+                    remote = resp.json() or {}
+                    status = remote.get('status') or status
+                    raw_amount = remote.get('amount')
+                    if isinstance(raw_amount, dict):
+                        amount = raw_amount.get('fiat') or raw_amount.get('crypto') or raw_amount.get('amount')
+                        currency = raw_amount.get('currency') or raw_amount.get('fiat_code') or (invoice['currency'] if invoice else '')
+                        network = raw_amount.get('network') or (invoice['network'] if invoice else '')
+                    else:
+                        amount = raw_amount or (invoice['amount'] if invoice else None)
+                        currency = remote.get('currency') or (invoice['currency'] if invoice else '')
+                        network = remote.get('network') or (invoice['network'] if invoice else '')
+                    pay_url = remote.get('checkout_url') or (invoice['pay_url'] if invoice else '')
+                    order_ref = invoice['order_id'] if invoice else order_id
+                    user_ref = invoice['user_id'] if invoice else parse_user_from_order(order_ref)
+                    if user_ref and uuid_value:
+                        db.create_lecryptio_invoice(user_ref, uuid_value, order_ref, status, amount, currency, network, invoice['address'] if invoice else '', pay_url)
+                        invoice = db.get_lecryptio_invoice(uuid_value)
+        if invoice and is_lecryptio_paid(status):
+            if lecryptio_matches_subscription(invoice['amount'], invoice['currency'], invoice['network']):
+                db.set_subscription_active(invoice['user_id'], True)
+                return jsonify({'status': status, 'active': True})
         return jsonify({'status': status})
     except Exception as e:
         print(f"LeCryptio status error: {e}")
@@ -708,8 +771,8 @@ def lecryptio_webhook():
         raw = request.get_data(as_text=True) or ''
         signature = request.headers.get('X-LeCryptio-Signature', '')
         timestamp = request.headers.get('X-LeCryptio-Timestamp', '')
-        if LECRYPTIO_SIGNING_SECRET:
-            if not verify_lecryptio_signature(raw, timestamp, signature, LECRYPTIO_SIGNING_SECRET):
+        if LECRYPTIO_WEBHOOK_SECRET:
+            if not verify_lecryptio_webhook(raw, timestamp, signature, LECRYPTIO_WEBHOOK_SECRET):
                 return jsonify({'error': 'Invalid signature'}), 400
         payload = request.get_json(silent=True) or {}
         event = payload.get('event') or ''
