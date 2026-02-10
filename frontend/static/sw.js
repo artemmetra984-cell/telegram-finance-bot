@@ -1,6 +1,5 @@
-const CACHE_NAME = 'finance-pwa-v2';
+const CACHE_NAME = 'finance-pwa-v3';
 const CORE_ASSETS = [
-  '/',
   '/static/style.css',
   '/static/manifest.json',
   '/static/icons/app-icon-192.png',
@@ -28,6 +27,19 @@ self.addEventListener('fetch', (event) => {
   if (url.origin !== self.location.origin) return;
   if (url.pathname.startsWith('/api/')) return;
   if (url.pathname === '/static/script.js') return;
+
+  if (request.mode === 'navigate' || url.pathname === '/') {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+          return response;
+        })
+        .catch(() => caches.match(request))
+    );
+    return;
+  }
   event.respondWith(
     caches.match(request).then((cached) => cached || fetch(request).then((response) => {
       const copy = response.clone();
