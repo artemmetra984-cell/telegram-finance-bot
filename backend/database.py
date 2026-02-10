@@ -168,6 +168,25 @@ class Database:
                 FOREIGN KEY (user_id) REFERENCES users (id)
             )
         ''')
+
+        # Таблица счетов Crypto Pay
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS cryptopay_invoices (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                invoice_id INTEGER UNIQUE NOT NULL,
+                status TEXT,
+                asset TEXT,
+                amount TEXT,
+                payload TEXT,
+                bot_invoice_url TEXT,
+                mini_app_invoice_url TEXT,
+                web_app_invoice_url TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users (id)
+            )
+        ''')
         
         # Индексы для быстрого поиска
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_transactions_user_id ON transactions(user_id)')
@@ -182,6 +201,7 @@ class Database:
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_nowpayments_user_id ON nowpayments_payments(user_id)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_cryptocloud_user_id ON cryptocloud_invoices(user_id)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_lecryptio_user_id ON lecryptio_invoices(user_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_cryptopay_user_id ON cryptopay_invoices(user_id)')
         
         self.conn.commit()
         print("✅ Tables ready")
@@ -688,6 +708,50 @@ class Database:
         owner_id = self._resolve_owner_id(user_id)
         cursor.execute('''
             SELECT * FROM lecryptio_invoices
+            WHERE user_id = ?
+            ORDER BY id DESC LIMIT 1
+        ''', (owner_id,))
+        return cursor.fetchone()
+
+    def create_cryptopay_invoice(self, user_id, invoice_id, status, asset, amount, payload, bot_url, mini_url, web_url):
+        cursor = self.conn.cursor()
+        owner_id = self._resolve_owner_id(user_id)
+        cursor.execute('''
+            INSERT OR REPLACE INTO cryptopay_invoices
+            (user_id, invoice_id, status, asset, amount, payload, bot_invoice_url, mini_app_invoice_url, web_app_invoice_url, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        ''', (owner_id, invoice_id, status, asset, amount, payload, bot_url, mini_url, web_url))
+        self.conn.commit()
+        return True
+
+    def update_cryptopay_status(self, invoice_id, status):
+        cursor = self.conn.cursor()
+        cursor.execute('''
+            UPDATE cryptopay_invoices SET status = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE invoice_id = ?
+        ''', (status, invoice_id))
+        self.conn.commit()
+        return True
+
+    def get_cryptopay_invoice(self, invoice_id):
+        cursor = self.conn.cursor()
+        cursor.execute('''
+            SELECT * FROM cryptopay_invoices WHERE invoice_id = ?
+        ''', (invoice_id,))
+        return cursor.fetchone()
+
+    def get_cryptopay_invoice_by_payload(self, payload):
+        cursor = self.conn.cursor()
+        cursor.execute('''
+            SELECT * FROM cryptopay_invoices WHERE payload = ?
+        ''', (payload,))
+        return cursor.fetchone()
+
+    def get_latest_cryptopay_invoice(self, user_id):
+        cursor = self.conn.cursor()
+        owner_id = self._resolve_owner_id(user_id)
+        cursor.execute('''
+            SELECT * FROM cryptopay_invoices
             WHERE user_id = ?
             ORDER BY id DESC LIMIT 1
         ''', (owner_id,))

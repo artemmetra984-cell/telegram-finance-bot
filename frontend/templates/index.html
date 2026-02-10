@@ -8,11 +8,10 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Финансы">
-    <meta name="lecryptio-verification" content="lc_3747b2198692e4e473ee1d460cf3a248">
     
     <!-- Стили -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=3">
-    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}?v=3">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=4">
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}?v=4">
     <link rel="icon" sizes="192x192" href="{{ url_for('static', filename='icons/app-icon-192.png') }}">
     <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='icons/apple-touch-icon.png') }}">
     
@@ -660,7 +659,11 @@
                     <div class="subscription-card">
                         <div class="subscription-title">Полный доступ</div>
                         <div class="subscription-price">$2</div>
-                        <div class="subscription-note">Оплата в USDT (TRC-20)</div>
+                        <div class="subscription-note">Оплата через Crypto Bot (USDT или TON)</div>
+                        <div class="subscription-assets">
+                            <button class="subscription-asset active" data-subscription-asset="USDT" onclick="setSubscriptionAsset('USDT')">USDT</button>
+                            <button class="subscription-asset" data-subscription-asset="TON" onclick="setSubscriptionAsset('TON')">TON</button>
+                        </div>
                         <div class="subscription-status" id="subscription-status">Создайте оплату</div>
                         <div class="subscription-address" id="subscription-address-wrap" style="display: none;">
                             <div class="subscription-address-label">Адрес</div>
@@ -670,7 +673,7 @@
                             <div class="subscription-address-label">Сумма</div>
                             <div class="subscription-address-value" id="subscription-amount"></div>
                         </div>
-                        <button class="service-link subscription-confirm" id="subscription-create" onclick="createLecryptioPayment()">
+                        <button class="service-link subscription-confirm" id="subscription-create" onclick="createCryptoPayPayment()">
                             <span>Создать оплату</span>
                             <span class="service-link-arrow">→</span>
                         </button>
@@ -1025,6 +1028,6 @@
         </div>
     </div>
 
-    <script src="{{ url_for('static', filename='script.js') }}?v=3"></script>
+    <script src="{{ url_for('static', filename='script.js') }}?v=4"></script>
 </body>
 </html>

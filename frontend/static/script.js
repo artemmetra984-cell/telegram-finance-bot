@@ -35,15 +35,18 @@ let sharedWalletState = { status: 'none', code: '', link: '' };
 let pendingInviteCode = null;
 let subscriptionActive = false;
 let subscriptionPayment = {
-    invoiceUuid: null,
-    orderId: null,
+    invoiceId: null,
     status: '',
-    address: '',
+    asset: 'USDT',
     amount: '',
     currency: '',
-    invoiceUrl: ''
+    invoiceUrl: '',
+    miniAppUrl: '',
+    webAppUrl: '',
+    botUrl: ''
 };
 let subscriptionPoller = null;
+let subscriptionAsset = 'USDT';
 const marketCacheKey = (market, kind) => `market_cache_${market}_${kind}`;
 const marketChartCacheKey = (market, id, range) => `market_chart_${market}_${id}_${range}`;
 
@@ -312,8 +315,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         try {
             const url = new URL(window.location.href);
             const ver = url.searchParams.get('v');
-            if (ver !== '3') {
-                url.searchParams.set('v', '3');
+            if (ver !== '4') {
+                url.searchParams.set('v', '4');
                 window.location.replace(url.toString());
                 return;
             }
@@ -333,7 +336,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         updateCurrencyDisplay();
         setupAddButton();
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/sw.js?v=3', { updateViaCache: 'none' }).then((reg) => {
+            navigator.serviceWorker.register('/sw.js?v=4', { updateViaCache: 'none' }).then((reg) => {
                 reg.update().catch(() => {});
             }).catch(() => {});
         }
@@ -431,7 +434,7 @@ async function initUser() {
         allTransactions = data.recent_transactions || [];
         subscriptionActive = !!data.subscription_active;
         if (subscriptionActive) {
-            subscriptionPayment = { invoiceUuid: null, orderId: null, status: '', address: '', amount: '', currency: '', invoiceUrl: '' };
+            subscriptionPayment = { invoiceId: null, status: '', asset: 'USDT', amount: '', currency: '', invoiceUrl: '', miniAppUrl: '', webAppUrl: '', botUrl: '' };
             try { localStorage.removeItem('subscription_payment'); } catch {}
         }
         
@@ -1220,12 +1223,13 @@ function copySubscriptionAmount() {
 }
 
 function openSubscriptionInvoice() {
-    if (!subscriptionPayment.invoiceUrl) return;
+    const url = getSubscriptionInvoiceUrl();
+    if (!url) return;
     if (window.Telegram && Telegram.WebApp && Telegram.WebApp.openLink) {
-        Telegram.WebApp.openLink(subscriptionPayment.invoiceUrl);
+        Telegram.WebApp.openLink(url);
         return;
     }
-    window.open(subscriptionPayment.invoiceUrl, '_blank');
+    window.open(url, '_blank');
 }
 
 function loadSubscriptionState() {
@@ -1234,6 +1238,9 @@ function loadSubscriptionState() {
         if (!raw) return;
         const parsed = JSON.parse(raw);
         subscriptionPayment = { ...subscriptionPayment, ...parsed };
+        if (parsed && parsed.asset) {
+            subscriptionAsset = parsed.asset;
+        }
     } catch {}
 }
 
@@ -1269,42 +1276,64 @@ function updateSubscriptionUI() {
     }
     if (statusEl) statusEl.textContent = formatSubscriptionStatus(subscriptionPayment.status) || 'Создайте оплату';
     if (addressEl) addressEl.textContent = subscriptionPayment.address || '';
-    if (amountEl) amountEl.textContent = subscriptionPayment.amount ? `${subscriptionPayment.amount} ${subscriptionPayment.currency}` : '';
-    const hasInvoice = !!subscriptionPayment.orderId || !!subscriptionPayment.invoiceUrl || !!subscriptionPayment.invoiceUuid;
+    const displayAsset = subscriptionPayment.asset || subscriptionPayment.currency || subscriptionAsset || 'USDT';
+    if (amountEl) amountEl.textContent = subscriptionPayment.amount ? `${subscriptionPayment.amount} ${displayAsset}` : '';
+    const hasOpenUrl = !!(subscriptionPayment.invoiceUrl || subscriptionPayment.miniAppUrl || subscriptionPayment.webAppUrl || subscriptionPayment.botUrl);
+    const hasInvoice = !!subscriptionPayment.invoiceId || hasOpenUrl;
     if (addressWrap) addressWrap.style.display = subscriptionPayment.address ? 'block' : 'none';
     if (amountWrap) amountWrap.style.display = subscriptionPayment.amount ? 'block' : 'none';
     if (createBtn) createBtn.style.display = hasInvoice ? 'none' : 'flex';
     if (copyAddrBtn) copyAddrBtn.style.display = subscriptionPayment.address ? 'flex' : 'none';
     if (copyAmtBtn) copyAmtBtn.style.display = subscriptionPayment.amount ? 'flex' : 'none';
-    if (openInvoiceBtn) openInvoiceBtn.style.display = subscriptionPayment.invoiceUrl ? 'flex' : 'none';
+    if (openInvoiceBtn) openInvoiceBtn.style.display = hasOpenUrl ? 'flex' : 'none';
     if (checkBtn) checkBtn.style.display = hasInvoice ? 'flex' : 'none';
     if (adminBlock) adminBlock.style.display = isAdminUser() ? 'block' : 'none';
     const userNameEl = document.getElementById('subscription-user-name');
     if (userNameEl) userNameEl.textContent = currentUser?.username ? '@' + currentUser.username : '—';
+
+    const assetButtons = document.querySelectorAll('[data-subscription-asset]');
+    assetButtons.forEach((btn) => {
+        const asset = btn.getAttribute('data-subscription-asset');
+        if (asset === subscriptionAsset) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+        btn.disabled = hasInvoice || subscriptionActive;
+    });
 }
 
 function formatSubscriptionStatus(status) {
     const map = {
-        created: 'Ожидает оплаты',
-        pending: 'Ожидает подтверждения',
-        processing: 'Обработка оплаты',
+        active: 'Ожидает оплаты',
         paid: 'Оплата завершена',
-        success: 'Оплата завершена',
-        partial: 'Частичная оплата',
-        overpaid: 'Оплата с избытком',
-        canceled: 'Платёж отменён',
-        expired: 'Счёт истёк'
+        expired: 'Счёт истёк',
+        canceled: 'Платёж отменён'
     };
     return map[status] || status;
 }
 
-async function createLecryptioPayment() {
+function getSubscriptionInvoiceUrl() {
+    if (window.Telegram && Telegram.WebApp) {
+        return subscriptionPayment.miniAppUrl || subscriptionPayment.webAppUrl || subscriptionPayment.botUrl || subscriptionPayment.invoiceUrl;
+    }
+    return subscriptionPayment.webAppUrl || subscriptionPayment.botUrl || subscriptionPayment.miniAppUrl || subscriptionPayment.invoiceUrl;
+}
+
+function setSubscriptionAsset(asset) {
+    subscriptionAsset = asset === 'TON' ? 'TON' : 'USDT';
+    subscriptionPayment.asset = subscriptionAsset;
+    saveSubscriptionState();
+    updateSubscriptionUI();
+}
+
+async function createCryptoPayPayment() {
     if (!currentUser) return;
     try {
-        const res = await fetch('/api/subscription/lecryptio/create', {
+        const res = await fetch('/api/subscription/cryptopay/create', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ user_id: currentUser.id })
+            body: JSON.stringify({ user_id: currentUser.id, asset: subscriptionAsset })
         });
         const data = await res.json();
         if (data.error) throw new Error(data.error);
@@ -1314,13 +1343,15 @@ async function createLecryptioPayment() {
             return;
         }
         subscriptionPayment = {
-            invoiceUuid: data.uuid || null,
-            orderId: data.order_id || null,
-            status: data.status || 'created',
-            address: data.address || '',
+            invoiceId: data.invoice_id || null,
+            status: data.status || 'active',
+            asset: (data.asset || subscriptionAsset || 'USDT').toUpperCase(),
             amount: data.amount ? String(data.amount) : '',
-            currency: (data.currency || '').toUpperCase(),
-            invoiceUrl: data.pay_url || ''
+            currency: (data.asset || subscriptionAsset || 'USDT').toUpperCase(),
+            invoiceUrl: data.web_app_invoice_url || data.bot_invoice_url || data.mini_app_invoice_url || '',
+            miniAppUrl: data.mini_app_invoice_url || '',
+            webAppUrl: data.web_app_invoice_url || '',
+            botUrl: data.bot_invoice_url || ''
         };
         saveSubscriptionState();
         updateSubscriptionUI();
@@ -1331,20 +1362,17 @@ async function createLecryptioPayment() {
 }
 
 async function checkSubscriptionStatus() {
-    const hasPayment = !!subscriptionPayment.invoiceUuid;
-    const hasOrder = !!subscriptionPayment.orderId;
-    if (!hasPayment && !hasOrder) return;
+    const hasPayment = !!subscriptionPayment.invoiceId;
+    if (!hasPayment) return;
     try {
-        const query = hasPayment
-            ? `uuid=${encodeURIComponent(subscriptionPayment.invoiceUuid)}`
-            : `order_id=${encodeURIComponent(subscriptionPayment.orderId)}`;
-        const res = await fetch(`/api/subscription/lecryptio/status?${query}`);
+        const query = `invoice_id=${encodeURIComponent(subscriptionPayment.invoiceId)}`;
+        const res = await fetch(`/api/subscription/cryptopay/status?${query}`);
         const data = await res.json();
         if (data.error) throw new Error(data.error);
         subscriptionPayment.status = data.status || subscriptionPayment.status;
         if (data.active) {
             subscriptionActive = true;
-            subscriptionPayment = { invoiceUuid: null, orderId: null, status: '', address: '', amount: '', currency: '', invoiceUrl: '' };
+            subscriptionPayment = { invoiceId: null, status: '', asset: 'USDT', amount: '', currency: '', invoiceUrl: '', miniAppUrl: '', webAppUrl: '', botUrl: '' };
             saveSubscriptionState();
             showNotification('Подписка активирована', 'success');
             updateSubscriptionUI();
@@ -1359,7 +1387,7 @@ async function checkSubscriptionStatus() {
 
 function startSubscriptionPolling() {
     if (subscriptionPoller) return;
-    if ((!subscriptionPayment.invoiceUuid && !subscriptionPayment.orderId) || subscriptionActive) return;
+    if (!subscriptionPayment.invoiceId || subscriptionActive) return;
     subscriptionPoller = setInterval(() => {
         checkSubscriptionStatus();
     }, 15000);
@@ -4290,12 +4318,13 @@ window.closeMarketModal = closeMarketModal;
 window.openSubscriptionModal = openSubscriptionModal;
 window.closeSubscriptionModal = closeSubscriptionModal;
 window.copySubscriptionAddress = copySubscriptionAddress;
-window.createLecryptioPayment = createLecryptioPayment;
+window.createCryptoPayPayment = createCryptoPayPayment;
 window.checkSubscriptionStatus = checkSubscriptionStatus;
 window.openSubscriptionInvoice = openSubscriptionInvoice;
 window.copySubscriptionAmount = copySubscriptionAmount;
 window.grantSubscriptionManual = grantSubscriptionManual;
 window.prefillAdminUsername = prefillAdminUsername;
+window.setSubscriptionAsset = setSubscriptionAsset;
 window.openSharedWallet = openSharedWallet;
 window.closeSharedWallet = closeSharedWallet;
 window.copySharedCode = copySharedCode;
