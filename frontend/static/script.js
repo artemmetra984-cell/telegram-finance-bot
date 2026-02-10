@@ -309,6 +309,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.log('🚀 Загрузка приложения (iOS 26 стиль)...');
     
     try {
+        try {
+            const url = new URL(window.location.href);
+            const ver = url.searchParams.get('v');
+            if (ver !== '3') {
+                url.searchParams.set('v', '3');
+                window.location.replace(url.toString());
+                return;
+            }
+        } catch {}
         initInviteFromUrl();
         // Восстанавливаем сессию
         sessionToken = localStorage.getItem('finance_session_token');
