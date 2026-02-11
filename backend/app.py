@@ -557,7 +557,7 @@ def init_user():
                     user_id = user['id']
                     currency = user['currency'] or 'RUB'
                     telegram_id = user['telegram_id']
-                    default_wallet = user['default_wallet'] or 'Наличные'
+                    default_wallet = user['default_wallet'] or 'Карта'
                 else:
                     return jsonify({'error': 'User not found'}), 404
             else:
@@ -568,7 +568,7 @@ def init_user():
             else:
                 user_id = telegram_id
                 currency = 'RUB'
-                default_wallet = 'Наличные'
+                default_wallet = 'Карта'
         
         if db:
             stats = db.get_user_stats(user_id)
@@ -636,14 +636,14 @@ def init_user():
                 'savings': []
             }
             wallets_data = [
-                {'name': 'Наличные', 'icon': '💵', 'balance': 0, 'is_default': True},
-                {'name': 'Карта', 'icon': '💳', 'balance': 0, 'is_default': False}
+                {'name': 'Карта', 'icon': '💳', 'balance': 0, 'is_default': True},
+                {'name': 'Наличные', 'icon': '💵', 'balance': 0, 'is_default': False}
             ]
             goals_data = []
             recent_transactions = []
             total_transactions = 0
             currency = 'RUB'
-            default_wallet = 'Наличные'
+            default_wallet = 'Карта'
             subscription_active = False
             subscription_info = {'activated_at': None, 'expires_at': None}
         
@@ -1324,7 +1324,7 @@ def add_transaction():
         trans_type = data.get('type')
         amount = data.get('amount')
         category = data.get('category')
-        wallet = data.get('wallet', 'Наличные')
+        wallet = data.get('wallet', 'Карта')
         description = data.get('description', '')
         
         if not all([user_id, trans_type, amount, category]):
@@ -1344,6 +1344,11 @@ def add_transaction():
             return jsonify({'error': 'Invalid amount'}), 400
         
         if db:
+            if trans_type == 'expense':
+                wallet_balance = db.get_wallet_balance(user_id, wallet)
+                if amount > wallet_balance:
+                    return jsonify({'error': 'insufficient_funds'}), 400
+
             transaction_id = db.add_transaction(user_id, trans_type, amount, category, wallet, description)
             
             stats = db.get_user_stats(user_id)
@@ -1375,6 +1380,119 @@ def add_transaction():
         })
     except Exception as e:
         print(f"Transaction error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/transaction/update', methods=['POST'])
+def update_transaction():
+    try:
+        data = request.json or {}
+        user_id = data.get('user_id')
+        transaction_id = data.get('transaction_id')
+        trans_type = data.get('type')
+        amount = data.get('amount')
+        category = data.get('category')
+        wallet = data.get('wallet', 'Карта')
+        description = data.get('description', '')
+
+        if not all([user_id, transaction_id, trans_type, amount, category]):
+            return jsonify({'error': 'Missing fields'}), 400
+
+        if trans_type not in ['income', 'expense']:
+            return jsonify({'error': 'Invalid type'}), 400
+
+        try:
+            amount = float(amount)
+            if amount <= 0:
+                return jsonify({'error': 'Amount must be positive'}), 400
+        except ValueError:
+            return jsonify({'error': 'Invalid amount'}), 400
+
+        if not db:
+            return jsonify({'error': 'Database error'}), 500
+
+        existing = db.get_transaction_by_id(user_id, int(transaction_id))
+        if not existing:
+            return jsonify({'error': 'Transaction not found'}), 404
+
+        if trans_type == 'expense':
+            available_balance = db.get_wallet_balance(user_id, wallet)
+            if existing['wallet'] == wallet:
+                old_amount = float(existing['amount']) if existing['amount'] is not None else 0
+                if existing['type'] == 'expense':
+                    available_balance += old_amount
+                else:
+                    available_balance -= old_amount
+            if amount > available_balance:
+                return jsonify({'error': 'insufficient_funds'}), 400
+
+        if not db.update_transaction(user_id, int(transaction_id), trans_type, amount, category, wallet, description):
+            return jsonify({'error': 'Transaction not found'}), 404
+
+        stats = db.get_user_stats(user_id)
+        wallets = db.get_wallets(user_id)
+        recent = db.get_recent_transactions(user_id, limit=5)
+
+        return jsonify({
+            'success': True,
+            'summary': stats['summary'],
+            'category_stats': {
+                'income': stats['income'],
+                'expense': stats['expense'],
+                'wallets': stats['wallets']
+            },
+            'wallets': [{'name': w['name'], 'balance': w['balance']} for w in wallets],
+            'recent_transactions': [{
+                'id': t['id'],
+                'type': t['type'],
+                'amount': t['amount'],
+                'category': t['category'],
+                'wallet': t['wallet'],
+                'description': t['description'] or '',
+                'date': t['date']
+            } for t in recent]
+        })
+    except Exception as e:
+        print(f"Update transaction error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/transaction/delete', methods=['POST'])
+def delete_transaction():
+    try:
+        data = request.json or {}
+        user_id = data.get('user_id')
+        transaction_id = data.get('transaction_id')
+        if not user_id or not transaction_id:
+            return jsonify({'error': 'Missing fields'}), 400
+        if not db:
+            return jsonify({'error': 'Database error'}), 500
+        if not db.delete_transaction(user_id, int(transaction_id)):
+            return jsonify({'error': 'Transaction not found'}), 404
+
+        stats = db.get_user_stats(user_id)
+        wallets = db.get_wallets(user_id)
+        recent = db.get_recent_transactions(user_id, limit=5)
+
+        return jsonify({
+            'success': True,
+            'summary': stats['summary'],
+            'category_stats': {
+                'income': stats['income'],
+                'expense': stats['expense'],
+                'wallets': stats['wallets']
+            },
+            'wallets': [{'name': w['name'], 'balance': w['balance']} for w in wallets],
+            'recent_transactions': [{
+                'id': t['id'],
+                'type': t['type'],
+                'amount': t['amount'],
+                'category': t['category'],
+                'wallet': t['wallet'],
+                'description': t['description'] or '',
+                'date': t['date']
+            } for t in recent]
+        })
+    except Exception as e:
+        print(f"Delete transaction error: {e}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/set_default_wallet', methods=['POST'])

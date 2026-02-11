@@ -24,7 +24,7 @@ class Database:
                 first_name TEXT,
                 currency TEXT DEFAULT 'RUB',
                 session_token TEXT UNIQUE,
-                default_wallet TEXT DEFAULT 'Наличные',
+                default_wallet TEXT DEFAULT 'Карта',
                 last_login TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
@@ -38,7 +38,7 @@ class Database:
                 type TEXT CHECK(type IN ('income', 'expense')) NOT NULL,
                 amount REAL NOT NULL,
                 category TEXT NOT NULL,
-                wallet TEXT DEFAULT 'Наличные',
+                wallet TEXT DEFAULT 'Карта',
                 description TEXT,
                 date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (user_id) REFERENCES users (id)
@@ -261,7 +261,7 @@ class Database:
                 ''', (session_token, user['id']))
                 self.conn.commit()
             
-            return user['id'], user['currency'] or 'RUB', user['default_wallet'] or 'Наличные'
+            return user['id'], user['currency'] or 'RUB', user['default_wallet'] or 'Карта'
         else:
             cursor.execute('''
                 INSERT INTO users (telegram_id, username, first_name, session_token, last_login) 
@@ -290,8 +290,8 @@ class Database:
             
             # Стандартные кошельки
             default_wallets = [
-                (user_id, 'Наличные', '💵', 0, 1),
-                (user_id, 'Карта', '💳', 0, 0),
+                (user_id, 'Карта', '💳', 0, 1),
+                (user_id, 'Наличные', '💵', 0, 0),
             ]
             
             cursor.executemany('''
@@ -301,7 +301,7 @@ class Database:
             
             self.conn.commit()
             print(f"👤 New user: {first_name} ({user_id})")
-            return user_id, 'RUB', 'Наличные'
+            return user_id, 'RUB', 'Карта'
     
     def get_user_by_session(self, session_token):
         cursor = self.conn.cursor()
@@ -485,6 +485,92 @@ class Database:
         
         self.conn.commit()
         return cursor.lastrowid
+
+    def get_transaction_by_id(self, user_id, transaction_id):
+        cursor = self.conn.cursor()
+        owner_id = self._resolve_owner_id(user_id)
+        cursor.execute('''
+            SELECT * FROM transactions
+            WHERE id = ? AND user_id = ?
+        ''', (transaction_id, owner_id))
+        return cursor.fetchone()
+
+    def delete_transaction(self, user_id, transaction_id):
+        cursor = self.conn.cursor()
+        owner_id = self._resolve_owner_id(user_id)
+        cursor.execute('''
+            SELECT * FROM transactions
+            WHERE id = ? AND user_id = ?
+        ''', (transaction_id, owner_id))
+        transaction = cursor.fetchone()
+        if not transaction:
+            return False
+        amount = float(transaction['amount']) if transaction['amount'] is not None else 0
+        wallet = transaction['wallet']
+        if transaction['type'] == 'income':
+            cursor.execute('''
+                UPDATE wallets SET balance = balance - ?
+                WHERE user_id = ? AND name = ?
+            ''', (amount, owner_id, wallet))
+        else:
+            cursor.execute('''
+                UPDATE wallets SET balance = balance + ?
+                WHERE user_id = ? AND name = ?
+            ''', (amount, owner_id, wallet))
+        cursor.execute('DELETE FROM transactions WHERE id = ? AND user_id = ?', (transaction_id, owner_id))
+        self.conn.commit()
+        return True
+
+    def update_transaction(self, user_id, transaction_id, trans_type, amount, category, wallet, description):
+        cursor = self.conn.cursor()
+        owner_id = self._resolve_owner_id(user_id)
+        cursor.execute('''
+            SELECT * FROM transactions
+            WHERE id = ? AND user_id = ?
+        ''', (transaction_id, owner_id))
+        transaction = cursor.fetchone()
+        if not transaction:
+            return False
+        old_amount = float(transaction['amount']) if transaction['amount'] is not None else 0
+        old_wallet = transaction['wallet']
+        old_type = transaction['type']
+
+        cursor.execute('SELECT name FROM wallets WHERE user_id = ? AND name = ?', (owner_id, wallet))
+        if not cursor.fetchone():
+            cursor.execute('''
+                INSERT INTO wallets (user_id, name, icon, balance, is_default)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (owner_id, wallet, '💳', 0, 0))
+
+        if old_type == 'income':
+            cursor.execute('''
+                UPDATE wallets SET balance = balance - ?
+                WHERE user_id = ? AND name = ?
+            ''', (old_amount, owner_id, old_wallet))
+        else:
+            cursor.execute('''
+                UPDATE wallets SET balance = balance + ?
+                WHERE user_id = ? AND name = ?
+            ''', (old_amount, owner_id, old_wallet))
+
+        if trans_type == 'income':
+            cursor.execute('''
+                UPDATE wallets SET balance = balance + ?
+                WHERE user_id = ? AND name = ?
+            ''', (amount, owner_id, wallet))
+        else:
+            cursor.execute('''
+                UPDATE wallets SET balance = balance - ?
+                WHERE user_id = ? AND name = ?
+            ''', (amount, owner_id, wallet))
+
+        cursor.execute('''
+            UPDATE transactions
+            SET type = ?, amount = ?, category = ?, wallet = ?, description = ?
+            WHERE id = ? AND user_id = ?
+        ''', (trans_type, amount, category, wallet, description or '', transaction_id, owner_id))
+        self.conn.commit()
+        return True
     
     def get_recent_transactions(self, user_id, limit=5):
         cursor = self.conn.cursor()
@@ -505,6 +591,18 @@ class Database:
             WHERE user_id = ? ORDER BY is_default DESC, name
         ''', (owner_id,))
         return cursor.fetchall()
+
+    def get_wallet_balance(self, user_id, wallet_name):
+        cursor = self.conn.cursor()
+        owner_id = self._resolve_owner_id(user_id)
+        cursor.execute('''
+            SELECT balance FROM wallets
+            WHERE user_id = ? AND name = ?
+        ''', (owner_id, wallet_name))
+        row = cursor.fetchone()
+        if row and row['balance'] is not None:
+            return float(row['balance'])
+        return 0.0
     
     def set_default_wallet(self, user_id, wallet_name):
         cursor = self.conn.cursor()
@@ -598,7 +696,7 @@ class Database:
         owner_id = self._resolve_owner_id(user_id)
         cursor.execute('SELECT default_wallet FROM users WHERE id = ?', (owner_id,))
         result = cursor.fetchone()
-        return result['default_wallet'] if result and result['default_wallet'] else 'Наличные'
+        return result['default_wallet'] if result and result['default_wallet'] else 'Карта'
 
     def get_subscription_status(self, user_id):
         info = self.get_subscription_info(user_id)

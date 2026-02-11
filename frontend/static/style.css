@@ -724,6 +724,51 @@ body {
   text-align: right;
 }
 
+.transaction-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: var(--spacing-sm);
+}
+
+.transaction-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.transaction-action-btn {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--ios-text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast);
+}
+
+.transaction-action-btn:hover {
+  color: var(--ios-text-primary);
+  border-color: var(--ios-accent);
+  box-shadow: 0 0 8px var(--ios-accent-glow);
+}
+
+.transaction-action-btn.danger {
+  color: #ff6b6b;
+  border-color: rgba(255, 107, 107, 0.35);
+}
+
+.transaction-action-btn.danger:hover {
+  color: #ffffff;
+  background: rgba(255, 107, 107, 0.15);
+  border-color: rgba(255, 107, 107, 0.6);
+  box-shadow: 0 0 8px rgba(255, 107, 107, 0.35);
+}
+
 .view-more-btn {
   width: 100%;
   padding: var(--spacing-md);

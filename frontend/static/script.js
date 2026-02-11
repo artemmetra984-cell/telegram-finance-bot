@@ -19,11 +19,13 @@ let categoryStats = { income: {}, expense: {}, wallets: {} };
 let currentHistoryMonth = new Date();
 let currentFilter = 'all';
 let sessionToken = null;
-let defaultWallet = 'Наличные';
+let defaultWallet = 'Карта';
 let charts = {};
 let allTransactions = [];
 let currentSavingsDestination = 'piggybank';
 let selectedGoalId = null;
+let editingTransactionId = null;
+let currentMonthTransactions = [];
 let isCreatingGoal = false;
 let compoundListenersInitialized = false;
 const compoundStorageKey = 'finance_compound_calc';
@@ -444,7 +446,7 @@ async function initUser() {
             currentCurrency = data.currency || 'RUB';
         }
         
-        defaultWallet = data.default_wallet || 'Наличные';
+        defaultWallet = data.default_wallet || 'Карта';
         categoriesData = data.categories || { income: [], expense: [], savings: [] };
         walletsData = data.wallets || [];
         goalsData = data.goals || [];
@@ -874,14 +876,113 @@ function updateRecentTransactions(transactions) {
                         <div class="transaction-category">${trans.category}</div>
                     </div>
                 </div>
-                <div class="transaction-amount ${amountClass}">
-                    ${amountSign}${formatCurrency(trans.amount)} ${symbol}
+                <div class="transaction-right">
+                    <div class="transaction-amount ${amountClass}">
+                        ${amountSign}${formatCurrency(trans.amount)} ${symbol}
+                    </div>
+                    <div class="transaction-actions">
+                        <button class="transaction-action-btn" onclick="openEditTransactionById(${trans.id})" title="Изменить">✎</button>
+                        <button class="transaction-action-btn danger" onclick="deleteTransactionById(${trans.id})" title="Удалить">🗑</button>
+                    </div>
                 </div>
             </div>
         `;
     });
     
     container.innerHTML = html;
+}
+
+function findTransactionById(id) {
+    const numericId = Number(id);
+    if (!Number.isFinite(numericId)) return null;
+    const fromMonth = currentMonthTransactions.find(t => Number(t.id) === numericId);
+    if (fromMonth) return fromMonth;
+    const fromRecent = allTransactions.find(t => Number(t.id) === numericId);
+    return fromRecent || null;
+}
+
+function openEditTransactionById(id) {
+    const transaction = findTransactionById(id);
+    if (!transaction) {
+        showNotification('Операция не найдена', 'error');
+        return;
+    }
+    openEditTransaction(transaction);
+}
+
+function openEditTransaction(transaction) {
+    if (!transaction) return;
+    editingTransactionId = transaction.id;
+    currentTransactionType = transaction.category === 'Накопления' ? 'savings' : transaction.type;
+    currentSavingsDestination = 'piggybank';
+    selectedGoalId = null;
+    showAddTransactionModal(transaction.category);
+
+    const amountInput = document.getElementById('transaction-amount');
+    const categorySelect = document.getElementById('transaction-category');
+    const walletSelect = document.getElementById('transaction-wallet');
+    const descriptionInput = document.getElementById('transaction-description');
+
+    if (amountInput) amountInput.value = transaction.amount;
+    if (descriptionInput) descriptionInput.value = transaction.description || '';
+    if (categorySelect) categorySelect.value = transaction.category;
+    if (walletSelect) walletSelect.value = transaction.wallet;
+
+    const title = document.getElementById('transaction-modal-title');
+    if (title) title.textContent = 'Изменить операцию';
+}
+
+function resetTransactionEditing() {
+    editingTransactionId = null;
+}
+
+async function deleteTransactionById(id) {
+    if (!currentUser) return;
+    const transaction = findTransactionById(id);
+    if (!transaction) {
+        showNotification('Операция не найдена', 'error');
+        return;
+    }
+    if (!confirm('Удалить операцию?')) return;
+    try {
+        const response = await fetch('/api/transaction/delete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                user_id: currentUser.id,
+                transaction_id: id
+            })
+        });
+        const data = await response.json();
+        if (data.error) throw new Error(data.error);
+
+        categoryStats = data.category_stats || categoryStats;
+        if (data.wallets) {
+            data.wallets.forEach(walletUpdate => {
+                const wallet = walletsData.find(w => w.name === walletUpdate.name);
+                if (wallet) wallet.balance = walletUpdate.balance;
+            });
+        }
+        if (data.recent_transactions) {
+            allTransactions = data.recent_transactions;
+            updateRecentTransactions(allTransactions.slice(0, 5));
+        }
+        updateBalanceDisplay(data.summary);
+        updateSectionTotals();
+
+        if (currentPage === 'panel') {
+            await loadPanelData();
+        } else if (currentPage === 'history') {
+            await loadMonthTransactions();
+        } else if (currentPage === 'report') {
+            await loadReportData();
+        }
+
+        showNotification('Операция удалена', 'success');
+    } catch (error) {
+        console.error('❌ Ошибка удаления транзакции:', error);
+        showNotification('Ошибка удаления', 'error');
+    }
 }
 
 function showAddTransactionForCategory(type, category) {
@@ -922,8 +1023,9 @@ async function loadMonthTransactions() {
         
         const response = await fetch(`/api/transactions/${currentUser.id}?month=${month}&year=${year}&limit=100`);
         const transactions = await response.json();
+        currentMonthTransactions = Array.isArray(transactions) ? transactions : [];
         
-        displayMonthTransactions(transactions);
+        displayMonthTransactions(currentMonthTransactions);
         
     } catch (error) {
         console.error('❌ Ошибка загрузки транзакций:', error);
@@ -972,8 +1074,14 @@ function displayMonthTransactions(transactions) {
                     <div class="transaction-title">${trans.description || trans.category}</div>
                     <div class="transaction-details">${trans.category} • ${date} • ${trans.wallet}</div>
                 </div>
-                <div class="transaction-amount ${amountClass}">
-                    ${amountSign}${formatCurrency(trans.amount)} ${symbol}
+                <div class="transaction-right">
+                    <div class="transaction-amount ${amountClass}">
+                        ${amountSign}${formatCurrency(trans.amount)} ${symbol}
+                    </div>
+                    <div class="transaction-actions">
+                        <button class="transaction-action-btn" onclick="openEditTransactionById(${trans.id})" title="Изменить">✎</button>
+                        <button class="transaction-action-btn danger" onclick="deleteTransactionById(${trans.id})" title="Удалить">🗑</button>
+                    </div>
                 </div>
             </div>
         `;
@@ -2982,7 +3090,7 @@ async function loadDefaultWallet() {
         const data = await response.json();
         if (data.error) throw new Error(data.error);
         
-        defaultWallet = data.default_wallet || 'Наличные';
+        defaultWallet = data.default_wallet || 'Карта';
         walletsData = data.wallets || [];
         
         // Обновляем отображение основного кошелька в сервисах
@@ -3098,7 +3206,7 @@ async function selectDefaultWallet(walletName) {
 // ==================== //
 
 function showAddTransactionModal(prefilledCategory = null) {
-    if (!subscriptionActive) {
+    if (!subscriptionActive && !editingTransactionId) {
         openSubscriptionModal();
         return;
     }
@@ -3359,10 +3467,12 @@ async function submitTransaction(e) {
         return;
     }
     
+    const isEditing = editingTransactionId !== null;
+
     // Обработка накоплений
     let goalAdded = false;
     if (currentTransactionType === 'savings') {
-        if (currentSavingsDestination === 'goal' && selectedGoalId) {
+        if (!isEditing && currentSavingsDestination === 'goal' && selectedGoalId) {
             try {
                 await addToGoalApi(selectedGoalId, amount);
                 goalAdded = true;
@@ -3378,7 +3488,7 @@ async function submitTransaction(e) {
     }
     
     // Если накопления уже добавлены в цель, не добавляем транзакцию
-    if (currentTransactionType === 'savings' && currentSavingsDestination === 'goal' && goalAdded) {
+    if (!isEditing && currentTransactionType === 'savings' && currentSavingsDestination === 'goal' && goalAdded) {
         closeModal('add-transaction-modal');
         amountInput.value = '';
         if (descriptionInput) descriptionInput.value = '';
@@ -3393,17 +3503,23 @@ async function submitTransaction(e) {
     }
     
     try {
-        const response = await fetch('/api/transaction', {
+        const endpoint = isEditing ? '/api/transaction/update' : '/api/transaction';
+        const payload = {
+            user_id: currentUser.id,
+            type: currentTransactionType === 'savings' ? 'expense' : currentTransactionType,
+            amount: amount,
+            category: category,
+            wallet: wallet,
+            description: description
+        };
+        if (isEditing) {
+            payload.transaction_id = editingTransactionId;
+        }
+
+        const response = await fetch(endpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                user_id: currentUser.id,
-                type: currentTransactionType === 'savings' ? 'expense' : currentTransactionType,
-                amount: amount,
-                category: category,
-                wallet: wallet,
-                description: description
-            })
+            body: JSON.stringify(payload)
         });
         
         const data = await response.json();
@@ -3412,6 +3528,10 @@ async function submitTransaction(e) {
             if (data.error === 'subscription_required') {
                 closeModal('add-transaction-modal');
                 openSubscriptionModal();
+                return;
+            }
+            if (data.error === 'insufficient_funds') {
+                showNotification('Недостаточно средств на выбранном кошельке', 'error');
                 return;
             }
             throw new Error(data.error);
@@ -3430,6 +3550,11 @@ async function submitTransaction(e) {
         updateBalanceDisplay(data.summary);
         updateSectionTotals();
         
+        if (data.recent_transactions) {
+            allTransactions = data.recent_transactions;
+            updateRecentTransactions(allTransactions.slice(0, 5));
+        }
+        
         if (currentPage === 'panel') {
             await loadPanelData();
         } else if (currentPage === 'history') {
@@ -3440,16 +3565,21 @@ async function submitTransaction(e) {
         
         // Закрываем и очищаем
         closeModal('add-transaction-modal');
+        resetTransactionEditing();
         amountInput.value = '';
         if (descriptionInput) descriptionInput.value = '';
         
         // Уведомление
-        const messages = {
-            'income': '✅ Доход добавлен',
-            'expense': '✅ Расход добавлен',
-            'savings': '✅ Накопление добавлено'
-        };
-        showNotification(messages[currentTransactionType] || 'Операция добавлена', 'success');
+        if (isEditing) {
+            showNotification('Операция обновлена', 'success');
+        } else {
+            const messages = {
+                'income': '✅ Доход добавлен',
+                'expense': '✅ Расход добавлен',
+                'savings': '✅ Накопление добавлено'
+            };
+            showNotification(messages[currentTransactionType] || 'Операция добавлена', 'success');
+        }
         
     } catch (error) {
         console.error('❌ Ошибка добавления транзакции:', error);
@@ -3852,7 +3982,7 @@ function initEventListeners() {
                 'expense': 'Добавить расход',
                 'savings': 'Добавить накопление'
             };
-            document.getElementById('transaction-modal-title').textContent = titleMap[currentTransactionType] || 'Добавить операцию';
+            document.getElementById('transaction-modal-title').textContent = editingTransactionId ? 'Изменить операцию' : (titleMap[currentTransactionType] || 'Добавить операцию');
             
             // Обновляем категории
             populateTransactionCategories();
@@ -4218,6 +4348,9 @@ function showNotification(message, type = 'info') {
 function closeModal(modalId) {
     const modal = document.getElementById(modalId);
     if (modal) modal.classList.remove('active');
+    if (modalId === 'add-transaction-modal') {
+        resetTransactionEditing();
+    }
 }
 
 function exportData() {
@@ -4434,6 +4567,8 @@ window.changeCalendarYear = changeCalendarYear;
 window.showCalendar = showCalendar;
 window.showAddTransactionForCategory = showAddTransactionForCategory;
 window.showWalletTransactions = showWalletTransactions;
+window.openEditTransactionById = openEditTransactionById;
+window.deleteTransactionById = deleteTransactionById;
 window.selectDefaultWallet = selectDefaultWallet;
 window.toggleWalletDropdown = toggleWalletDropdown;
 window.showAllTransactions = showAllTransactions;
