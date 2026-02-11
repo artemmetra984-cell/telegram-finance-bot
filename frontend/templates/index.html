@@ -177,7 +177,7 @@
                 <!-- Выбор месяца -->
                 <div class="month-selector">
                     <button class="month-nav" id="prev-month">←</button>
-                    <div class="month-display" id="current-month">февраль 2026</div>
+                    <div class="month-display" id="current-month">—</div>
                     <button class="month-nav" id="next-month">→</button>
                 </div>
 
@@ -213,7 +213,7 @@
                     <!-- ВКЛАДКА 1: ОБЗОР -->
                     <div id="tab-overview" class="report-section active">
                         <div class="chart-container">
-                            <div class="chart-title">Финансовый обзор</div>
+                            <div class="chart-title" data-i18n="Финансовый обзор">Финансовый обзор</div>
                             <div class="chart-wrapper">
                                 <canvas id="overview-chart"></canvas>
                             </div>
@@ -221,11 +221,11 @@
                             <!-- Числовые показатели -->
                             <div class="overview-numbers">
                                 <div class="overview-item">
-                                    <div class="overview-label">Доходы</div>
+                                    <div class="overview-label" data-i18n="Доходы">Доходы</div>
                                     <div class="overview-value income" id="overview-income">0 ₽</div>
                                 </div>
                                 <div class="overview-item">
-                                    <div class="overview-label">Расходы</div>
+                                    <div class="overview-label" data-i18n="Расходы">Расходы</div>
                                     <div class="overview-value expense" id="overview-expense">0 ₽</div>
                                 </div>
                             </div>
@@ -233,19 +233,19 @@
 
                         <!-- Накопления -->
                         <div class="chart-container">
-                            <div class="chart-title">Накопления</div>
+                            <div class="chart-title" data-i18n="Накопления">Накопления</div>
                             <div style="text-align: center; padding: 22px 20px;">
                                 <div class="overview-value" id="overview-savings">0 ₽</div>
-                                <div class="overview-label">Всего накоплено</div>
+                                <div class="overview-label" data-i18n="Всего накоплено">Всего накоплено</div>
                             </div>
                         </div>
 
                         <!-- Общий баланс -->
                         <div class="chart-container">
-                            <div class="chart-title">Общий баланс</div>
+                            <div class="chart-title" data-i18n="Общий баланс">Общий баланс</div>
                             <div style="text-align: center; padding: 22px 20px;">
                                 <div class="overview-value" id="overview-balance">0 ₽</div>
-                                <div class="overview-label">Текущий остаток</div>
+                                <div class="overview-label" data-i18n="Текущий остаток">Текущий остаток</div>
                             </div>
                         </div>
                     </div>
@@ -253,7 +253,7 @@
                     <!-- ВКЛАДКА 2: ДОХОДЫ -->
                     <div id="tab-income" class="report-section">
                         <div class="chart-container">
-                            <div class="chart-title">Доходы по категориям</div>
+                            <div class="chart-title" data-i18n="Доходы по категориям">Доходы по категориям</div>
                             <div class="chart-row">
                                 <div class="chart-wrapper">
                                     <canvas id="income-chart"></canvas>
@@ -266,8 +266,8 @@
                         
                         <!-- Статистика доходов -->
                         <div class="chart-container">
-                            <div class="chart-title">Статистика доходов</div>
-                            <div id="income-stats" style="padding: 20px; text-align: center; color: var(--ios-text-secondary);">
+                            <div class="chart-title" data-i18n="Статистика доходов">Статистика доходов</div>
+                            <div id="income-stats" style="padding: 20px; text-align: center; color: var(--ios-text-secondary);" data-i18n="Данные загружаются...">
                                 Данные загружаются...
                             </div>
                         </div>
@@ -276,7 +276,7 @@
                     <!-- ВКЛАДКА 3: РАСХОДЫ -->
                     <div id="tab-expense" class="report-section">
                         <div class="chart-container">
-                            <div class="chart-title">Расходы по категориям</div>
+                            <div class="chart-title" data-i18n="Расходы по категориям">Расходы по категориям</div>
                             <div class="chart-row">
                                 <div class="chart-wrapper">
                                     <canvas id="expense-chart"></canvas>
@@ -289,8 +289,8 @@
                         
                         <!-- Статистика расходов -->
                         <div class="chart-container">
-                            <div class="chart-title">Топ расходов</div>
-                            <div id="expense-top" style="padding: 20px; text-align: center; color: var(--ios-text-secondary);">
+                            <div class="chart-title" data-i18n="Топ расходов">Топ расходов</div>
+                            <div id="expense-top" style="padding: 20px; text-align: center; color: var(--ios-text-secondary);" data-i18n="Данные загружаются...">
                                 Данные загружаются...
                             </div>
                         </div>
@@ -299,7 +299,7 @@
                     <!-- ВКЛАДКА 4: НАКОПЛЕНИЯ -->
                     <div id="tab-savings" class="report-section">
                         <div class="chart-container">
-                            <div class="chart-title">Накопления</div>
+                            <div class="chart-title" data-i18n="Накопления">Накопления</div>
                             <div class="chart-wrapper">
                                 <canvas id="savings-chart"></canvas>
                             </div>
@@ -309,9 +309,9 @@
                         </div>
 
                         <!-- Цели -->
-                        <div class="goals-section">
+                            <div class="goals-section">
                             <div class="section-header">
-                                <div class="section-title">Мои цели</div>
+                                <div class="section-title" data-i18n="Мои цели">Мои цели</div>
                                 <button class="section-action" onclick="showAddGoalModal()">+</button>
                             </div>
                             <div id="goals-list">
@@ -324,7 +324,7 @@
                     <div id="tab-balance" class="report-section">
                         <!-- Распределение -->
                         <div class="chart-container">
-                            <div class="chart-title">Распределение средств</div>
+                            <div class="chart-title" data-i18n="Распределение средств">Распределение средств</div>
                             <div class="chart-wrapper">
                                 <canvas id="distribution-chart"></canvas>
                             </div>
@@ -335,14 +335,14 @@
 
                         <!-- Выбор периода -->
                         <div class="period-selector">
-                            <button class="period-btn" data-period="day">День</button>
-                            <button class="period-btn active" data-period="week">Неделя</button>
-                            <button class="period-btn" data-period="month">Месяц</button>
+                            <button class="period-btn" data-period="day" data-i18n="День">День</button>
+                            <button class="period-btn active" data-period="week" data-i18n="Неделя">Неделя</button>
+                            <button class="period-btn" data-period="month" data-i18n="Месяц">Месяц</button>
                         </div>
 
                         <!-- Динамика баланса -->
                         <div class="chart-container">
-                            <div class="chart-title">Динамика баланса</div>
+                            <div class="chart-title" data-i18n="Динамика баланса">Динамика баланса</div>
                             <div class="chart-wrapper">
                                 <canvas id="dynamics-chart"></canvas>
                             </div>
@@ -357,24 +357,24 @@
             <div id="invest-page" class="page">
                 <div class="invest-section">
                     <div class="invest-header">
-                        <div class="invest-title">Топ дня</div>
-                        <button class="invest-link" onclick="openInvestAll()">Посмотреть все</button>
+                        <div class="invest-title" data-i18n="Топ дня">Топ дня</div>
+                        <button class="invest-link" onclick="openInvestAll()" data-i18n="Посмотреть все">Посмотреть все</button>
                     </div>
 
                     <div class="invest-block">
-                        <div class="invest-block-title">Криптовалюты</div>
+                        <div class="invest-block-title" data-i18n="Криптовалюты">Криптовалюты</div>
                         <div class="invest-toggle" data-market="crypto">
-                            <button class="invest-toggle-btn active" data-kind="gainers">Топ роста</button>
-                            <button class="invest-toggle-btn" data-kind="losers">Топ падения</button>
+                            <button class="invest-toggle-btn active" data-kind="gainers" data-i18n="Топ роста">Топ роста</button>
+                            <button class="invest-toggle-btn" data-kind="losers" data-i18n="Топ падения">Топ падения</button>
                         </div>
                         <div class="invest-grid" id="crypto-grid"></div>
                     </div>
 
                     <div class="invest-block">
-                        <div class="invest-block-title">Акции</div>
+                        <div class="invest-block-title" data-i18n="Акции">Акции</div>
                         <div class="invest-toggle" data-market="stocks">
-                            <button class="invest-toggle-btn active" data-kind="gainers">Топ роста</button>
-                            <button class="invest-toggle-btn" data-kind="losers">Топ падения</button>
+                            <button class="invest-toggle-btn active" data-kind="gainers" data-i18n="Топ роста">Топ роста</button>
+                            <button class="invest-toggle-btn" data-kind="losers" data-i18n="Топ падения">Топ падения</button>
                         </div>
                         <div class="invest-grid" id="stocks-grid"></div>
                     </div>
@@ -399,7 +399,7 @@
                                     <div class="default-wallet-icon">💳</div>
                                     <div class="default-wallet-text">
                                         <div class="default-wallet-label" data-i18n="Используется по умолчанию">Используется по умолчанию</div>
-                                        <div class="default-wallet-name">Наличные</div>
+                                        <div class="default-wallet-name" data-i18n="Карта">Карта</div>
                                     </div>
                                 </div>
                                 <div class="default-wallet-arrow">▼</div>
@@ -749,10 +749,10 @@
                             <input class="form-input" id="subscription-admin-user" placeholder="User ID или @username" data-i18n-placeholder="User ID или @username" />
                             <input class="form-input" id="subscription-admin-key" placeholder="Admin key" data-i18n-placeholder="Admin key" />
                             <select class="form-select" id="subscription-admin-months">
-                                <option value="1">1 месяц</option>
-                                <option value="3">3 месяца</option>
-                                <option value="6">6 месяцев</option>
-                                <option value="12">12 месяцев</option>
+                                <option value="1" data-i18n="1 месяц">1 месяц</option>
+                                <option value="3" data-i18n="3 месяца">3 месяца</option>
+                                <option value="6" data-i18n="6 месяцев">6 месяцев</option>
+                                <option value="12" data-i18n="12 месяцев">12 месяцев</option>
                             </select>
                             <button class="service-link" onclick="grantSubscriptionManual()">
                                 <span data-i18n="Выдать подписку">Выдать подписку</span>
@@ -992,7 +992,7 @@
                 <!-- Динамически заполняется -->
             </div>
             <div class="modal-actions" style="margin-top: 16px;">
-                <button type="button" class="modal-btn secondary" onclick="closeModal('all-transactions-modal')" style="width: 100%;">
+                <button type="button" class="modal-btn secondary" onclick="closeModal('all-transactions-modal')" style="width: 100%;" data-i18n="Закрыть">
                     Закрыть
                 </button>
             </div>
@@ -1003,13 +1003,13 @@
     <div id="all-categories-modal" class="modal-overlay">
         <div class="modal-content">
             <div class="modal-header">
-                <div class="modal-title" id="all-categories-title">Все категории</div>
+                <div class="modal-title" id="all-categories-title" data-i18n="Все категории">Все категории</div>
             </div>
             <div id="all-categories-list" style="max-height: 400px; overflow-y: auto; margin: -16px;">
                 <!-- Динамически заполняется -->
             </div>
             <div class="modal-actions" style="margin-top: 16px;">
-                <button type="button" class="modal-btn secondary" onclick="closeModal('all-categories-modal')" style="width: 100%;">
+                <button type="button" class="modal-btn secondary" onclick="closeModal('all-categories-modal')" style="width: 100%;" data-i18n="Закрыть">
                     Закрыть
                 </button>
             </div>

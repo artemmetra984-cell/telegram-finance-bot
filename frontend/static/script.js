@@ -221,7 +221,113 @@ const translations = {
         'Месяц': 'Month',
         'Неделя': 'Week',
         'День': 'Day',
-        'Все': 'All'
+        'Все': 'All',
+        'Финансовый обзор': 'Financial overview',
+        'Всего накоплено': 'Total saved',
+        'Текущий остаток': 'Current balance',
+        'Доходы по категориям': 'Income by category',
+        'Статистика доходов': 'Income stats',
+        'Данные загружаются...': 'Loading data...',
+        'Расходы по категориям': 'Expenses by category',
+        'Топ расходов': 'Top expenses',
+        'Распределение средств': 'Funds distribution',
+        'Динамика баланса': 'Balance dynamics',
+        'Топ дня': 'Top of the day',
+        'Посмотреть все': 'View all',
+        'Криптовалюты': 'Cryptocurrencies',
+        'Акции': 'Stocks',
+        'Топ роста': 'Top gainers',
+        'Топ падения': 'Top losers',
+        'Закрыть': 'Close',
+        'Все категории': 'All categories',
+        'Нет данных для отображения': 'No data to display',
+        'Нет доходов за период': 'No income for this period',
+        'Нет расходов за период': 'No expenses for this period',
+        'Нет накоплений за период': 'No savings for this period',
+        'Нет данных о распределении': 'No distribution data',
+        'Нет данных за выбранный период': 'No data for the selected period',
+        'Всего': 'Total',
+        'Средний доход': 'Average income',
+        'Топ категория': 'Top category',
+        'Прогресс': 'Progress',
+        'Добавить первую цель': 'Add your first goal',
+        'Нажмите чтобы начать': 'Tap to start',
+        'Новая категория': 'New category',
+        'по умолчанию': 'default',
+        'Куда накопления?': 'Where to save?',
+        'В копилку': 'To piggy bank',
+        'На цель': 'To goal',
+        'Выберите цель': 'Choose a goal',
+        'Введите корректную сумму': 'Enter a valid amount',
+        'Накопления добавлены в цель': 'Savings added to goal',
+        'Ошибка добавления в цель': 'Failed to add to goal',
+        'Операция обновлена': 'Transaction updated',
+        '✅ Доход добавлен': 'Income added',
+        '✅ Расход добавлен': 'Expense added',
+        '✅ Накопление добавлено': 'Savings added',
+        'Операция добавлена': 'Transaction added',
+        'Ошибка': 'Error',
+        'Добавить категорию дохода': 'Add income category',
+        'Добавить категорию расхода': 'Add expense category',
+        'Добавить категорию накопления': 'Add savings category',
+        'Введите название категории': 'Enter category name',
+        'Категория добавлена': 'Category added',
+        'Ошибка добавления категории': 'Failed to add category',
+        'Введите название цели': 'Enter goal name',
+        'Сессия устарела, перезайдите': 'Session expired, please re-open',
+        'Цель создана': 'Goal created',
+        'Ошибка создания цели': 'Failed to create goal',
+        'Валюта изменена на': 'Currency changed to',
+        'Ошибка изменения валюты': 'Failed to change currency',
+        'Кошелёк выбран по умолчанию': 'Default wallet set',
+        'Ошибка установки кошелька': 'Failed to set wallet',
+        'Изменить операцию': 'Edit transaction',
+        'Введите название кошелька': 'Enter wallet name',
+        'Кошелёк добавлен': 'Wallet added',
+        'Ошибка добавления кошелька': 'Failed to add wallet',
+        'Нет операций': 'No transactions',
+        'Экспорт данных...': 'Exporting data...',
+        'Данные экспортированы': 'Data exported',
+        'Скоро будет полный список': 'Full list coming soon',
+        'На iOS добавление доступно только через Safari. Внутри Telegram меню недоступно.': 'On iOS, adding is available only in Safari. Telegram menu is unavailable.',
+        'Добавление доступно через браузер. Внутри Telegram меню недоступно.': 'Add is available via browser. Telegram menu is unavailable.',
+        'Адрес скопирован': 'Address copied',
+        'Сумма скопирована': 'Amount copied',
+        'Подписка активирована': 'Subscription activated',
+        'Не удалось проверить оплату': 'Failed to check payment',
+        'Недостаточно прав': 'Insufficient permissions',
+        'Введите ID/username и ключ': 'Enter ID/username and key',
+        'Промокод активирован на': 'Promo activated for',
+        'мес.': 'mo.',
+        'Не удалось активировать промокод': 'Failed to redeem promo',
+        'Не удалось создать оплату': 'Failed to create payment',
+        'Ошибка выдачи': 'Grant failed',
+        'Пользователь': 'User',
+        'Вы уже подключены': 'You are already connected',
+        'Неверный код': 'Invalid code',
+        'Кошелёк уже заполнен': 'Wallet is full',
+        'Это ваш код': 'This is your code',
+        'Не удалось подключиться': 'Failed to connect',
+        'Вы подключились': 'Connected',
+        'Отключено': 'Disconnected',
+        'Не удалось отключиться': 'Failed to disconnect',
+        'Код скопирован': 'Code copied',
+        'Ссылка скопирована': 'Link copied',
+        'Изменение': 'Change',
+        'Цена': 'Price',
+        'получил подписку на': 'received subscription for',
+        'Ошибка загрузки данных': 'Failed to load data',
+        'Операция не найдена': 'Transaction not found',
+        'Операция удалена': 'Transaction deleted',
+        'Ошибка удаления': 'Delete error',
+        'Показываем операции кошелька': 'Showing wallet transactions',
+        'Введите код': 'Enter code',
+        'Без описания': 'No description',
+        'Изменить': 'Edit',
+        'Удалить': 'Delete',
+        'Удалить операцию?': 'Delete transaction?',
+        'Нет данных': 'No data',
+        'Карта': 'Card'
     }
 };
 
@@ -346,29 +452,56 @@ const colorPaletteGlow = [
 
 const articlesLibrary = {
     budget_principles: {
-        title: 'Управление бюджетом: 4 принципа финансовой грамотности',
-        body: `
-            <p>Эффективное распределение личных финансов строится на простых, но проверенных правилах. Вот ключевые законы, которые работают:</p>
-            <h2>1. Правило 50/30/20</h2>
-            <ul>
-                <li><strong>50%</strong> — обязательные расходы (аренда, коммуналка, продукты)</li>
-                <li><strong>30%</strong> — желания (развлечения, хобби, подписки)</li>
-                <li><strong>20%</strong> — сбережения и инвестиции</li>
-            </ul>
-            <p>Эта базовая структура сохраняет баланс между текущими нуждами и будущими целями.</p>
-            <h2>2. Сначала заплати себе</h2>
-            <p>Откладывайте 10–20% дохода <strong>сразу после получения</strong>, а не по остаточному принципу. Это формирует финансовую подушку и инвестиционный капитал.</p>
-            <h2>3. Разделение счетов</h2>
-            <p>Используйте три отдельных счета:</p>
-            <ul>
-                <li><strong>Расчетный</strong> — для ежедневных операций</li>
-                <li><strong>Накопительный</strong> — неприкосновенный запас (6 месячных доходов)</li>
-                <li><strong>Инвестиционный</strong> — для долгосрочных целей</li>
-            </ul>
-            <h2>4. Правило 24 часов</h2>
-            <p>Перед крупной покупкой выдержите паузу. Часто импульсивное желание проходит, сохраняя деньги для действительно важного.</p>
-            <p>Финансовая грамотность — не в ограничении каждой копейки, а в осознанном распределении ресурсов. Начните с отслеживания расходов в течение месяца, затем примените эти принципы, адаптировав проценты под свои реалии. Система важнее сумм: даже небольшие, но регулярные отложения создают устойчивость.</p>
-        `
+        title: {
+            ru: 'Управление бюджетом: 4 принципа финансовой грамотности',
+            en: 'Budget Management: 4 Principles of Financial Literacy'
+        },
+        body: {
+            ru: `
+                <p>Эффективное распределение личных финансов строится на простых, но проверенных правилах. Вот ключевые законы, которые работают:</p>
+                <h2>1. Правило 50/30/20</h2>
+                <ul>
+                    <li><strong>50%</strong> — обязательные расходы (аренда, коммуналка, продукты)</li>
+                    <li><strong>30%</strong> — желания (развлечения, хобби, подписки)</li>
+                    <li><strong>20%</strong> — сбережения и инвестиции</li>
+                </ul>
+                <p>Эта базовая структура сохраняет баланс между текущими нуждами и будущими целями.</p>
+                <h2>2. Сначала заплати себе</h2>
+                <p>Откладывайте 10–20% дохода <strong>сразу после получения</strong>, а не по остаточному принципу. Это формирует финансовую подушку и инвестиционный капитал.</p>
+                <h2>3. Разделение счетов</h2>
+                <p>Используйте три отдельных счета:</p>
+                <ul>
+                    <li><strong>Расчетный</strong> — для ежедневных операций</li>
+                    <li><strong>Накопительный</strong> — неприкосновенный запас (6 месячных доходов)</li>
+                    <li><strong>Инвестиционный</strong> — для долгосрочных целей</li>
+                </ul>
+                <h2>4. Правило 24 часов</h2>
+                <p>Перед крупной покупкой выдержите паузу. Часто импульсивное желание проходит, сохраняя деньги для действительно важного.</p>
+                <p>Финансовая грамотность — не в ограничении каждой копейки, а в осознанном распределении ресурсов. Начните с отслеживания расходов в течение месяца, затем примените эти принципы, адаптировав проценты под свои реалии. Система важнее сумм: даже небольшие, но регулярные отложения создают устойчивость.</p>
+            `,
+            en: `
+                <p>Effective personal finance management follows simple, proven rules. Here are the key principles that work:</p>
+                <h2>1. The 50/30/20 rule</h2>
+                <ul>
+                    <li><strong>50%</strong> — necessities (rent, utilities, groceries)</li>
+                    <li><strong>30%</strong> — wants (entertainment, hobbies, subscriptions)</li>
+                    <li><strong>20%</strong> — savings and investments</li>
+                </ul>
+                <p>This basic structure keeps balance between current needs and future goals.</p>
+                <h2>2. Pay yourself first</h2>
+                <p>Set aside 10–20% of income <strong>right after you receive it</strong>, not from what is left. This builds a financial cushion and investment capital.</p>
+                <h2>3. Separate accounts</h2>
+                <p>Use three separate accounts:</p>
+                <ul>
+                    <li><strong>Spending</strong> — for daily operations</li>
+                    <li><strong>Savings</strong> — an emergency fund (6 months of income)</li>
+                    <li><strong>Investment</strong> — for long-term goals</li>
+                </ul>
+                <h2>4. The 24-hour rule</h2>
+                <p>Pause before a large purchase. Often the impulse fades, saving money for what truly matters.</p>
+                <p>Financial literacy is not about counting every penny, but about conscious allocation of resources. Start by tracking expenses for a month, then apply these principles and adjust the percentages to your reality. Systems beat sums: even small, regular contributions create stability.</p>
+            `
+        }
     }
 };
 
@@ -625,14 +758,14 @@ async function cleanupServiceWorkerCache() {
 }
 
 async function initUser() {
-    let telegramId, username = '', firstName = 'Пользователь';
+    let telegramId, username = '', firstName = t('Пользователь');
     
     if (window.Telegram && Telegram.WebApp) {
         const user = Telegram.WebApp.initDataUnsafe?.user;
         if (user) {
             telegramId = user.id;
             username = user.username || '';
-            firstName = user.first_name || 'Пользователь';
+            firstName = user.first_name || t('Пользователь');
         }
     }
     
@@ -1104,7 +1237,7 @@ function updateRecentTransactions(transactions) {
                 <div class="transaction-icon ${iconClass}">${icon}</div>
                 <div class="transaction-info">
                     <div class="transaction-title-row">
-                        <div class="transaction-title">${trans.description || 'Без описания'}</div>
+                        <div class="transaction-title">${trans.description || t('Без описания')}</div>
                         <div class="transaction-category">${trans.category}</div>
                     </div>
                 </div>
@@ -1113,8 +1246,8 @@ function updateRecentTransactions(transactions) {
                         ${amountSign}${formatCurrency(trans.amount)} ${symbol}
                     </div>
                     <div class="transaction-actions">
-                        <button class="transaction-action-btn" onclick="openEditTransactionById(${trans.id})" title="Изменить">✎</button>
-                        <button class="transaction-action-btn danger" onclick="deleteTransactionById(${trans.id})" title="Удалить">🗑</button>
+                        <button class="transaction-action-btn" onclick="openEditTransactionById(${trans.id})" title="${t('Изменить')}">✎</button>
+                        <button class="transaction-action-btn danger" onclick="deleteTransactionById(${trans.id})" title="${t('Удалить')}">🗑</button>
                     </div>
                 </div>
             </div>
@@ -1161,7 +1294,7 @@ function openEditTransaction(transaction) {
     if (walletSelect) walletSelect.value = transaction.wallet;
 
     const title = document.getElementById('transaction-modal-title');
-    if (title) title.textContent = 'Изменить операцию';
+    if (title) title.textContent = t('Изменить операцию');
 }
 
 function resetTransactionEditing() {
@@ -1175,7 +1308,7 @@ async function deleteTransactionById(id) {
         showNotification('Операция не найдена', 'error');
         return;
     }
-    if (!confirm('Удалить операцию?')) return;
+    if (!confirm(t('Удалить операцию?'))) return;
     try {
         const response = await fetch('/api/transaction/delete', {
             method: 'POST',
@@ -1224,7 +1357,7 @@ function showAddTransactionForCategory(type, category) {
 
 function showWalletTransactions(walletName) {
     switchPage('history');
-    showNotification(`Показываем операции кошелька "${walletName}"`, 'info');
+    showNotification(`${t('Показываем операции кошелька')}: ${walletName}`, 'info');
 }
 
 // ==================== //
@@ -1419,7 +1552,7 @@ async function loadMarketSection(market) {
         renderMarketGrid(grid, persistedItems, market);
     }
     if (!persistedItems || !persistedItems.length) {
-        grid.innerHTML = `<div style="grid-column: 1 / -1; color: var(--ios-text-secondary); text-align: center;">Загрузка...</div>`;
+        grid.innerHTML = `<div style="grid-column: 1 / -1; color: var(--ios-text-secondary); text-align: center;">${t('Загрузка...')}</div>`;
     }
     try {
         const res = await fetch(`/api/market_movers/${market}?type=${kind}`);
@@ -1449,14 +1582,14 @@ async function loadMarketSection(market) {
             renderMarketGrid(grid, persistedItems, market);
             return;
         }
-        grid.innerHTML = `<div style="grid-column: 1 / -1; color: var(--ios-text-secondary); text-align: center;">Нет данных</div>`;
+        grid.innerHTML = `<div style="grid-column: 1 / -1; color: var(--ios-text-secondary); text-align: center;">${t('Нет данных')}</div>`;
         console.error('❌ Ошибка загрузки рынка:', e);
     }
 }
 
 function renderMarketGrid(container, items, market) {
     if (!items.length) {
-        container.innerHTML = `<div style="grid-column: 1 / -1; color: var(--ios-text-secondary); text-align: center;">Нет данных</div>`;
+        container.innerHTML = `<div style="grid-column: 1 / -1; color: var(--ios-text-secondary); text-align: center;">${t('Нет данных')}</div>`;
         return;
     }
     container.innerHTML = items.map(item => {
@@ -1525,11 +1658,11 @@ function openAddToHome() {
     if (androidStep) androidStep.style.display = isIOS ? 'none' : 'block';
     if (note) {
         if (isIOS) {
-            note.textContent = 'На iOS добавление доступно только через Safari. Внутри Telegram меню недоступно.';
+            note.textContent = t('На iOS добавление доступно только через Safari. Внутри Telegram меню недоступно.');
         } else if (isAndroid) {
-            note.textContent = 'Добавление доступно через браузер. Внутри Telegram меню недоступно.';
+            note.textContent = t('Добавление доступно через браузер. Внутри Telegram меню недоступно.');
         } else {
-            note.textContent = 'Добавление работает через браузер. Внутри Telegram меню недоступно.';
+            note.textContent = t('Добавление работает через браузер. Внутри Telegram меню недоступно.');
         }
     }
     if (modal) modal.classList.add('active');
@@ -1778,7 +1911,7 @@ async function redeemPromoCode() {
         subscriptionStart = data.subscription_start || subscriptionStart;
         subscriptionEnd = data.subscription_end || subscriptionEnd;
         if (input) input.value = '';
-        showNotification(`Промокод активирован на ${data.months} мес.`, 'success');
+        showNotification(`${t('Промокод активирован на')} ${data.months} ${t('мес.')}`, 'success');
         updateSubscriptionUI();
         refreshSubscriptionInfo();
     } catch (e) {
@@ -1913,11 +2046,11 @@ async function grantSubscriptionManual() {
         });
         const data = await res.json();
         if (data.error) throw new Error(data.error);
-        let nameLabel = username ? '@' + username : (trimmed ? trimmed : 'Пользователь');
+        let nameLabel = username ? '@' + username : (trimmed ? trimmed : t('Пользователь'));
         if (data.username) {
             nameLabel = data.username.startsWith('@') ? data.username : '@' + data.username;
         }
-        showNotification(`${nameLabel} получил подписку на ${data.months || months} мес.`, 'success');
+        showNotification(`${nameLabel} ${t('получил подписку на')} ${data.months || months} ${t('мес.')}`, 'success');
         if (currentUser) {
             const currentName = (currentUser.username || '').toLowerCase();
             if (userId && currentUser.id === userId) {
@@ -2117,7 +2250,7 @@ async function openMarketModal(item) {
     if (!modal || !title || !sub) return;
     title.textContent = `${(item.symbol || '').toUpperCase()}${item.name ? ' • ' + item.name : ''}`;
     const symbol = currencySymbols[currentCurrency] || '₽';
-    sub.textContent = `Изменение: ${item.change >= 0 ? '+' : ''}${item.change.toFixed(2)}%${item.price ? ` • Цена: ${item.price} ${item.market === 'crypto' ? '$' : symbol}` : ''}`;
+    sub.textContent = `${t('Изменение')}: ${item.change >= 0 ? '+' : ''}${item.change.toFixed(2)}%${item.price ? ` • ${t('Цена')}: ${item.price} ${item.market === 'crypto' ? '$' : symbol}` : ''}`;
     modal.classList.add('active');
     marketChartState.market = item.market || '';
     marketChartState.id = item.id || item.symbol || '';
@@ -2162,7 +2295,7 @@ function formatMarketLabel(value, range) {
     const date = typeof value === 'number' ? new Date(value) : new Date(value);
     if (Number.isNaN(date.getTime())) return value;
     if (range === '1d') {
-        return date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+        return date.toLocaleTimeString(getLocale(), { hour: '2-digit', minute: '2-digit' });
     }
     return date.toLocaleDateString(getLocale(), { day: '2-digit', month: '2-digit' });
 }
@@ -2205,7 +2338,7 @@ async function loadMarketChart(market, id, range = '1m', symbol = '') {
                             label: (ctx) => {
                                 const value = ctx.parsed?.y;
                                 if (value === null || value === undefined) return '';
-                                return `Цена: ${Number(value).toLocaleString('ru-RU', { maximumFractionDigits: 4 })}`;
+                                return `${t('Цена')}: ${Number(value).toLocaleString(getLocale(), { maximumFractionDigits: 4 })}`;
                             }
                         }
                     }
@@ -2262,7 +2395,7 @@ async function loadMarketChart(market, id, range = '1m', symbol = '') {
                                 label: (ctx) => {
                                     const value = ctx.parsed?.y;
                                     if (value === null || value === undefined) return '';
-                                    return `Цена: ${Number(value).toLocaleString('ru-RU', { maximumFractionDigits: 4 })}`;
+                                    return `${t('Цена')}: ${Number(value).toLocaleString(getLocale(), { maximumFractionDigits: 4 })}`;
                                 }
                             }
                         }
@@ -2409,7 +2542,7 @@ function updateOverviewChart(totalIncome, totalExpense) {
         ctx.innerHTML = `
             <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--ios-text-tertiary);">
                 <div style="font-size: 48px; margin-bottom: 16px;">📊</div>
-                <div style="font-size: 15px;">Нет данных для отображения</div>
+                <div style="font-size: 15px;">${t('Нет данных для отображения')}</div>
             </div>
         `;
         return;
@@ -2420,7 +2553,7 @@ function updateOverviewChart(totalIncome, totalExpense) {
     charts['overview-chart'] = new Chart(ctx, {
         type: 'doughnut',
         data: {
-            labels: ['Доходы', 'Расходы'],
+            labels: [t('Доходы'), t('Расходы')],
             datasets: [{
                 data: [totalIncome, totalExpense],
                 backgroundColor: [
@@ -2517,7 +2650,7 @@ async function updateIncomeChart(transactions) {
         ctx.innerHTML = `
             <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--ios-text-tertiary);">
                 <div style="font-size: 48px; margin-bottom: 16px;">📈</div>
-                <div style="font-size: 15px;">Нет доходов за период</div>
+                <div style="font-size: 15px;">${t('Нет доходов за период')}</div>
             </div>
         `;
         return;
@@ -2640,7 +2773,7 @@ async function updateExpenseChart(transactions) {
         ctx.innerHTML = `
             <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--ios-text-tertiary);">
                 <div style="font-size: 48px; margin-bottom: 16px;">📉</div>
-                <div style="font-size: 15px;">Нет расходов за период</div>
+                <div style="font-size: 15px;">${t('Нет расходов за период')}</div>
             </div>
         `;
         return;
@@ -2746,7 +2879,7 @@ function updateIncomeStats(transactions) {
     
     const incomeTransactions = transactions.filter(t => t.type === 'income');
     if (incomeTransactions.length === 0) {
-        container.textContent = 'Нет доходов за период';
+        container.textContent = t('Нет доходов за период');
         return;
     }
     
@@ -2761,9 +2894,9 @@ function updateIncomeStats(transactions) {
     
     container.innerHTML = `
         <div style="display: grid; gap: 8px; text-align: left;">
-            <div>Всего: <strong>${formatCurrency(total)} ${symbol}</strong></div>
-            <div>Средний доход: <strong>${formatCurrency(avg)} ${symbol}</strong></div>
-            <div>Топ категория: <strong>${top[0]}</strong> (${formatCurrency(top[1])} ${symbol})</div>
+            <div>${t('Всего')}: <strong>${formatCurrency(total)} ${symbol}</strong></div>
+            <div>${t('Средний доход')}: <strong>${formatCurrency(avg)} ${symbol}</strong></div>
+            <div>${t('Топ категория')}: <strong>${top[0]}</strong> (${formatCurrency(top[1])} ${symbol})</div>
         </div>
     `;
 }
@@ -2774,7 +2907,7 @@ function updateExpenseTop(transactions) {
     
     const expenseTransactions = transactions.filter(t => t.type === 'expense');
     if (expenseTransactions.length === 0) {
-        container.textContent = 'Нет расходов за период';
+        container.textContent = t('Нет расходов за период');
         return;
     }
     
@@ -2823,7 +2956,7 @@ async function updateSavingsChart(transactions) {
         ctx.innerHTML = `
             <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--ios-text-tertiary);">
                 <div style="font-size: 48px; margin-bottom: 16px;">💰</div>
-                <div style="font-size: 15px;">Нет накоплений за период</div>
+                <div style="font-size: 15px;">${t('Нет накоплений за период')}</div>
             </div>
         `;
         return;
@@ -2854,7 +2987,7 @@ async function updateSavingsChart(transactions) {
                 return `${getMonthName(parseInt(monthNum) - 1)} ${year}`;
             }),
             datasets: [{
-                label: 'Накопления',
+                label: t('Накопления'),
                 data: amounts,
                 backgroundColor: 'rgba(255, 214, 10, 0.7)',
                 borderColor: 'rgba(255, 214, 10, 1)',
@@ -2874,7 +3007,7 @@ async function updateSavingsChart(transactions) {
                     callbacks: {
                         label: (context) => {
                             const symbol = currencySymbols[currentCurrency] || '₽';
-                            return `Накопления: ${formatCurrency(context.raw)} ${symbol}`;
+                            return `${t('Накопления')}: ${formatCurrency(context.raw)} ${symbol}`;
                         }
                     }
                 }
@@ -2934,7 +3067,7 @@ async function updateDistributionChart() {
         ctx.innerHTML = `
             <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--ios-text-tertiary);">
                 <div style="font-size: 48px; margin-bottom: 16px;">🏦</div>
-                <div style="font-size: 15px;">Нет данных о распределении</div>
+                <div style="font-size: 15px;">${t('Нет данных о распределении')}</div>
             </div>
         `;
         return;
@@ -3055,7 +3188,7 @@ function updateDynamicsChart(data, period) {
         ctx.innerHTML = `
             <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--ios-text-tertiary);">
                 <div style="font-size: 48px; margin-bottom: 16px;">📈</div>
-                <div style="font-size: 15px;">Нет данных за выбранный период</div>
+                <div style="font-size: 15px;">${t('Нет данных за выбранный период')}</div>
             </div>
         `;
         return;
@@ -3063,7 +3196,7 @@ function updateDynamicsChart(data, period) {
     
     const labels = data.map(item => {
         if (period === 'day') {
-            return new Date(item.period).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+            return new Date(item.period).toLocaleTimeString(getLocale(), { hour: '2-digit', minute: '2-digit' });
         } else if (period === 'week') {
             const date = new Date(item.period);
             return date.toLocaleDateString(getLocale(), { weekday: 'short', day: 'numeric' });
@@ -3080,7 +3213,7 @@ function updateDynamicsChart(data, period) {
         data: {
             labels: labels,
             datasets: [{
-                label: 'Баланс',
+                label: t('Баланс'),
                 data: balances,
                 backgroundColor: 'rgba(10, 132, 255, 0.1)',
                 borderColor: 'rgba(10, 132, 255, 1)',
@@ -3103,7 +3236,7 @@ function updateDynamicsChart(data, period) {
                     callbacks: {
                         label: (context) => {
                             const symbol = currencySymbols[currentCurrency] || '₽';
-                            return `Баланс: ${formatCurrency(context.raw)} ${symbol}`;
+                            return `${t('Баланс')}: ${formatCurrency(context.raw)} ${symbol}`;
                         }
                     }
                 }
@@ -3189,8 +3322,8 @@ function updateGoalsDisplay() {
         container.innerHTML = `
             <button class="add-goal-btn" onclick="showAddGoalModal()">
                 <div style="font-size: 32px; margin-bottom: 8px;">🎯</div>
-                <div style="font-size: 16px; font-weight: 500; margin-bottom: 4px;">Добавить первую цель</div>
-                <div style="font-size: 13px; color: var(--ios-text-tertiary);">Нажмите чтобы начать</div>
+                <div style="font-size: 16px; font-weight: 500; margin-bottom: 4px;">${t('Добавить первую цель')}</div>
+                <div style="font-size: 13px; color: var(--ios-text-tertiary);">${t('Нажмите чтобы начать')}</div>
             </button>
         `;
         return;
@@ -3212,7 +3345,7 @@ function updateGoalsDisplay() {
                     <div class="goal-icon" style="background: ${color}20; color: ${color}; box-shadow: 0 0 25px ${color}80;">${icon}</div>
                     <div class="goal-info">
                         <div class="goal-name">${goal.name}</div>
-                        <div class="goal-date">${goal.deadline || 'Бессрочная'}</div>
+                        <div class="goal-date">${goal.deadline || t('Бессрочная')}</div>
                     </div>
                     <div style="font-size: 16px; font-weight: 600; text-shadow: 0 0 10px ${color}80;">${formatCurrency(currentAmount)} / ${formatCurrency(targetAmount)} ${symbol}</div>
                 </div>
@@ -3221,7 +3354,7 @@ function updateGoalsDisplay() {
                         <div class="progress-fill" style="width: ${progress}%; background: ${color}; box-shadow: 0 0 15px ${color}80;"></div>
                     </div>
                     <div class="progress-text">
-                        <span>Прогресс</span>
+                        <span>${t('Прогресс')}</span>
                         <span>${progress.toFixed(1)}%</span>
                     </div>
                 </div>
@@ -3232,7 +3365,7 @@ function updateGoalsDisplay() {
     html += `
         <button class="add-goal-btn" onclick="showAddGoalModal()" style="margin-top: 12px;">
             <div style="font-size: 20px; margin-bottom: 4px;">+</div>
-            <div style="font-size: 15px; font-weight: 500;">Добавить цель</div>
+            <div style="font-size: 15px; font-weight: 500;">${t('Добавить цель')}</div>
         </button>
     `;
     
@@ -3329,7 +3462,7 @@ async function selectCurrency(currency) {
         });
         
         updateCurrencyDisplay();
-        showNotification(`Валюта изменена на ${currency}`, 'success');
+        showNotification(`${t('Валюта изменена на')} ${currency}`, 'success');
         
     } catch (error) {
         console.error('❌ Ошибка обновления валюты:', error);
@@ -3459,7 +3592,7 @@ async function selectDefaultWallet(walletName) {
         // Закрываем выпадающий список
         toggleWalletDropdown();
         
-        showNotification(`Кошелёк "${walletName}" выбран по умолчанию`, 'success');
+        showNotification(`${t('Кошелёк выбран по умолчанию')}: ${walletName}`, 'success');
         
     } catch (error) {
         console.error('❌ Ошибка установки кошелька:', error);
@@ -3495,11 +3628,11 @@ function showAddTransactionModal(prefilledCategory = null) {
     
     // Обновляем заголовок
     const titleMap = {
-        'income': 'Добавить доход',
-        'expense': 'Добавить расход',
-        'savings': 'Добавить накопление'
+        'income': t('Добавить доход'),
+        'expense': t('Добавить расход'),
+        'savings': t('Добавить накопление')
     };
-    document.getElementById('transaction-modal-title').textContent = titleMap[currentTransactionType] || 'Добавить операцию';
+    document.getElementById('transaction-modal-title').textContent = titleMap[currentTransactionType] || t('Добавить операцию');
     
     // Заполняем категории
     populateTransactionCategories();
@@ -3553,7 +3686,7 @@ function populateTransactionCategories() {
     // Добавляем опцию для новой категории
     const newOption = document.createElement('option');
     newOption.value = '__new__';
-    newOption.textContent = '+ Новая категория';
+    newOption.textContent = `+ ${t('Новая категория')}`;
     select.appendChild(newOption);
 }
 
@@ -3566,7 +3699,7 @@ function populateWallets() {
     walletsData.forEach(wallet => {
         const option = document.createElement('option');
         option.value = wallet.name;
-        option.textContent = `${wallet.name} ${wallet.name === defaultWallet ? '(по умолчанию)' : ''}`;
+        option.textContent = `${wallet.name} ${wallet.name === defaultWallet ? `(${t('по умолчанию')})` : ''}`;
         if (wallet.name === defaultWallet) {
             option.selected = true;
         }
@@ -3590,17 +3723,17 @@ function setupSavingsDestination() {
         // Добавляем выбор назначения после поля суммы
         const destinationHTML = `
             <div class="form-group" id="savings-destination">
-                <label class="form-label">Куда накопления?</label>
+                <label class="form-label">${t('Куда накопления?')}</label>
                 <div class="savings-destination">
                     <button type="button" class="destination-option ${currentSavingsDestination === 'piggybank' ? 'active' : ''}" 
                             data-destination="piggybank" onclick="selectSavingsDestination('piggybank')">
                         <div class="destination-icon">💰</div>
-                        <div>В копилку</div>
+                        <div>${t('В копилку')}</div>
                     </button>
                     <button type="button" class="destination-option ${currentSavingsDestination === 'goal' ? 'active' : ''}" 
                             data-destination="goal" onclick="selectSavingsDestination('goal')">
                         <div class="destination-icon">🎯</div>
-                        <div>На цель</div>
+                        <div>${t('На цель')}</div>
                     </button>
                 </div>
             </div>
@@ -3613,7 +3746,7 @@ function setupSavingsDestination() {
         if (goalsData.length > 0 && currentSavingsDestination === 'goal') {
             const goalSelectorHTML = `
                 <div class="form-group" id="goal-selector">
-                    <label class="form-label">Выберите цель</label>
+                    <label class="form-label">${t('Выберите цель')}</label>
                     <div id="goal-options" style="max-height: 200px; overflow-y: auto;">
                         ${generateGoalOptions()}
                     </div>
@@ -3649,7 +3782,7 @@ function selectSavingsDestination(destination) {
         // Создаем выбор цели если его нет
         const goalSelectorHTML = `
             <div class="form-group" id="goal-selector">
-                <label class="form-label">Выберите цель</label>
+                <label class="form-label">${t('Выберите цель')}</label>
                 <div id="goal-options" style="max-height: 200px; overflow-y: auto;">
                     ${generateGoalOptions()}
                 </div>
@@ -3743,7 +3876,7 @@ async function submitTransaction(e) {
             try {
                 await addToGoalApi(selectedGoalId, amount);
                 goalAdded = true;
-                showNotification(`Накопления добавлены в цель`, 'success');
+                showNotification('Накопления добавлены в цель', 'success');
             } catch (error) {
                 console.error('❌ Ошибка добавления в цель:', error);
                 showNotification('Ошибка добавления в цель', 'error');
@@ -3850,7 +3983,7 @@ async function submitTransaction(e) {
         
     } catch (error) {
         console.error('❌ Ошибка добавления транзакции:', error);
-        showNotification('Ошибка: ' + error.message, 'error');
+        showNotification(`${t('Ошибка')}: ${error.message}`, 'error');
     }
 }
 
@@ -3859,13 +3992,13 @@ function showAddCategoryModal(type) {
     if (!modal) return;
     
     const title = modal.querySelector('.modal-title');
-    const typeNames = {
-        'income': 'дохода',
-        'expense': 'расхода',
-        'savings': 'накопления'
+    const titleMap = {
+        'income': t('Добавить категорию дохода'),
+        'expense': t('Добавить категорию расхода'),
+        'savings': t('Добавить категорию накопления')
     };
     
-    title.textContent = `Добавить категорию ${typeNames[type] || ''}`;
+    title.textContent = titleMap[type] || t('Добавить категорию');
     modal.dataset.categoryType = type;
     
     fillIconsGrid();
@@ -3989,7 +4122,7 @@ async function addNewCategory() {
         closeModal('add-category-modal');
         nameInput.value = '';
         
-        showNotification(`Категория "${name}" добавлена`, 'success');
+        showNotification(`${t('Категория добавлена')}: ${name}`, 'success');
         
         // Автоматически выбираем новую категорию в форме транзакции
         const categorySelect = document.getElementById('transaction-category');
@@ -4155,7 +4288,7 @@ async function addNewGoal(e) {
         nameInput.value = '';
         amountInput.value = '';
         
-        showNotification(`Цель "${name}" создана`, 'success');
+        showNotification(`${t('Цель создана')}: ${name}`, 'success');
         isCreatingGoal = false;
         
     } catch (error) {
@@ -4245,11 +4378,11 @@ function initEventListeners() {
             
             // Обновляем заголовок
             const titleMap = {
-                'income': 'Добавить доход',
-                'expense': 'Добавить расход',
-                'savings': 'Добавить накопление'
+                'income': t('Добавить доход'),
+                'expense': t('Добавить расход'),
+                'savings': t('Добавить накопление')
             };
-            document.getElementById('transaction-modal-title').textContent = editingTransactionId ? 'Изменить операцию' : (titleMap[currentTransactionType] || 'Добавить операцию');
+            document.getElementById('transaction-modal-title').textContent = editingTransactionId ? t('Изменить операцию') : (titleMap[currentTransactionType] || t('Добавить операцию'));
             
             // Обновляем категории
             populateTransactionCategories();
@@ -4384,7 +4517,7 @@ function showAllTransactions() {
         list.innerHTML = `
             <div style="text-align: center; padding: 40px 20px; color: var(--ios-text-tertiary);">
                 <div style="font-size: 48px; margin-bottom: 16px;">📭</div>
-                <div style="font-size: 15px;">Нет операций</div>
+                <div style="font-size: 15px;">${t('Нет операций')}</div>
             </div>
         `;
     } else {
@@ -4521,7 +4654,7 @@ async function addNewWallet() {
         nameInput.value = '';
         if (isDefaultCheckbox) isDefaultCheckbox.checked = false;
         
-        showNotification(`Кошелёк "${name}" добавлен`, 'success');
+        showNotification(`${t('Кошелёк добавлен')}: ${name}`, 'success');
         
     } catch (error) {
         console.error('❌ Ошибка добавления кошелька:', error);
@@ -4809,8 +4942,14 @@ function openArticle(articleId) {
     const bodyEl = document.getElementById('article-modal-body');
     const modal = document.getElementById('article-modal');
     if (!titleEl || !bodyEl || !modal) return;
-    titleEl.textContent = article.title;
-    bodyEl.innerHTML = article.body;
+    const title = typeof article.title === 'string'
+        ? article.title
+        : (article.title?.[currentLang] || article.title?.ru || '');
+    const body = typeof article.body === 'string'
+        ? article.body
+        : (article.body?.[currentLang] || article.body?.ru || '');
+    titleEl.textContent = title;
+    bodyEl.innerHTML = body;
     modal.classList.add('active');
 }
 
