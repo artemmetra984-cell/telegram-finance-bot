@@ -1424,6 +1424,13 @@ body {
   margin-bottom: var(--spacing-md);
 }
 
+.subscription-network {
+  font-size: 13px;
+  color: var(--ios-text-secondary);
+  margin-top: calc(var(--spacing-md) * -0.6);
+  margin-bottom: var(--spacing-md);
+}
+
 .subscription-duration {
   margin-bottom: var(--spacing-md);
 }

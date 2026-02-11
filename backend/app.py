@@ -235,7 +235,7 @@ def cryptopay_resolve_months(amount, asset, payload_ref=None):
     except Exception:
         return None
     asset = (asset or '').upper()
-    if asset not in ('USDT', 'TON'):
+    if asset != 'USDT':
         return None
     for period, price in SUBSCRIPTION_PRICE_MAP.items():
         if abs(amt - price) < 0.0001:
@@ -245,9 +245,7 @@ def cryptopay_resolve_months(amount, asset, payload_ref=None):
 def create_cryptopay_invoice_for_user(user_id, asset='USDT', months=1):
     if not CRYPTOPAY_API_TOKEN:
         return None, 'CRYPTOPAY_API_TOKEN is not set'
-    asset = asset.upper() if asset else 'USDT'
-    if asset not in ('USDT', 'TON'):
-        asset = 'USDT'
+    asset = 'USDT'
     try:
         months = int(months)
     except Exception:
@@ -1032,10 +1030,8 @@ def cryptopay_create():
     try:
         data = request.json or {}
         user_id = data.get('user_id')
-        asset = (data.get('asset') or 'USDT').upper()
+        asset = 'USDT'
         months = data.get('months', 1)
-        if asset not in ('USDT', 'TON'):
-            asset = 'USDT'
         if not user_id:
             return jsonify({'error': 'Missing user_id'}), 400
         if not db:

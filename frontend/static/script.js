@@ -1442,7 +1442,7 @@ function loadSubscriptionState() {
             localStorage.removeItem('subscription_payment');
         }
         if (parsed && parsed.asset) {
-            subscriptionAsset = parsed.asset;
+            subscriptionAsset = 'USDT';
         }
         if (parsed && parsed.months) {
             const parsedMonths = parseInt(parsed.months, 10);
@@ -1454,7 +1454,7 @@ function loadSubscriptionState() {
     try {
         const savedAsset = localStorage.getItem('subscription_asset');
         if (savedAsset) {
-            subscriptionAsset = savedAsset.toUpperCase() === 'TON' ? 'TON' : 'USDT';
+            subscriptionAsset = 'USDT';
         }
     } catch {}
     try {
@@ -1521,16 +1521,7 @@ function updateSubscriptionUI() {
     const userNameEl = document.getElementById('subscription-user-name');
     if (userNameEl) userNameEl.textContent = currentUser?.username ? '@' + currentUser.username : '—';
 
-    const assetButtons = document.querySelectorAll('[data-subscription-asset]');
-    assetButtons.forEach((btn) => {
-        const asset = btn.getAttribute('data-subscription-asset');
-        if (asset === subscriptionAsset) {
-            btn.classList.add('active');
-        } else {
-            btn.classList.remove('active');
-        }
-        btn.disabled = hasInvoice || subscriptionActive;
-    });
+    subscriptionAsset = 'USDT';
     updateSubscriptionPeriod();
 }
 
@@ -1584,7 +1575,7 @@ function getSubscriptionInvoiceUrl() {
 }
 
 function setSubscriptionAsset(asset) {
-    subscriptionAsset = asset === 'TON' ? 'TON' : 'USDT';
+    subscriptionAsset = 'USDT';
     subscriptionPayment.asset = subscriptionAsset;
     try { localStorage.setItem('subscription_asset', subscriptionAsset); } catch {}
     saveSubscriptionState();
