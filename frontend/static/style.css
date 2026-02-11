@@ -1217,7 +1217,7 @@ body {
 }
 
 .service-link-compact {
-  padding: var(--spacing-md);
+  padding: calc(var(--spacing-md) * 0.8);
   background: transparent;
   border: none;
   font-size: 16px;
