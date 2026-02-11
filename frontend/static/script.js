@@ -1524,6 +1524,7 @@ async function grantSubscriptionManual() {
                 updateSubscriptionUI();
             }
         }
+        refreshSubscriptionInfo();
     } catch (e) {
         showNotification(e.message || 'Ошибка выдачи', 'error');
     }
@@ -1562,11 +1563,11 @@ async function loadSharedWalletStatus() {
         if (data.error) throw new Error(data.error);
         sharedWalletState = { status: data.status || 'none', code: data.code || '', link: data.link || '' };
         if (sharedWalletState.status === 'none') {
-            if (statusEl) statusEl.textContent = 'Общий кошелёк не подключен.';
+            if (statusEl) statusEl.textContent = 'Статус: не подключен';
             if (actionsEl) actionsEl.style.display = 'block';
             if (shareEl) shareEl.style.display = 'none';
         } else if (sharedWalletState.status === 'owner') {
-            if (statusEl) statusEl.textContent = 'Вы владелец общего кошелька. Отправьте код другу.';
+            if (statusEl) statusEl.textContent = 'Статус: владелец';
             if (actionsEl) actionsEl.style.display = 'none';
             if (shareEl) shareEl.style.display = 'grid';
             if (codeEl) codeEl.textContent = sharedWalletState.code;
@@ -1575,7 +1576,7 @@ async function loadSharedWalletStatus() {
             if (leaveBtn) leaveBtn.style.display = 'flex';
         } else {
             const ownerName = data.owner_name ? ` ${data.owner_name}` : '';
-            if (statusEl) statusEl.textContent = `Вы подключены к общему кошельку${ownerName ? ' владельца' + ownerName : ''}.`;
+            if (statusEl) statusEl.textContent = `Статус: участник${ownerName ? ' • ' + ownerName : ''}`;
             if (actionsEl) actionsEl.style.display = 'none';
             if (shareEl) shareEl.style.display = 'grid';
             if (codeEl) codeEl.textContent = '';

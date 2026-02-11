@@ -616,33 +616,49 @@
                     <button class="article-close" onclick="closeSharedWallet()">✕</button>
                 </div>
                 <div class="article-modal-body">
-                    <div class="shared-wallet-status" id="shared-wallet-status">Загрузка...</div>
+                    <div class="shared-wallet-status-card">
+                        <div class="shared-wallet-status" id="shared-wallet-status">Загрузка...</div>
+                        <div class="shared-wallet-hint">Создайте общий кошелёк или подключитесь по коду.</div>
+                    </div>
 
                     <div class="shared-wallet-actions" id="shared-wallet-actions">
-                        <button class="service-link add-home-open" id="shared-create-btn" onclick="createSharedWallet()">
-                            <span>Создать общий кошелёк</span>
-                            <span class="service-link-arrow">→</span>
-                        </button>
-
-                        <div class="shared-wallet-join">
-                            <input class="form-input" id="shared-code-input" placeholder="Введите код приглашения" />
-                            <button class="service-link" onclick="joinSharedWallet()">
-                                <span>Подключиться по коду</span>
+                        <div class="shared-wallet-block">
+                            <div class="shared-wallet-title">Создать общий кошелёк</div>
+                            <div class="shared-wallet-text">Вы будете владельцем и сможете пригласить друга.</div>
+                            <button class="service-link add-home-open" id="shared-create-btn" onclick="createSharedWallet()">
+                                <span>Создать</span>
                                 <span class="service-link-arrow">→</span>
                             </button>
+                        </div>
+
+                        <div class="shared-wallet-block">
+                            <div class="shared-wallet-title">Подключиться по коду</div>
+                            <div class="shared-wallet-text">Введите код приглашения от владельца.</div>
+                            <div class="shared-wallet-join">
+                                <input class="form-input" id="shared-code-input" placeholder="Код приглашения" />
+                                <button class="service-link" onclick="joinSharedWallet()">
+                                    <span>Подключиться</span>
+                                    <span class="service-link-arrow">→</span>
+                                </button>
+                            </div>
                         </div>
                     </div>
 
                     <div class="shared-wallet-share" id="shared-wallet-share" style="display: none;">
-                        <div class="shared-wallet-code">Код: <span id="shared-code-value"></span></div>
-                        <button class="service-link" id="shared-copy-code" onclick="copySharedCode()">
-                            <span>Скопировать код</span>
-                            <span class="service-link-arrow">→</span>
-                        </button>
-                        <button class="service-link" id="shared-copy-link" onclick="copySharedLink()">
-                            <span>Скопировать ссылку</span>
-                            <span class="service-link-arrow">→</span>
-                        </button>
+                        <div class="shared-wallet-block">
+                            <div class="shared-wallet-title">Приглашение</div>
+                            <div class="shared-wallet-code">Код: <span id="shared-code-value"></span></div>
+                            <div class="shared-wallet-share-actions">
+                                <button class="service-link" id="shared-copy-code" onclick="copySharedCode()">
+                                    <span>Скопировать код</span>
+                                    <span class="service-link-arrow">→</span>
+                                </button>
+                                <button class="service-link" id="shared-copy-link" onclick="copySharedLink()">
+                                    <span>Скопировать ссылку</span>
+                                    <span class="service-link-arrow">→</span>
+                                </button>
+                            </div>
+                        </div>
                         <button class="service-link" id="shared-leave-btn" onclick="leaveSharedWallet()">
                             <span>Отключиться</span>
                             <span class="service-link-arrow">→</span>

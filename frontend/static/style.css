@@ -1279,16 +1279,48 @@ body {
 }
 
 /* Shared wallet */
-.shared-wallet-status {
-  font-size: 14px;
-  color: var(--ios-text-secondary);
+.shared-wallet-status-card {
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: var(--border-radius);
+  padding: var(--spacing-md);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   margin-bottom: var(--spacing-md);
+}
+
+.shared-wallet-status {
+  font-size: 15px;
+  color: var(--ios-text-primary);
+  margin-bottom: 6px;
+}
+
+.shared-wallet-hint {
+  font-size: 13px;
+  color: var(--ios-text-secondary);
+}
+
+.shared-wallet-block {
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: var(--border-radius);
+  padding: var(--spacing-md);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.shared-wallet-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ios-text-primary);
+  margin-bottom: 6px;
+}
+
+.shared-wallet-text {
+  font-size: 13px;
+  color: var(--ios-text-secondary);
+  margin-bottom: var(--spacing-sm);
 }
 
 .shared-wallet-join {
   display: grid;
   gap: var(--spacing-sm);
-  margin-top: var(--spacing-md);
 }
 
 .shared-wallet-share {
@@ -1297,10 +1329,15 @@ body {
   margin-top: var(--spacing-md);
 }
 
+.shared-wallet-share-actions {
+  display: grid;
+  gap: var(--spacing-sm);
+}
+
 .shared-wallet-code {
-  font-size: 14px;
+  font-size: 15px;
   color: var(--ios-text-primary);
-  margin-bottom: var(--spacing-sm);
+  margin-bottom: 8px;
 }
 
 /* Subscription */
