@@ -42,6 +42,35 @@ CRYPTOPAY_API_TOKEN = os.getenv('CRYPTOPAY_API_TOKEN', '')
 CRYPTOPAY_WEBHOOK_SECRET = os.getenv('CRYPTOPAY_WEBHOOK_SECRET', '')
 DEFAULT_SUBSCRIPTION_MONTHS = int(os.getenv('SUBSCRIPTION_DEFAULT_MONTHS', '1'))
 
+def parse_promo_codes(raw_value):
+    if not raw_value:
+        return []
+    parts = []
+    for chunk in raw_value.replace('\n', ',').split(','):
+        token = chunk.strip()
+        if not token:
+            continue
+        parts.append(token.upper())
+    return parts
+
+PROMO_CODE_MAP = {}
+for code in parse_promo_codes(os.getenv('PROMO_CODES_1M', '')):
+    PROMO_CODE_MAP[code] = 1
+for code in parse_promo_codes(os.getenv('PROMO_CODES_3M', '')):
+    PROMO_CODE_MAP[code] = 3
+for code in parse_promo_codes(os.getenv('PROMO_CODES_6M', '')):
+    PROMO_CODE_MAP[code] = 6
+for code in parse_promo_codes(os.getenv('PROMO_CODES_12M', '')):
+    PROMO_CODE_MAP[code] = 12
+
+PROMO_MULTI_CODE_MAP = {}
+for code in parse_promo_codes(os.getenv('PROMO_CODES_1M_MULTI_100', '')):
+    PROMO_MULTI_CODE_MAP[code] = 1
+
+PROMO_MULTI_LIMITS = {
+    1: int(os.getenv('PROMO_CODES_1M_MULTI_LIMIT', '100'))
+}
+
 print(f"🚀 Starting Flask app (iOS 26 Version)")
 
 CACHE_DIR = os.getenv('MARKET_CACHE_DIR')
@@ -817,6 +846,45 @@ def subscription_info():
         })
     except Exception as e:
         print(f"Subscription info error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/subscription/redeem', methods=['POST'])
+def subscription_redeem():
+    try:
+        data = request.json or {}
+        user_id = data.get('user_id')
+        code = (data.get('code') or '').strip().upper()
+        if not user_id or not code:
+            return jsonify({'error': 'Missing fields'}), 400
+        if not db:
+            return jsonify({'error': 'Database error'}), 500
+        months = PROMO_CODE_MAP.get(code)
+        if months:
+            if db.is_promo_redeemed(code):
+                return jsonify({'error': 'Promo code already used'}), 400
+            if not db.redeem_promo_code(user_id, code, months):
+                return jsonify({'error': 'Promo code already used'}), 400
+        else:
+            months = PROMO_MULTI_CODE_MAP.get(code)
+            if not months:
+                return jsonify({'error': 'Invalid promo code'}), 400
+            if db.has_promo_multi_user(code, user_id):
+                return jsonify({'error': 'Promo code already used'}), 400
+            limit = PROMO_MULTI_LIMITS.get(months, 0)
+            if limit and db.get_promo_multi_count(code) >= limit:
+                return jsonify({'error': 'Promo code limit reached'}), 400
+            if not db.redeem_promo_multi_code(user_id, code, months):
+                return jsonify({'error': 'Promo code already used'}), 400
+        db.set_subscription_active(user_id, True, months=months)
+        info = db.get_subscription_info(user_id)
+        return jsonify({
+            'success': True,
+            'months': months,
+            'subscription_start': info['activated_at'],
+            'subscription_end': info['expires_at']
+        })
+    except Exception as e:
+        print(f"Subscription redeem error: {e}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/subscription/lecryptio/create', methods=['POST'])

@@ -1410,6 +1410,12 @@ body {
   margin-bottom: var(--spacing-md);
 }
 
+.subscription-promo {
+  display: grid;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
+}
+
 .subscription-address {
   background: rgba(255, 255, 255, 0.06);
   border-radius: var(--border-radius-small);

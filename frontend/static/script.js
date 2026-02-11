@@ -1337,6 +1337,7 @@ function updateSubscriptionUI() {
     const copyAmtBtn = document.getElementById('subscription-copy-amount');
     const openInvoiceBtn = document.getElementById('subscription-open-invoice');
     const checkBtn = document.getElementById('subscription-check');
+    const promoBtn = document.getElementById('subscription-promo-apply');
     const adminBlock = document.getElementById('subscription-admin');
     if (subscriptionActive) {
         if (statusEl) statusEl.textContent = 'Подписка активна.';
@@ -1363,6 +1364,7 @@ function updateSubscriptionUI() {
     if (copyAmtBtn) copyAmtBtn.style.display = subscriptionPayment.amount ? 'flex' : 'none';
     if (openInvoiceBtn) openInvoiceBtn.style.display = hasOpenUrl ? 'flex' : 'none';
     if (checkBtn) checkBtn.style.display = hasInvoice ? 'flex' : 'none';
+    if (promoBtn) promoBtn.disabled = subscriptionActive;
     if (adminBlock) adminBlock.style.display = isAdminUser() ? 'block' : 'none';
     const userNameEl = document.getElementById('subscription-user-name');
     if (userNameEl) userNameEl.textContent = currentUser?.username ? '@' + currentUser.username : '—';
@@ -1378,6 +1380,38 @@ function updateSubscriptionUI() {
         btn.disabled = hasInvoice || subscriptionActive;
     });
     updateSubscriptionPeriod();
+}
+
+async function redeemPromoCode() {
+    if (!currentUser) return;
+    if (subscriptionActive) {
+        showNotification('Подписка уже активна', 'info');
+        return;
+    }
+    const input = document.getElementById('subscription-promo-code');
+    const code = (input?.value || '').trim();
+    if (!code) {
+        showNotification('Введите промокод', 'error');
+        return;
+    }
+    try {
+        const res = await fetch('/api/subscription/redeem', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_id: currentUser.id, code })
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+        subscriptionActive = true;
+        subscriptionStart = data.subscription_start || subscriptionStart;
+        subscriptionEnd = data.subscription_end || subscriptionEnd;
+        if (input) input.value = '';
+        showNotification(`Промокод активирован на ${data.months} мес.`, 'success');
+        updateSubscriptionUI();
+        refreshSubscriptionInfo();
+    } catch (e) {
+        showNotification(e.message || 'Не удалось активировать промокод', 'error');
+    }
 }
 
 function formatSubscriptionStatus(status) {
@@ -4427,6 +4461,7 @@ window.copySubscriptionAmount = copySubscriptionAmount;
 window.grantSubscriptionManual = grantSubscriptionManual;
 window.prefillAdminUsername = prefillAdminUsername;
 window.setSubscriptionAsset = setSubscriptionAsset;
+window.redeemPromoCode = redeemPromoCode;
 window.openSharedWallet = openSharedWallet;
 window.closeSharedWallet = closeSharedWallet;
 window.copySharedCode = copySharedCode;

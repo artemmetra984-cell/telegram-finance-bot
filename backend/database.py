@@ -188,6 +188,30 @@ class Database:
                 FOREIGN KEY (user_id) REFERENCES users (id)
             )
         ''')
+
+        # Таблица промокодов
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS promo_redemptions (
+                code TEXT PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                months INTEGER NOT NULL,
+                redeemed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users (id)
+            )
+        ''')
+
+        # Таблица промокодов с лимитом (многоразовые)
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS promo_multi_redemptions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                code TEXT NOT NULL,
+                user_id INTEGER NOT NULL,
+                months INTEGER NOT NULL,
+                redeemed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users (id),
+                UNIQUE(code, user_id)
+            )
+        ''')
         
         # Индексы для быстрого поиска
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_transactions_user_id ON transactions(user_id)')
@@ -203,6 +227,8 @@ class Database:
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_cryptocloud_user_id ON cryptocloud_invoices(user_id)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_lecryptio_user_id ON lecryptio_invoices(user_id)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_cryptopay_user_id ON cryptopay_invoices(user_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_promo_user_id ON promo_redemptions(user_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_promo_multi_code ON promo_multi_redemptions(code)')
 
         # ensure new columns for subscriptions
         cursor.execute("PRAGMA table_info(subscriptions)")
@@ -829,6 +855,52 @@ class Database:
             ORDER BY id DESC LIMIT 1
         ''', (owner_id,))
         return cursor.fetchone()
+
+    def is_promo_redeemed(self, code):
+        cursor = self.conn.cursor()
+        cursor.execute('SELECT code FROM promo_redemptions WHERE code = ?', (code,))
+        return cursor.fetchone() is not None
+
+    def redeem_promo_code(self, user_id, code, months):
+        cursor = self.conn.cursor()
+        owner_id = self._resolve_owner_id(user_id)
+        try:
+            cursor.execute('''
+                INSERT INTO promo_redemptions (code, user_id, months)
+                VALUES (?, ?, ?)
+            ''', (code, owner_id, months))
+            self.conn.commit()
+            return True
+        except sqlite3.IntegrityError:
+            return False
+
+    def get_promo_multi_count(self, code):
+        cursor = self.conn.cursor()
+        cursor.execute('SELECT COUNT(*) as total FROM promo_multi_redemptions WHERE code = ?', (code,))
+        row = cursor.fetchone()
+        return int(row['total']) if row else 0
+
+    def has_promo_multi_user(self, code, user_id):
+        cursor = self.conn.cursor()
+        owner_id = self._resolve_owner_id(user_id)
+        cursor.execute('''
+            SELECT id FROM promo_multi_redemptions
+            WHERE code = ? AND user_id = ?
+        ''', (code, owner_id))
+        return cursor.fetchone() is not None
+
+    def redeem_promo_multi_code(self, user_id, code, months):
+        cursor = self.conn.cursor()
+        owner_id = self._resolve_owner_id(user_id)
+        try:
+            cursor.execute('''
+                INSERT INTO promo_multi_redemptions (code, user_id, months)
+                VALUES (?, ?, ?)
+            ''', (code, owner_id, months))
+            self.conn.commit()
+            return True
+        except sqlite3.IntegrityError:
+            return False
     
     def update_user_currency(self, user_id, currency):
         cursor = self.conn.cursor()

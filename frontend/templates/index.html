@@ -685,6 +685,13 @@
                             <button class="subscription-asset" data-subscription-asset="TON" onclick="setSubscriptionAsset('TON')">TON</button>
                         </div>
                         <div class="subscription-status" id="subscription-status">Создайте оплату</div>
+                        <div class="subscription-promo">
+                            <input class="form-input" id="subscription-promo-code" placeholder="Промокод" />
+                            <button class="service-link subscription-confirm" id="subscription-promo-apply" onclick="redeemPromoCode()">
+                                <span>Активировать промокод</span>
+                                <span class="service-link-arrow">→</span>
+                            </button>
+                        </div>
                         <div class="subscription-address" id="subscription-address-wrap" style="display: none;">
                             <div class="subscription-address-label">Адрес</div>
                             <div class="subscription-address-value" id="subscription-address"></div>
