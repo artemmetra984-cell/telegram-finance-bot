@@ -109,6 +109,7 @@ class Database:
                 user_id INTEGER UNIQUE NOT NULL,
                 active INTEGER DEFAULT 0,
                 activated_at TIMESTAMP,
+                expires_at TEXT,
                 FOREIGN KEY (user_id) REFERENCES users (id)
             )
         ''')
@@ -202,6 +203,15 @@ class Database:
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_cryptocloud_user_id ON cryptocloud_invoices(user_id)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_lecryptio_user_id ON lecryptio_invoices(user_id)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_cryptopay_user_id ON cryptopay_invoices(user_id)')
+
+        # ensure new columns for subscriptions
+        cursor.execute("PRAGMA table_info(subscriptions)")
+        existing_cols = [row['name'] for row in cursor.fetchall()]
+        if 'expires_at' not in existing_cols:
+            try:
+                cursor.execute('ALTER TABLE subscriptions ADD COLUMN expires_at TEXT')
+            except Exception:
+                pass
         
         self.conn.commit()
         print("✅ Tables ready")
@@ -282,6 +292,12 @@ class Database:
         ''', (username,))
         row = cursor.fetchone()
         return row['id'] if row else None
+
+    def get_username_by_id(self, user_id):
+        cursor = self.conn.cursor()
+        cursor.execute('SELECT username FROM users WHERE id = ?', (user_id,))
+        row = cursor.fetchone()
+        return row['username'] if row and row['username'] else None
 
     def _resolve_owner_id(self, user_id):
         cursor = self.conn.cursor()
@@ -559,27 +575,84 @@ class Database:
         return result['default_wallet'] if result and result['default_wallet'] else 'Наличные'
 
     def get_subscription_status(self, user_id):
-        cursor = self.conn.cursor()
-        owner_id = self._resolve_owner_id(user_id)
-        cursor.execute('SELECT active FROM subscriptions WHERE user_id = ?', (owner_id,))
-        row = cursor.fetchone()
-        return bool(row['active']) if row else False
+        info = self.get_subscription_info(user_id)
+        return bool(info['active'])
 
-    def set_subscription_active(self, user_id, active=True):
+    def get_subscription_info(self, user_id):
         cursor = self.conn.cursor()
         owner_id = self._resolve_owner_id(user_id)
-        cursor.execute('SELECT id FROM subscriptions WHERE user_id = ?', (owner_id,))
-        if cursor.fetchone():
+        cursor.execute('SELECT active, activated_at, expires_at FROM subscriptions WHERE user_id = ?', (owner_id,))
+        row = cursor.fetchone()
+        if not row:
+            return {'active': False, 'activated_at': None, 'expires_at': None}
+        active = bool(row['active'])
+        expires_at = row['expires_at']
+        activated_at = row['activated_at']
+        if expires_at:
+            try:
+                exp = datetime.fromisoformat(expires_at)
+                if datetime.utcnow() > exp:
+                    active = False
+                    cursor.execute('UPDATE subscriptions SET active = 0 WHERE user_id = ?', (owner_id,))
+                    self.conn.commit()
+            except Exception:
+                pass
+        return {'active': active, 'activated_at': activated_at, 'expires_at': expires_at}
+
+    def set_subscription_active(self, user_id, active=True, months=None, extend=True):
+        cursor = self.conn.cursor()
+        owner_id = self._resolve_owner_id(user_id)
+        cursor.execute('SELECT active, activated_at, expires_at FROM subscriptions WHERE user_id = ?', (owner_id,))
+        row = cursor.fetchone()
+        now = datetime.utcnow()
+        activated_at = now.isoformat()
+        expires_at = None
+        if row:
+            if row['expires_at']:
+                expires_at = row['expires_at']
+        if active and months:
+            start = now
+            if extend and expires_at:
+                try:
+                    existing = datetime.fromisoformat(expires_at)
+                    if existing > now:
+                        start = existing
+                except Exception:
+                    pass
+            expires_at = self._add_months(start, months).isoformat()
+            if start == now:
+                activated_at = now.isoformat()
+            elif row and row['activated_at']:
+                activated_at = row['activated_at']
+        elif not active:
+            expires_at = None
+        if row:
             cursor.execute('''
-                UPDATE subscriptions SET active = ?, activated_at = CURRENT_TIMESTAMP WHERE user_id = ?
-            ''', (1 if active else 0, owner_id))
+                UPDATE subscriptions
+                SET active = ?, activated_at = ?, expires_at = ?
+                WHERE user_id = ?
+            ''', (1 if active else 0, activated_at, expires_at, owner_id))
         else:
             cursor.execute('''
-                INSERT INTO subscriptions (user_id, active, activated_at)
-                VALUES (?, ?, CURRENT_TIMESTAMP)
-            ''', (owner_id, 1 if active else 0))
+                INSERT INTO subscriptions (user_id, active, activated_at, expires_at)
+                VALUES (?, ?, ?, ?)
+            ''', (owner_id, 1 if active else 0, activated_at, expires_at))
         self.conn.commit()
         return True
+
+    def _add_months(self, dt_value, months):
+        month_index = dt_value.month - 1 + int(months)
+        year = dt_value.year + month_index // 12
+        month = month_index % 12 + 1
+        day = min(dt_value.day, self._days_in_month(year, month))
+        return dt_value.replace(year=year, month=month, day=day)
+
+    def _days_in_month(self, year, month):
+        if month == 12:
+            next_month = datetime(year + 1, 1, 1)
+        else:
+            next_month = datetime(year, month + 1, 1)
+        return (next_month - timedelta(days=1)).day
 
     def create_nowpayment(self, user_id, payment_id, status, price_amount, price_currency, pay_amount, pay_currency, pay_address, order_id):
         cursor = self.conn.cursor()

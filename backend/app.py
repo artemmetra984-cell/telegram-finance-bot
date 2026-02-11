@@ -40,6 +40,7 @@ LECRYPTIO_SIGNING_SECRET = os.getenv('LECRYPTIO_SIGNING_SECRET', '')
 LECRYPTIO_WEBHOOK_SECRET = os.getenv('LECRYPTIO_WEBHOOK_SECRET', '')
 CRYPTOPAY_API_TOKEN = os.getenv('CRYPTOPAY_API_TOKEN', '')
 CRYPTOPAY_WEBHOOK_SECRET = os.getenv('CRYPTOPAY_WEBHOOK_SECRET', '')
+DEFAULT_SUBSCRIPTION_MONTHS = int(os.getenv('SUBSCRIPTION_DEFAULT_MONTHS', '1'))
 
 print(f"🚀 Starting Flask app (iOS 26 Version)")
 
@@ -543,7 +544,8 @@ def init_user():
         if db:
             stats = db.get_user_stats(user_id)
             default_wallet = db.get_effective_default_wallet(user_id)
-            subscription_active = db.get_subscription_status(user_id)
+            subscription_info = db.get_subscription_info(user_id)
+            subscription_active = subscription_info['active']
             
             categories = {'income': [], 'expense': [], 'savings': []}
             all_categories = db.get_categories(user_id)
@@ -614,6 +616,7 @@ def init_user():
             currency = 'RUB'
             default_wallet = 'Наличные'
             subscription_active = False
+            subscription_info = {'activated_at': None, 'expires_at': None}
         
         return jsonify({
             'user_id': user_id,
@@ -632,7 +635,9 @@ def init_user():
             'total_transactions': total_transactions,
             'currency': currency,
             'default_wallet': default_wallet,
-            'subscription_active': subscription_active
+            'subscription_active': subscription_active,
+            'subscription_start': subscription_info['activated_at'],
+            'subscription_end': subscription_info['expires_at']
         })
     except Exception as e:
         print(f"Init error: {e}")
@@ -734,6 +739,7 @@ def subscription_activate():
         data = request.json or {}
         user_id = data.get('user_id')
         admin_key = data.get('admin_key', '')
+        months = data.get('months')
         if not user_id:
             return jsonify({'error': 'Missing user_id'}), 400
         secret = os.getenv('ADMIN_SECRET')
@@ -743,8 +749,13 @@ def subscription_activate():
             return jsonify({'error': 'Forbidden'}), 403
         if not db:
             return jsonify({'error': 'Database error'}), 500
-        db.set_subscription_active(user_id, True)
-        return jsonify({'success': True})
+        try:
+            months = int(months) if months else DEFAULT_SUBSCRIPTION_MONTHS
+        except Exception:
+            months = DEFAULT_SUBSCRIPTION_MONTHS
+        db.set_subscription_active(user_id, True, months=months)
+        info = db.get_subscription_info(user_id)
+        return jsonify({'success': True, 'subscription_start': info['activated_at'], 'subscription_end': info['expires_at'], 'months': months})
     except Exception as e:
         print(f"Subscription activate error: {e}")
         return jsonify({'error': str(e)}), 500
@@ -756,6 +767,7 @@ def subscription_grant():
         user_id = data.get('user_id')
         username = (data.get('username') or '').lstrip('@').strip()
         admin_key = data.get('admin_key', '')
+        months = data.get('months')
         secret = os.getenv('ADMIN_SECRET')
         if not secret:
             return jsonify({'error': 'ADMIN_SECRET is not set'}), 500
@@ -767,8 +779,24 @@ def subscription_grant():
             user_id = db.get_user_id_by_username(username)
         if not user_id:
             return jsonify({'error': 'User not found (user must open app once)'}), 404
-        db.set_subscription_active(user_id, True)
-        return jsonify({'success': True})
+        try:
+            months = int(months) if months else DEFAULT_SUBSCRIPTION_MONTHS
+        except Exception:
+            months = DEFAULT_SUBSCRIPTION_MONTHS
+        if months not in (1, 3, 6, 12):
+            months = DEFAULT_SUBSCRIPTION_MONTHS
+        db.set_subscription_active(user_id, True, months=months)
+        info = db.get_subscription_info(user_id)
+        if not username:
+            username = db.get_username_by_id(user_id)
+        return jsonify({
+            'success': True,
+            'months': months,
+            'subscription_start': info['activated_at'],
+            'subscription_end': info['expires_at'],
+            'username': username or None,
+            'user_id': user_id
+        })
     except Exception as e:
         print(f"Subscription grant error: {e}")
         return jsonify({'error': str(e)}), 500
@@ -821,8 +849,14 @@ def lecryptio_status():
         invoice, status = refresh_cryptopay_invoice(invoice_id)
         if invoice and is_cryptopay_paid(status):
             if cryptopay_matches_subscription(invoice['amount'], invoice['asset']):
-                db.set_subscription_active(invoice['user_id'], True)
-                return jsonify({'status': status, 'active': True})
+                db.set_subscription_active(invoice['user_id'], True, months=DEFAULT_SUBSCRIPTION_MONTHS)
+                info = db.get_subscription_info(invoice['user_id'])
+                return jsonify({
+                    'status': status,
+                    'active': True,
+                    'subscription_start': info['activated_at'],
+                    'subscription_end': info['expires_at']
+                })
         return jsonify({'status': status})
     except Exception as e:
         print(f"LeCryptio status error: {e}")
@@ -854,7 +888,7 @@ def lecryptio_webhook():
         if uuid_value and user_id:
             db.create_lecryptio_invoice(user_id, uuid_value, order_id, status or event, amount, currency, network, address, pay_url)
             if (is_lecryptio_paid(status) or event == 'invoice.paid') and lecryptio_matches_subscription(amount, currency, network):
-                db.set_subscription_active(user_id, True)
+                db.set_subscription_active(user_id, True, months=DEFAULT_SUBSCRIPTION_MONTHS)
         elif uuid_value and status:
             db.update_lecryptio_status(uuid_value, status)
         return jsonify({'success': True})
@@ -895,12 +929,14 @@ def cryptopay_status():
         invoice, status = refresh_cryptopay_invoice(invoice_id)
         if invoice and is_cryptopay_paid(status):
             if cryptopay_matches_subscription(invoice['amount'], invoice['asset']):
-                db.set_subscription_active(invoice['user_id'], True)
-                return jsonify({'status': status, 'active': True})
-        if invoice and is_cryptopay_paid(status):
-            if cryptopay_matches_subscription(invoice['amount'], invoice['asset']):
-                db.set_subscription_active(invoice['user_id'], True)
-                return jsonify({'status': status, 'active': True})
+                db.set_subscription_active(invoice['user_id'], True, months=DEFAULT_SUBSCRIPTION_MONTHS)
+                info = db.get_subscription_info(invoice['user_id'])
+                return jsonify({
+                    'status': status,
+                    'active': True,
+                    'subscription_start': info['activated_at'],
+                    'subscription_end': info['expires_at']
+                })
         return jsonify({'status': status})
     except Exception as e:
         print(f"CryptoPay status error: {e}")
@@ -946,7 +982,7 @@ def cryptopay_webhook(secret=None):
         if invoice_id and user_id:
             db.create_cryptopay_invoice(user_id, invoice_id, status, asset, amount, payload_ref, bot_url, mini_url, web_url)
             if is_cryptopay_paid(status) and cryptopay_matches_subscription(amount, asset):
-                db.set_subscription_active(user_id, True)
+                db.set_subscription_active(user_id, True, months=DEFAULT_SUBSCRIPTION_MONTHS)
         elif invoice_id and status:
             db.update_cryptopay_status(invoice_id, status)
         return jsonify({'success': True})
@@ -1002,8 +1038,14 @@ def cryptocloud_status():
         invoice, status = refresh_cryptopay_invoice(invoice_id)
         if invoice and is_cryptopay_paid(status):
             if cryptopay_matches_subscription(invoice['amount'], invoice['asset']):
-                db.set_subscription_active(invoice['user_id'], True)
-                return jsonify({'status': status, 'active': True})
+                db.set_subscription_active(invoice['user_id'], True, months=DEFAULT_SUBSCRIPTION_MONTHS)
+                info = db.get_subscription_info(invoice['user_id'])
+                return jsonify({
+                    'status': status,
+                    'active': True,
+                    'subscription_start': info['activated_at'],
+                    'subscription_end': info['expires_at']
+                })
         return jsonify({'status': status})
     except Exception as e:
         print(f"CryptoCloud status error: {e}")
@@ -1042,7 +1084,7 @@ def cryptocloud_postback():
         if user_id and uuid_value:
             db.create_cryptocloud_invoice(user_id, uuid_value, order_id, status, amount, currency, address, pay_url)
             if is_cryptocloud_paid(status):
-                db.set_subscription_active(user_id, True)
+                db.set_subscription_active(user_id, True, months=DEFAULT_SUBSCRIPTION_MONTHS)
         elif uuid_value and status:
             db.update_cryptocloud_status(uuid_value, status)
         return jsonify({'success': True})
@@ -1109,7 +1151,7 @@ def nowpayments_status():
         if payment_id:
             payment = db.get_nowpayment(payment_id)
             if payment and payment['payment_status'] in ('finished', 'confirmed'):
-                db.set_subscription_active(payment['user_id'], True)
+                db.set_subscription_active(payment['user_id'], True, months=DEFAULT_SUBSCRIPTION_MONTHS)
                 return jsonify({'payment_status': payment['payment_status'], 'active': True})
             if not NOWPAYMENTS_API_KEY:
                 status = payment['payment_status'] if payment else 'unknown'
@@ -1127,12 +1169,12 @@ def nowpayments_status():
             if status:
                 db.update_nowpayment_status(payment_id, status)
             if payment and status in ('finished', 'confirmed'):
-                db.set_subscription_active(payment['user_id'], True)
+                db.set_subscription_active(payment['user_id'], True, months=DEFAULT_SUBSCRIPTION_MONTHS)
                 return jsonify({'payment_status': status, 'active': True})
             return jsonify({'payment_status': status})
         payment = db.get_nowpayment_by_order(order_id)
         if payment and payment['payment_status'] in ('finished', 'confirmed'):
-            db.set_subscription_active(payment['user_id'], True)
+            db.set_subscription_active(payment['user_id'], True, months=DEFAULT_SUBSCRIPTION_MONTHS)
             return jsonify({'payment_status': payment['payment_status'], 'active': True})
         return jsonify({'payment_status': payment['payment_status'] if payment else 'waiting'})
     except Exception as e:
@@ -1182,7 +1224,7 @@ def nowpayments_ipn():
                 db.update_nowpayment_status(int(payment_id), status)
             payment = db.get_nowpayment(int(payment_id))
             if payment and status in ('finished', 'confirmed'):
-                db.set_subscription_active(payment['user_id'], True)
+                db.set_subscription_active(payment['user_id'], True, months=DEFAULT_SUBSCRIPTION_MONTHS)
         return jsonify({'success': True})
     except Exception as e:
         print(f"NowPayments IPN error: {e}")

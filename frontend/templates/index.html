@@ -386,6 +386,10 @@
             <!-- ==================== -->
             <div id="services-page" class="page">
                 <div class="services-section">
+                    <div class="service-card subscription-period-card">
+                        <div class="service-title">Подписка</div>
+                        <div class="subscription-period" id="subscription-period">Не активна</div>
+                    </div>
                     <!-- Основной кошелёк -->
                     <div class="service-card">
                         <div class="service-title">Основной кошелёк</div>
@@ -705,6 +709,12 @@
                         <div class="subscription-admin-form">
                             <input class="form-input" id="subscription-admin-user" placeholder="User ID или @username" />
                             <input class="form-input" id="subscription-admin-key" placeholder="Admin key" />
+                            <select class="form-select" id="subscription-admin-months">
+                                <option value="1">1 месяц</option>
+                                <option value="3">3 месяца</option>
+                                <option value="6">6 месяцев</option>
+                                <option value="12">12 месяцев</option>
+                            </select>
                             <button class="service-link" onclick="grantSubscriptionManual()">
                                 <span>Выдать подписку</span>
                                 <span class="service-link-arrow">→</span>

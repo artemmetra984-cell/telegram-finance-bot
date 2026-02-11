@@ -34,6 +34,8 @@ let marketChartState = { market: '', id: '', range: '1m' };
 let sharedWalletState = { status: 'none', code: '', link: '' };
 let pendingInviteCode = null;
 let subscriptionActive = false;
+let subscriptionStart = null;
+let subscriptionEnd = null;
 const subscriptionProvider = 'cryptopay';
 let subscriptionPayment = {
     invoiceId: null,
@@ -446,6 +448,8 @@ async function initUser() {
         categoryStats = data.category_stats || { income: {}, expense: {}, wallets: {} };
         allTransactions = data.recent_transactions || [];
         subscriptionActive = !!data.subscription_active;
+        subscriptionStart = data.subscription_start || null;
+        subscriptionEnd = data.subscription_end || null;
         if (subscriptionActive) {
             subscriptionPayment = { invoiceId: null, status: '', asset: 'USDT', amount: '', currency: '', invoiceUrl: '', miniAppUrl: '', webAppUrl: '', botUrl: '' };
             try { localStorage.removeItem('subscription_payment'); } catch {}
@@ -454,6 +458,7 @@ async function initUser() {
         // Обновляем отображение
         updateCurrencyDisplay();
         updateBalanceDisplay(data.summary);
+        updateSubscriptionPeriod();
         
     } catch (error) {
         console.error('❌ Ошибка инициализации:', error);
@@ -1215,6 +1220,31 @@ function openSubscriptionModal() {
     startSubscriptionPolling();
 }
 
+function formatSubscriptionDate(value) {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    return date.toLocaleDateString('ru-RU');
+}
+
+function updateSubscriptionPeriod() {
+    const el = document.getElementById('subscription-period');
+    if (!el) return;
+    if (subscriptionActive && subscriptionStart && subscriptionEnd) {
+        const start = formatSubscriptionDate(subscriptionStart);
+        const end = formatSubscriptionDate(subscriptionEnd);
+        if (start && end) {
+            el.textContent = `С ${start} по ${end}`;
+            return;
+        }
+    }
+    if (subscriptionActive) {
+        el.textContent = 'Подписка активна';
+    } else {
+        el.textContent = 'Не активна';
+    }
+}
+
 function closeSubscriptionModal() {
     const modal = document.getElementById('subscription-modal');
     if (modal) modal.classList.remove('active');
@@ -1330,6 +1360,7 @@ function updateSubscriptionUI() {
         }
         btn.disabled = hasInvoice || subscriptionActive;
     });
+    updateSubscriptionPeriod();
 }
 
 function formatSubscriptionStatus(status) {
@@ -1402,6 +1433,8 @@ async function checkSubscriptionStatus() {
         subscriptionPayment.status = data.status || subscriptionPayment.status;
         if (data.active) {
             subscriptionActive = true;
+            subscriptionStart = data.subscription_start || subscriptionStart;
+            subscriptionEnd = data.subscription_end || subscriptionEnd;
             subscriptionPayment = { invoiceId: null, status: '', asset: 'USDT', amount: '', currency: '', invoiceUrl: '', miniAppUrl: '', webAppUrl: '', botUrl: '' };
             saveSubscriptionState();
             showNotification('Подписка активирована', 'success');
@@ -1441,6 +1474,8 @@ async function grantSubscriptionManual() {
     const match = trimmed.match(/^\d+$/);
     const userId = match ? parseInt(trimmed, 10) : 0;
     const adminKey = document.getElementById('subscription-admin-key')?.value || '';
+    const monthsRaw = document.getElementById('subscription-admin-months')?.value || '1';
+    const months = parseInt(monthsRaw, 10) || 1;
     if ((!userId && !username) || !adminKey) {
         showNotification('Введите ID/username и ключ', 'error');
         return;
@@ -1449,11 +1484,29 @@ async function grantSubscriptionManual() {
         const res = await fetch('/api/subscription/grant', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ user_id: userId || undefined, username: userId ? undefined : username, admin_key: adminKey })
+            body: JSON.stringify({ user_id: userId || undefined, username: userId ? undefined : username, admin_key: adminKey, months })
         });
         const data = await res.json();
         if (data.error) throw new Error(data.error);
-        showNotification('Подписка выдана', 'success');
+        let nameLabel = username ? '@' + username : (trimmed ? trimmed : 'Пользователь');
+        if (data.username) {
+            nameLabel = data.username.startsWith('@') ? data.username : '@' + data.username;
+        }
+        showNotification(`${nameLabel} получил подписку на ${data.months || months} мес.`, 'success');
+        if (currentUser) {
+            const currentName = (currentUser.username || '').toLowerCase();
+            if (userId && currentUser.id === userId) {
+                subscriptionActive = true;
+                subscriptionStart = data.subscription_start || subscriptionStart;
+                subscriptionEnd = data.subscription_end || subscriptionEnd;
+                updateSubscriptionUI();
+            } else if (username && currentName === username.toLowerCase()) {
+                subscriptionActive = true;
+                subscriptionStart = data.subscription_start || subscriptionStart;
+                subscriptionEnd = data.subscription_end || subscriptionEnd;
+                updateSubscriptionUI();
+            }
+        }
     } catch (e) {
         showNotification(e.message || 'Ошибка выдачи', 'error');
     }

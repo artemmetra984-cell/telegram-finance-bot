@@ -1425,6 +1425,11 @@ body {
   gap: var(--spacing-sm);
 }
 
+.subscription-period {
+  color: var(--ios-text-secondary);
+  font-size: 13px;
+}
+
 /* Articles */
 .articles-section {
   margin: var(--spacing-md);
