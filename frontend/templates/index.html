@@ -678,8 +678,16 @@
                 <div class="article-modal-body">
                     <div class="subscription-card">
                         <div class="subscription-title">Полный доступ</div>
-                        <div class="subscription-price">$2</div>
+                        <div class="subscription-price" id="subscription-price">$2</div>
                         <div class="subscription-note">Оплата через Crypto Bot (USDT или TON)</div>
+                        <div class="subscription-duration">
+                            <select class="form-select" id="subscription-duration" onchange="setSubscriptionDuration(this.value)">
+                                <option value="1">1 месяц — $2</option>
+                                <option value="3">3 месяца — $5.6</option>
+                                <option value="6">6 месяцев — $10.5</option>
+                                <option value="12">12 месяцев — $21.5</option>
+                            </select>
+                        </div>
                         <div class="subscription-assets">
                             <button class="subscription-asset active" data-subscription-asset="USDT" onclick="setSubscriptionAsset('USDT')">USDT</button>
                             <button class="subscription-asset" data-subscription-asset="TON" onclick="setSubscriptionAsset('TON')">TON</button>

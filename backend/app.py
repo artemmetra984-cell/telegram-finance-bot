@@ -199,25 +199,68 @@ def verify_cryptopay_webhook(raw_body, signature_header, token):
 def is_cryptopay_paid(status):
     return status in ('paid',)
 
-def cryptopay_matches_subscription(amount, asset):
+SUBSCRIPTION_PRICE_MAP = {
+    1: 2.0,
+    3: 5.6,
+    6: 10.5,
+    12: 21.5
+}
+
+def get_subscription_price(months):
+    try:
+        months = int(months)
+    except Exception:
+        months = 1
+    if months not in SUBSCRIPTION_PRICE_MAP:
+        months = 1
+    return SUBSCRIPTION_PRICE_MAP[months]
+
+def parse_months_from_order(order_id):
+    try:
+        if not order_id:
+            return None
+        parts = order_id.split('_')
+        if len(parts) < 4:
+            return None
+        return int(parts[2])
+    except Exception:
+        return None
+
+def cryptopay_resolve_months(amount, asset, payload_ref=None):
+    months = parse_months_from_order(payload_ref)
+    if months in SUBSCRIPTION_PRICE_MAP:
+        return months
     try:
         amt = float(amount)
     except Exception:
-        return False
+        return None
     asset = (asset or '').upper()
-    return abs(amt - 2.0) < 0.0001 and asset in ('USDT', 'TON')
+    if asset not in ('USDT', 'TON'):
+        return None
+    for period, price in SUBSCRIPTION_PRICE_MAP.items():
+        if abs(amt - price) < 0.0001:
+            return period
+    return None
 
-def create_cryptopay_invoice_for_user(user_id, asset='USDT'):
+def create_cryptopay_invoice_for_user(user_id, asset='USDT', months=1):
     if not CRYPTOPAY_API_TOKEN:
         return None, 'CRYPTOPAY_API_TOKEN is not set'
     asset = asset.upper() if asset else 'USDT'
     if asset not in ('USDT', 'TON'):
         asset = 'USDT'
-    order_id = f"sub_{user_id}_{int(datetime.utcnow().timestamp())}"
+    try:
+        months = int(months)
+    except Exception:
+        months = 1
+    if months not in SUBSCRIPTION_PRICE_MAP:
+        months = 1
+    amount_value = get_subscription_price(months)
+    amount_str = f"{amount_value:.2f}".rstrip('0').rstrip('.')
+    order_id = f"sub_{user_id}_{months}_{int(datetime.utcnow().timestamp())}"
     payload = {
         'asset': asset,
-        'amount': '2',
-        'description': 'Subscription',
+        'amount': amount_str,
+        'description': f'Subscription {months}m',
         'payload': order_id,
         'allow_comments': False,
         'allow_anonymous': False,
@@ -254,7 +297,8 @@ def create_cryptopay_invoice_for_user(user_id, asset='USDT'):
         'bot_invoice_url': bot_url,
         'mini_app_invoice_url': mini_url,
         'web_app_invoice_url': web_url,
-        'payload': order_id
+        'payload': order_id,
+        'months': months
     }, None
 
 def resolve_cryptopay_invoice_id(uuid_value, order_id):
@@ -934,8 +978,9 @@ def lecryptio_status():
             return jsonify({'status': 'active'})
         invoice, status = refresh_cryptopay_invoice(invoice_id)
         if invoice and is_cryptopay_paid(status):
-            if cryptopay_matches_subscription(invoice['amount'], invoice['asset']):
-                db.set_subscription_active(invoice['user_id'], True, months=DEFAULT_SUBSCRIPTION_MONTHS)
+            months = cryptopay_resolve_months(invoice['amount'], invoice['asset'], invoice.get('payload'))
+            if months:
+                db.set_subscription_active(invoice['user_id'], True, months=months)
                 info = db.get_subscription_info(invoice['user_id'])
                 return jsonify({
                     'status': status,
@@ -988,6 +1033,7 @@ def cryptopay_create():
         data = request.json or {}
         user_id = data.get('user_id')
         asset = (data.get('asset') or 'USDT').upper()
+        months = data.get('months', 1)
         if asset not in ('USDT', 'TON'):
             asset = 'USDT'
         if not user_id:
@@ -996,7 +1042,7 @@ def cryptopay_create():
             return jsonify({'error': 'Database error'}), 500
         if db.get_subscription_status(user_id):
             return jsonify({'active': True})
-        result, err = create_cryptopay_invoice_for_user(user_id, asset)
+        result, err = create_cryptopay_invoice_for_user(user_id, asset, months)
         if err:
             return jsonify({'error': err}), 502
         return jsonify(result)
@@ -1014,8 +1060,9 @@ def cryptopay_status():
             return jsonify({'error': 'Database error'}), 500
         invoice, status = refresh_cryptopay_invoice(invoice_id)
         if invoice and is_cryptopay_paid(status):
-            if cryptopay_matches_subscription(invoice['amount'], invoice['asset']):
-                db.set_subscription_active(invoice['user_id'], True, months=DEFAULT_SUBSCRIPTION_MONTHS)
+            months = cryptopay_resolve_months(invoice['amount'], invoice['asset'], invoice.get('payload'))
+            if months:
+                db.set_subscription_active(invoice['user_id'], True, months=months)
                 info = db.get_subscription_info(invoice['user_id'])
                 return jsonify({
                     'status': status,
@@ -1067,8 +1114,10 @@ def cryptopay_webhook(secret=None):
                     payload_ref = existing['payload']
         if invoice_id and user_id:
             db.create_cryptopay_invoice(user_id, invoice_id, status, asset, amount, payload_ref, bot_url, mini_url, web_url)
-            if is_cryptopay_paid(status) and cryptopay_matches_subscription(amount, asset):
-                db.set_subscription_active(user_id, True, months=DEFAULT_SUBSCRIPTION_MONTHS)
+            if is_cryptopay_paid(status):
+                months = cryptopay_resolve_months(amount, asset, payload_ref)
+                if months:
+                    db.set_subscription_active(user_id, True, months=months)
         elif invoice_id and status:
             db.update_cryptopay_status(invoice_id, status)
         return jsonify({'success': True})
@@ -1123,8 +1172,9 @@ def cryptocloud_status():
             return jsonify({'status': 'active'})
         invoice, status = refresh_cryptopay_invoice(invoice_id)
         if invoice and is_cryptopay_paid(status):
-            if cryptopay_matches_subscription(invoice['amount'], invoice['asset']):
-                db.set_subscription_active(invoice['user_id'], True, months=DEFAULT_SUBSCRIPTION_MONTHS)
+            months = cryptopay_resolve_months(invoice['amount'], invoice['asset'], invoice.get('payload'))
+            if months:
+                db.set_subscription_active(invoice['user_id'], True, months=months)
                 info = db.get_subscription_info(invoice['user_id'])
                 return jsonify({
                     'status': status,

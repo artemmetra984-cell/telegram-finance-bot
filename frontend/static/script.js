@@ -39,6 +39,8 @@ let subscriptionActive = false;
 let subscriptionStart = null;
 let subscriptionEnd = null;
 const subscriptionProvider = 'cryptopay';
+const subscriptionPrices = { 1: 2, 3: 5.6, 6: 10.5, 12: 21.5 };
+let subscriptionDuration = 1;
 let subscriptionPayment = {
     invoiceId: null,
     status: '',
@@ -48,7 +50,8 @@ let subscriptionPayment = {
     invoiceUrl: '',
     miniAppUrl: '',
     webAppUrl: '',
-    botUrl: ''
+    botUrl: '',
+    months: 1
 };
 let subscriptionPoller = null;
 let subscriptionAsset = 'USDT';
@@ -456,7 +459,7 @@ async function initUser() {
         subscriptionStart = data.subscription_start || null;
         subscriptionEnd = data.subscription_end || null;
         if (subscriptionActive) {
-            subscriptionPayment = { invoiceId: null, status: '', asset: 'USDT', amount: '', currency: '', invoiceUrl: '', miniAppUrl: '', webAppUrl: '', botUrl: '' };
+            subscriptionPayment = { invoiceId: null, status: '', asset: 'USDT', amount: '', currency: '', invoiceUrl: '', miniAppUrl: '', webAppUrl: '', botUrl: '', months: subscriptionDuration };
             try { localStorage.removeItem('subscription_payment'); } catch {}
         }
         
@@ -1332,6 +1335,28 @@ function openSubscriptionModal() {
     startSubscriptionPolling();
 }
 
+function getSubscriptionPrice(months) {
+    return subscriptionPrices[months] || subscriptionPrices[1] || 2;
+}
+
+function updateSubscriptionPrice() {
+    const priceEl = document.getElementById('subscription-price');
+    const durationSelect = document.getElementById('subscription-duration');
+    if (durationSelect && subscriptionPrices[subscriptionDuration]) {
+        durationSelect.value = String(subscriptionDuration);
+    }
+    const priceValue = getSubscriptionPrice(subscriptionDuration);
+    if (priceEl) priceEl.textContent = `$${priceValue}`;
+}
+
+function setSubscriptionDuration(value) {
+    const months = parseInt(value, 10);
+    if (!subscriptionPrices[months]) return;
+    subscriptionDuration = months;
+    try { localStorage.setItem('subscription_duration', String(months)); } catch {}
+    updateSubscriptionPrice();
+}
+
 function formatSubscriptionDate(value) {
     if (!value) return '';
     const date = new Date(value);
@@ -1413,17 +1438,32 @@ function loadSubscriptionState() {
         const badProvider = url.includes('lecryptio') || url.includes('cryptocloud');
         const providerMismatch = parsed && parsed.provider && parsed.provider !== subscriptionProvider;
         if (badProvider || providerMismatch) {
-            subscriptionPayment = { invoiceId: null, status: '', asset: 'USDT', amount: '', currency: '', invoiceUrl: '', miniAppUrl: '', webAppUrl: '', botUrl: '' };
+            subscriptionPayment = { invoiceId: null, status: '', asset: 'USDT', amount: '', currency: '', invoiceUrl: '', miniAppUrl: '', webAppUrl: '', botUrl: '', months: subscriptionDuration };
             localStorage.removeItem('subscription_payment');
         }
         if (parsed && parsed.asset) {
             subscriptionAsset = parsed.asset;
+        }
+        if (parsed && parsed.months) {
+            const parsedMonths = parseInt(parsed.months, 10);
+            if (subscriptionPrices[parsedMonths]) {
+                subscriptionDuration = parsedMonths;
+            }
         }
     } catch {}
     try {
         const savedAsset = localStorage.getItem('subscription_asset');
         if (savedAsset) {
             subscriptionAsset = savedAsset.toUpperCase() === 'TON' ? 'TON' : 'USDT';
+        }
+    } catch {}
+    try {
+        const savedDuration = localStorage.getItem('subscription_duration');
+        if (savedDuration) {
+            const parsedDuration = parseInt(savedDuration, 10);
+            if (subscriptionPrices[parsedDuration]) {
+                subscriptionDuration = parsedDuration;
+            }
         }
     } catch {}
 }
@@ -1447,6 +1487,8 @@ function updateSubscriptionUI() {
     const checkBtn = document.getElementById('subscription-check');
     const promoBtn = document.getElementById('subscription-promo-apply');
     const adminBlock = document.getElementById('subscription-admin');
+    const durationSelect = document.getElementById('subscription-duration');
+    updateSubscriptionPrice();
     if (subscriptionActive) {
         if (statusEl) statusEl.textContent = 'Подписка активна.';
         if (createBtn) createBtn.style.display = 'none';
@@ -1457,6 +1499,7 @@ function updateSubscriptionUI() {
         if (openInvoiceBtn) openInvoiceBtn.style.display = 'none';
         if (checkBtn) checkBtn.style.display = 'none';
         if (adminBlock) adminBlock.style.display = isAdminUser() ? 'block' : 'none';
+        if (durationSelect) durationSelect.disabled = true;
         return;
     }
     if (statusEl) statusEl.textContent = formatSubscriptionStatus(subscriptionPayment.status) || 'Создайте оплату';
@@ -1465,6 +1508,7 @@ function updateSubscriptionUI() {
     if (amountEl) amountEl.textContent = subscriptionPayment.amount ? `${subscriptionPayment.amount} ${displayAsset}` : '';
     const hasOpenUrl = !!(subscriptionPayment.invoiceUrl || subscriptionPayment.miniAppUrl || subscriptionPayment.webAppUrl || subscriptionPayment.botUrl);
     const hasInvoice = !!subscriptionPayment.invoiceId || hasOpenUrl;
+    if (durationSelect) durationSelect.disabled = hasInvoice;
     if (addressWrap) addressWrap.style.display = subscriptionPayment.address ? 'block' : 'none';
     if (amountWrap) amountWrap.style.display = subscriptionPayment.amount ? 'block' : 'none';
     if (createBtn) createBtn.style.display = hasInvoice ? 'none' : 'flex';
@@ -1553,7 +1597,7 @@ async function createCryptoPayPayment() {
         const res = await fetch('/api/subscription/cryptopay/create', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ user_id: currentUser.id, asset: subscriptionAsset })
+            body: JSON.stringify({ user_id: currentUser.id, asset: subscriptionAsset, months: subscriptionDuration })
         });
         const data = await res.json();
         if (data.error) throw new Error(data.error);
@@ -1571,7 +1615,8 @@ async function createCryptoPayPayment() {
             invoiceUrl: data.web_app_invoice_url || data.bot_invoice_url || data.mini_app_invoice_url || '',
             miniAppUrl: data.mini_app_invoice_url || '',
             webAppUrl: data.web_app_invoice_url || '',
-            botUrl: data.bot_invoice_url || ''
+            botUrl: data.bot_invoice_url || '',
+            months: data.months || subscriptionDuration
         };
         saveSubscriptionState();
         updateSubscriptionUI();
@@ -1594,7 +1639,7 @@ async function checkSubscriptionStatus() {
             subscriptionActive = true;
             subscriptionStart = data.subscription_start || subscriptionStart;
             subscriptionEnd = data.subscription_end || subscriptionEnd;
-            subscriptionPayment = { invoiceId: null, status: '', asset: 'USDT', amount: '', currency: '', invoiceUrl: '', miniAppUrl: '', webAppUrl: '', botUrl: '' };
+            subscriptionPayment = { invoiceId: null, status: '', asset: 'USDT', amount: '', currency: '', invoiceUrl: '', miniAppUrl: '', webAppUrl: '', botUrl: '', months: subscriptionDuration };
             saveSubscriptionState();
             showNotification('Подписка активирована', 'success');
             updateSubscriptionUI();
@@ -4596,6 +4641,7 @@ window.copySubscriptionAmount = copySubscriptionAmount;
 window.grantSubscriptionManual = grantSubscriptionManual;
 window.prefillAdminUsername = prefillAdminUsername;
 window.setSubscriptionAsset = setSubscriptionAsset;
+window.setSubscriptionDuration = setSubscriptionDuration;
 window.redeemPromoCode = redeemPromoCode;
 window.openSharedWallet = openSharedWallet;
 window.closeSharedWallet = closeSharedWallet;

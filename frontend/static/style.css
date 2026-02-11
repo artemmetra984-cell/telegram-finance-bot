@@ -1424,6 +1424,10 @@ body {
   margin-bottom: var(--spacing-md);
 }
 
+.subscription-duration {
+  margin-bottom: var(--spacing-md);
+}
+
 .subscription-assets {
   display: flex;
   gap: 10px;
