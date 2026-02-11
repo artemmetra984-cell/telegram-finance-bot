@@ -1290,6 +1290,10 @@ body {
   opacity: 0.7;
 }
 
+.language-select {
+  margin-top: var(--spacing-sm);
+}
+
 /* Add to home */
 .add-home-note {
   font-size: 14px;

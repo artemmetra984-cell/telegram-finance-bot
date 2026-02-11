@@ -23,7 +23,7 @@
     <!-- Загрузка -->
     <div id="loading" class="loading">
         <div class="loading-spinner"></div>
-        <div class="loading-text">Загрузка...</div>
+        <div class="loading-text" data-i18n="Загрузка...">Загрузка...</div>
     </div>
 
     <!-- Основной контент -->
@@ -36,9 +36,9 @@
             <div id="panel-page" class="page active">
                 <!-- Остаток (компактный) -->
                 <div class="balance-card">
-                    <div class="balance-label">Остаток</div>
+                    <div class="balance-label" data-i18n="Остаток">Остаток</div>
                     <div class="balance-amount" id="balance">0 ₽</div>
-                    <div class="balance-subtitle">Общий баланс</div>
+                    <div class="balance-subtitle" data-i18n="Общий баланс">Общий баланс</div>
                 </div>
 
                 <!-- СВОРАЧИВАЕМЫЕ КАТЕГОРИИ - ПАСТЕЛЬНЫЕ ФОНЫ -->
@@ -49,7 +49,7 @@
                         <div class="collapsible-title">
                             <div class="collapsible-icon">📈</div>
                             <div class="collapsible-text">
-                                <div class="collapsible-name">Доходы</div>
+                                <div class="collapsible-name" data-i18n="Доходы">Доходы</div>
                                 <div class="collapsible-summary" id="income-total">0 ₽</div>
                             </div>
                         </div>
@@ -60,7 +60,7 @@
                             <!-- Динамически заполняется -->
                         </div>
                         <button class="hide-categories-btn" data-type="income">
-                            <span>Скрыть</span>
+                            <span data-i18n="Скрыть">Скрыть</span>
                             <span>▲</span>
                         </button>
                     </div>
@@ -72,7 +72,7 @@
                         <div class="collapsible-title">
                             <div class="collapsible-icon">📉</div>
                             <div class="collapsible-text">
-                                <div class="collapsible-name">Расходы</div>
+                                <div class="collapsible-name" data-i18n="Расходы">Расходы</div>
                                 <div class="collapsible-summary" id="expense-total">0 ₽</div>
                             </div>
                         </div>
@@ -83,7 +83,7 @@
                             <!-- Динамически заполняется -->
                         </div>
                         <button class="hide-categories-btn" data-type="expense">
-                            <span>Скрыть</span>
+                            <span data-i18n="Скрыть">Скрыть</span>
                             <span>▲</span>
                         </button>
                     </div>
@@ -95,7 +95,7 @@
                         <div class="collapsible-title">
                             <div class="collapsible-icon">💰</div>
                             <div class="collapsible-text">
-                                <div class="collapsible-name">Накопления</div>
+                                <div class="collapsible-name" data-i18n="Накопления">Накопления</div>
                                 <div class="collapsible-summary" id="savings-total">0 ₽</div>
                             </div>
                         </div>
@@ -106,7 +106,7 @@
                             <!-- Динамически заполняется -->
                         </div>
                         <button class="hide-categories-btn" data-type="savings">
-                            <span>Скрыть</span>
+                            <span data-i18n="Скрыть">Скрыть</span>
                             <span>▲</span>
                         </button>
                     </div>
@@ -118,7 +118,7 @@
                         <div class="collapsible-title">
                             <div class="collapsible-icon">🎯</div>
                             <div class="collapsible-text">
-                                <div class="collapsible-name">Мои цели</div>
+                                <div class="collapsible-name" data-i18n="Мои цели">Мои цели</div>
                                 <div class="collapsible-summary" id="goals-summary">0 ₽</div>
                             </div>
                         </div>
@@ -129,7 +129,7 @@
                             <!-- Динамически заполняется -->
                         </div>
                         <button class="hide-categories-btn" data-type="goals">
-                            <span>Скрыть</span>
+                            <span data-i18n="Скрыть">Скрыть</span>
                             <span>▲</span>
                         </button>
                     </div>
@@ -141,7 +141,7 @@
                         <div class="collapsible-title">
                             <div class="collapsible-icon">💳</div>
                             <div class="collapsible-text">
-                                <div class="collapsible-name">Кошельки</div>
+                                <div class="collapsible-name" data-i18n="Кошельки">Кошельки</div>
                                 <div class="collapsible-summary" id="wallets-total">0 ₽</div>
                             </div>
                         </div>
@@ -152,7 +152,7 @@
                             <!-- Динамически заполняется -->
                         </div>
                         <button class="hide-categories-btn" data-type="wallets">
-                            <span>Скрыть</span>
+                            <span data-i18n="Скрыть">Скрыть</span>
                             <span>▲</span>
                         </button>
                     </div>
@@ -161,8 +161,8 @@
                 <!-- Последние операции -->
                 <div class="recent-transactions">
                     <div class="section-header">
-                        <div class="section-title">Последние операции</div>
-                        <button class="section-action" onclick="showAllTransactions()">Все</button>
+                        <div class="section-title" data-i18n="Последние операции">Последние операции</div>
+                        <button class="section-action" onclick="showAllTransactions()" data-i18n="Все">Все</button>
                     </div>
                     <div id="recent-transactions-list">
                         <!-- Динамически заполняется -->
@@ -183,10 +183,10 @@
 
                 <!-- Фильтры -->
                 <div class="history-filters">
-                    <button class="filter-btn all active" data-filter="all">Все</button>
-                    <button class="filter-btn income" data-filter="income">Доходы</button>
-                    <button class="filter-btn expense" data-filter="expense">Расходы</button>
-                    <button class="filter-btn savings" data-filter="savings">Накопления</button>
+                    <button class="filter-btn all active" data-filter="all" data-i18n="Все">Все</button>
+                    <button class="filter-btn income" data-filter="income" data-i18n="Доходы">Доходы</button>
+                    <button class="filter-btn expense" data-filter="expense" data-i18n="Расходы">Расходы</button>
+                    <button class="filter-btn savings" data-filter="savings" data-i18n="Накопления">Накопления</button>
                 </div>
 
                 <!-- Список транзакций -->
@@ -201,11 +201,11 @@
             <div id="report-page" class="page">
                 <!-- Вкладки отчёта -->
                 <div class="report-tabs">
-                    <button class="report-tab active" data-tab="overview">Обзор</button>
-                    <button class="report-tab" data-tab="income">Доходы</button>
-                    <button class="report-tab" data-tab="expense">Расходы</button>
-                    <button class="report-tab" data-tab="savings">Накопления</button>
-                    <button class="report-tab" data-tab="balance">Баланс</button>
+                    <button class="report-tab active" data-tab="overview" data-i18n="Обзор">Обзор</button>
+                    <button class="report-tab" data-tab="income" data-i18n="Доходы">Доходы</button>
+                    <button class="report-tab" data-tab="expense" data-i18n="Расходы">Расходы</button>
+                    <button class="report-tab" data-tab="savings" data-i18n="Накопления">Накопления</button>
+                    <button class="report-tab" data-tab="balance" data-i18n="Баланс">Баланс</button>
                 </div>
 
                 <!-- Контент вкладок -->
@@ -387,18 +387,18 @@
             <div id="services-page" class="page">
                 <div class="services-section">
                     <div class="service-card subscription-period-card">
-                        <div class="service-title">Подписка</div>
-                        <div class="subscription-period" id="subscription-period">Не активна</div>
+                        <div class="service-title" data-i18n="Подписка">Подписка</div>
+                        <div class="subscription-period" id="subscription-period" data-i18n="Не активна">Не активна</div>
                     </div>
                     <!-- Основной кошелёк -->
                     <div class="service-card">
-                        <div class="service-title">Основной кошелёк</div>
+                        <div class="service-title" data-i18n="Основной кошелёк">Основной кошелёк</div>
                         <div class="default-wallet-section">
                             <div class="default-wallet-display">
                                 <div class="default-wallet-info">
                                     <div class="default-wallet-icon">💳</div>
                                     <div class="default-wallet-text">
-                                        <div class="default-wallet-label">Используется по умолчанию</div>
+                                        <div class="default-wallet-label" data-i18n="Используется по умолчанию">Используется по умолчанию</div>
                                         <div class="default-wallet-name">Наличные</div>
                                     </div>
                                 </div>
@@ -412,7 +412,7 @@
 
                     <!-- Выбор валюты -->
                     <div class="service-card">
-                        <div class="service-title">Валюта</div>
+                        <div class="service-title" data-i18n="Валюта">Валюта</div>
                         <div class="currency-options">
                             <button class="currency-option active" data-currency="RUB" onclick="selectCurrency('RUB')">
                                 <span>₽</span> RUB
@@ -429,10 +429,21 @@
                         </div>
                     </div>
 
+                    <!-- Язык -->
+                    <div class="service-card">
+                        <div class="service-title" data-i18n="Язык">Язык</div>
+                        <div class="language-select">
+                            <select class="form-select" id="language-select" onchange="setLanguage(this.value)">
+                                <option value="ru" data-i18n="Русский">Русский</option>
+                                <option value="en">English</option>
+                            </select>
+                        </div>
+                    </div>
+
                     <!-- Калькулятор -->
                     <div class="service-card">
                         <button class="service-link service-link-compact" onclick="openCompoundCalculator()">
-                            <span>Калькулятор</span>
+                            <span data-i18n="Калькулятор">Калькулятор</span>
                             <span class="service-link-arrow">→</span>
                         </button>
                     </div>
@@ -440,7 +451,7 @@
                     <!-- Статьи -->
                     <div class="service-card">
                         <button class="service-link service-link-compact" onclick="openArticlesLibrary()">
-                            <span>Статьи</span>
+                            <span data-i18n="Статьи">Статьи</span>
                             <span class="service-link-arrow">→</span>
                         </button>
                     </div>
@@ -448,7 +459,7 @@
                     <!-- Добавить на экран -->
                     <div class="service-card">
                         <button class="service-link service-link-compact" onclick="openAddToHome()">
-                            <span>Добавить на экран</span>
+                            <span data-i18n="Добавить на экран">Добавить на экран</span>
                             <span class="service-link-arrow">→</span>
                         </button>
                     </div>
@@ -456,7 +467,7 @@
                     <!-- Общий кошелёк -->
                     <div class="service-card">
                         <button class="service-link service-link-compact" onclick="openSharedWallet()">
-                            <span>Общий кошелёк</span>
+                            <span data-i18n="Общий кошелёк">Общий кошелёк</span>
                             <span class="service-link-arrow">→</span>
                         </button>
                     </div>
@@ -464,7 +475,7 @@
                     <!-- Подписка -->
                     <div class="service-card">
                         <button class="service-link service-link-compact" onclick="openSubscriptionModal()">
-                            <span>Подписка</span>
+                            <span data-i18n="Подписка">Подписка</span>
                             <span class="service-link-arrow">→</span>
                         </button>
                     </div>
@@ -479,12 +490,12 @@
                 <div class="articles-section">
                     <div class="articles-header">
                         <button class="articles-back" onclick="switchPage('services')">←</button>
-                        <div class="articles-title">Статьи</div>
+                        <div class="articles-title" data-i18n="Статьи">Статьи</div>
                     </div>
                     <div class="articles-list">
                         <button class="article-card" onclick="openArticle('budget_principles')">
-                            <div class="article-card-title">Четыре принципа финансовой грамотности</div>
-                            <div class="article-card-meta">Бюджет и привычки</div>
+                        <div class="article-card-title" data-i18n="Четыре принципа финансовой грамотности">Четыре принципа финансовой грамотности</div>
+                        <div class="article-card-meta" data-i18n="Бюджет и привычки">Бюджет и привычки</div>
                         </button>
                     </div>
                 </div>
@@ -506,54 +517,54 @@
         <div id="compound-modal" class="modal-overlay">
             <div class="modal-content calc-modal">
                 <div class="modal-header">
-                    <div class="modal-title">Сложные проценты</div>
+                    <div class="modal-title" data-i18n="Сложные проценты">Сложные проценты</div>
                     <button class="article-close" onclick="closeCompoundCalculator()">✕</button>
                 </div>
                 <form id="compound-form" onsubmit="return false;">
                     <div class="form-group">
-                        <label class="form-label">Стартовый капитал</label>
+                        <label class="form-label" data-i18n="Стартовый капитал">Стартовый капитал</label>
                         <input type="number" class="form-input" id="calc-principal" placeholder="0" min="0" step="1">
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Ежемесячное пополнение</label>
+                        <label class="form-label" data-i18n="Ежемесячное пополнение">Ежемесячное пополнение</label>
                         <input type="number" class="form-input" id="calc-monthly" placeholder="0" min="0" step="1">
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Годовая ставка, %</label>
+                        <label class="form-label" data-i18n="Годовая ставка, %">Годовая ставка, %</label>
                         <input type="number" class="form-input" id="calc-rate" placeholder="0" min="0" step="0.1">
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Начисление процентов</label>
+                        <label class="form-label" data-i18n="Начисление процентов">Начисление процентов</label>
                         <select class="form-select" id="calc-frequency">
-                            <option value="12">Ежемесячно</option>
-                            <option value="4">Ежеквартально</option>
-                            <option value="1">Ежегодно</option>
+                            <option value="12" data-i18n="Ежемесячно">Ежемесячно</option>
+                            <option value="4" data-i18n="Ежеквартально">Ежеквартально</option>
+                            <option value="1" data-i18n="Ежегодно">Ежегодно</option>
                         </select>
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Срок, лет</label>
+                        <label class="form-label" data-i18n="Срок, лет">Срок, лет</label>
                         <input type="number" class="form-input" id="calc-years" placeholder="0" min="0" step="1">
                     </div>
-                    <button type="button" class="modal-btn primary" onclick="calculateCompound()" style="width: 100%;">Рассчитать</button>
+                    <button type="button" class="modal-btn primary" onclick="calculateCompound()" style="width: 100%;" data-i18n="Рассчитать">Рассчитать</button>
                 </form>
                 <div class="calc-result" id="calc-result" style="display: none;">
-                    <div class="calc-result-title">Результат</div>
+                    <div class="calc-result-title" data-i18n="Результат">Результат</div>
                     <div class="calc-result-row">
-                        <span>Итоговая сумма</span>
+                        <span data-i18n="Итоговая сумма">Итоговая сумма</span>
                         <strong id="calc-total">0</strong>
                     </div>
                     <div class="calc-result-row">
-                        <span>Взносы всего</span>
+                        <span data-i18n="Взносы всего">Взносы всего</span>
                         <strong id="calc-contrib">0</strong>
                     </div>
                     <div class="calc-result-row">
-                        <span>Проценты</span>
+                        <span data-i18n="Проценты">Проценты</span>
                         <strong id="calc-interest">0</strong>
                     </div>
-                    <div class="calc-note">Расчет учитывает выбранную частоту начисления и ежемесячное пополнение.</div>
+                    <div class="calc-note" data-i18n="Расчет учитывает выбранную частоту начисления и ежемесячное пополнение.">Расчет учитывает выбранную частоту начисления и ежемесячное пополнение.</div>
                 </div>
                 <div class="calc-chart" id="calc-chart-wrap" style="display: none;">
-                    <div class="calc-chart-title">Рост капитала</div>
+                    <div class="calc-chart-title" data-i18n="Рост капитала">Рост капитала</div>
                     <div class="calc-chart-canvas">
                         <canvas id="compound-chart"></canvas>
                     </div>
@@ -570,10 +581,10 @@
                 </div>
                 <div class="market-modal-sub" id="market-modal-sub"></div>
                 <div class="market-range" id="market-range">
-                    <button class="market-range-btn active" data-range="1d">День</button>
-                    <button class="market-range-btn" data-range="1w">Неделя</button>
-                    <button class="market-range-btn" data-range="1m">Месяц</button>
-                    <button class="market-range-btn" data-range="all">Все</button>
+                    <button class="market-range-btn active" data-range="1d" data-i18n="День">День</button>
+                    <button class="market-range-btn" data-range="1w" data-i18n="Неделя">Неделя</button>
+                    <button class="market-range-btn" data-range="1m" data-i18n="Месяц">Месяц</button>
+                    <button class="market-range-btn" data-range="all" data-i18n="Все">Все</button>
                 </div>
                 <div class="market-chart">
                     <canvas id="market-chart"></canvas>
@@ -585,23 +596,23 @@
         <div id="add-to-home-modal" class="modal-overlay">
             <div class="modal-content">
                 <div class="article-modal-header">
-                    <div class="article-modal-title">Добавить на экран</div>
+                    <div class="article-modal-title" data-i18n="Добавить на экран">Добавить на экран</div>
                     <button class="article-close" onclick="closeAddToHome()">✕</button>
                 </div>
                 <div class="article-modal-body">
-                    <div class="add-home-note" id="add-home-note">Добавление работает через браузер. Внутри Telegram меню недоступно.</div>
+                    <div class="add-home-note" id="add-home-note" data-i18n="Добавление работает через браузер. Внутри Telegram меню недоступно.">Добавление работает через браузер. Внутри Telegram меню недоступно.</div>
                     <div class="add-home-steps">
                         <div class="add-home-step" id="add-home-ios">
                             <div class="add-home-title">iOS</div>
-                            <div class="add-home-text">Откройте в Safari → «Поделиться» → «На экран Домой».</div>
+                            <div class="add-home-text" data-i18n="Откройте в Safari → «Поделиться» → «На экран Домой».">Откройте в Safari → «Поделиться» → «На экран Домой».</div>
                         </div>
                         <div class="add-home-step" id="add-home-android">
                             <div class="add-home-title">Android</div>
-                            <div class="add-home-text">Откройте меню браузера → «Установить приложение».</div>
+                            <div class="add-home-text" data-i18n="Откройте меню браузера → «Установить приложение».">Откройте меню браузера → «Установить приложение».</div>
                         </div>
                     </div>
                     <button class="service-link add-home-open" onclick="openAddToHomeLink()">
-                        <span>Открыть в браузере</span>
+                        <span data-i18n="Открыть в браузере">Открыть в браузере</span>
                         <span class="service-link-arrow">→</span>
                     </button>
                 </div>
@@ -612,32 +623,32 @@
         <div id="shared-wallet-modal" class="modal-overlay">
             <div class="modal-content">
                 <div class="article-modal-header">
-                    <div class="article-modal-title">Общий кошелёк</div>
+                    <div class="article-modal-title" data-i18n="Общий кошелёк">Общий кошелёк</div>
                     <button class="article-close" onclick="closeSharedWallet()">✕</button>
                 </div>
                 <div class="article-modal-body">
                     <div class="shared-wallet-status-card">
-                        <div class="shared-wallet-status" id="shared-wallet-status">Загрузка...</div>
-                        <div class="shared-wallet-hint">Создайте общий кошелёк или подключитесь по коду.</div>
+                        <div class="shared-wallet-status" id="shared-wallet-status" data-i18n="Загрузка...">Загрузка...</div>
+                        <div class="shared-wallet-hint" data-i18n="Создайте общий кошелёк или подключитесь по коду.">Создайте общий кошелёк или подключитесь по коду.</div>
                     </div>
 
                     <div class="shared-wallet-actions" id="shared-wallet-actions">
                         <div class="shared-wallet-block">
-                            <div class="shared-wallet-title">Создать общий кошелёк</div>
-                            <div class="shared-wallet-text">Вы будете владельцем и сможете пригласить друга.</div>
+                            <div class="shared-wallet-title" data-i18n="Создать общий кошелёк">Создать общий кошелёк</div>
+                            <div class="shared-wallet-text" data-i18n="Вы будете владельцем и сможете пригласить друга.">Вы будете владельцем и сможете пригласить друга.</div>
                             <button class="service-link add-home-open" id="shared-create-btn" onclick="createSharedWallet()">
-                                <span>Создать</span>
+                                <span data-i18n="Создать">Создать</span>
                                 <span class="service-link-arrow">→</span>
                             </button>
                         </div>
 
                         <div class="shared-wallet-block">
-                            <div class="shared-wallet-title">Подключиться по коду</div>
-                            <div class="shared-wallet-text">Введите код приглашения от владельца.</div>
+                            <div class="shared-wallet-title" data-i18n="Подключиться по коду">Подключиться по коду</div>
+                            <div class="shared-wallet-text" data-i18n="Введите код приглашения от владельца.">Введите код приглашения от владельца.</div>
                             <div class="shared-wallet-join">
-                                <input class="form-input" id="shared-code-input" placeholder="Код приглашения" />
+                                <input class="form-input" id="shared-code-input" placeholder="Код приглашения" data-i18n-placeholder="Код приглашения" />
                                 <button class="service-link" onclick="joinSharedWallet()">
-                                    <span>Подключиться</span>
+                                    <span data-i18n="Подключиться">Подключиться</span>
                                     <span class="service-link-arrow">→</span>
                                 </button>
                             </div>
@@ -646,21 +657,21 @@
 
                     <div class="shared-wallet-share" id="shared-wallet-share" style="display: none;">
                         <div class="shared-wallet-block">
-                            <div class="shared-wallet-title">Приглашение</div>
-                            <div class="shared-wallet-code">Код: <span id="shared-code-value"></span></div>
+                            <div class="shared-wallet-title" data-i18n="Приглашение">Приглашение</div>
+                            <div class="shared-wallet-code" data-i18n="Код:">Код: <span id="shared-code-value"></span></div>
                             <div class="shared-wallet-share-actions">
                                 <button class="service-link" id="shared-copy-code" onclick="copySharedCode()">
-                                    <span>Скопировать код</span>
+                                    <span data-i18n="Скопировать код">Скопировать код</span>
                                     <span class="service-link-arrow">→</span>
                                 </button>
                                 <button class="service-link" id="shared-copy-link" onclick="copySharedLink()">
-                                    <span>Скопировать ссылку</span>
+                                    <span data-i18n="Скопировать ссылку">Скопировать ссылку</span>
                                     <span class="service-link-arrow">→</span>
                                 </button>
                             </div>
                         </div>
                         <button class="service-link" id="shared-leave-btn" onclick="leaveSharedWallet()">
-                            <span>Отключиться</span>
+                            <span data-i18n="Отключиться">Отключиться</span>
                             <span class="service-link-arrow">→</span>
                         </button>
                     </div>
@@ -672,71 +683,71 @@
         <div id="subscription-modal" class="modal-overlay">
             <div class="modal-content subscription-modal">
                 <div class="article-modal-header">
-                    <div class="article-modal-title">Подписка</div>
+                    <div class="article-modal-title" data-i18n="Подписка">Подписка</div>
                     <button class="article-close" onclick="closeSubscriptionModal()">✕</button>
                 </div>
                 <div class="article-modal-body">
                     <div class="subscription-card">
-                        <div class="subscription-title">Полный доступ</div>
+                        <div class="subscription-title" data-i18n="Полный доступ">Полный доступ</div>
                         <div class="subscription-price" id="subscription-price">$2</div>
-                        <div class="subscription-note">Оплата через Crypto Bot</div>
-                        <div class="subscription-network">USDT • сеть TON</div>
+                        <div class="subscription-note" data-i18n="Оплата через Crypto Bot">Оплата через Crypto Bot</div>
+                        <div class="subscription-network" data-i18n="USDT • сеть TON">USDT • сеть TON</div>
                         <div class="subscription-duration">
                             <select class="form-select" id="subscription-duration" onchange="setSubscriptionDuration(this.value)">
-                                <option value="1">1 месяц — $2</option>
-                                <option value="3">3 месяца — $5.6</option>
-                                <option value="6">6 месяцев — $10.5</option>
-                                <option value="12">12 месяцев — $21.5</option>
+                                <option value="1" data-i18n="1 месяц — $2">1 месяц — $2</option>
+                                <option value="3" data-i18n="3 месяца — $5.6">3 месяца — $5.6</option>
+                                <option value="6" data-i18n="6 месяцев — $10.5">6 месяцев — $10.5</option>
+                                <option value="12" data-i18n="12 месяцев — $21.5">12 месяцев — $21.5</option>
                             </select>
                         </div>
-                        <div class="subscription-status" id="subscription-status">Создайте оплату</div>
+                        <div class="subscription-status" id="subscription-status" data-i18n="Создайте оплату">Создайте оплату</div>
                         <div class="subscription-promo">
-                            <input class="form-input" id="subscription-promo-code" placeholder="Промокод" />
+                            <input class="form-input" id="subscription-promo-code" placeholder="Промокод" data-i18n-placeholder="Промокод" />
                             <button class="service-link subscription-confirm" id="subscription-promo-apply" onclick="redeemPromoCode()">
-                                <span>Активировать промокод</span>
+                                <span data-i18n="Активировать промокод">Активировать промокод</span>
                                 <span class="service-link-arrow">→</span>
                             </button>
                         </div>
                         <div class="subscription-address" id="subscription-address-wrap" style="display: none;">
-                            <div class="subscription-address-label">Адрес</div>
+                            <div class="subscription-address-label" data-i18n="Адрес">Адрес</div>
                             <div class="subscription-address-value" id="subscription-address"></div>
                         </div>
                         <div class="subscription-amount" id="subscription-amount-wrap" style="display: none;">
-                            <div class="subscription-address-label">Сумма</div>
+                            <div class="subscription-address-label" data-i18n="Сумма">Сумма</div>
                             <div class="subscription-address-value" id="subscription-amount"></div>
                         </div>
                         <button class="service-link subscription-confirm" id="subscription-create" onclick="createCryptoPayPayment()">
-                            <span>Создать оплату</span>
+                            <span data-i18n="Создать оплату">Создать оплату</span>
                             <span class="service-link-arrow">→</span>
                         </button>
                         <button class="service-link subscription-copy" id="subscription-copy-address" onclick="copySubscriptionAddress()" style="display: none;">
-                            <span>Скопировать адрес</span>
+                            <span data-i18n="Скопировать адрес">Скопировать адрес</span>
                             <span class="service-link-arrow">→</span>
                         </button>
                         <button class="service-link subscription-copy" id="subscription-copy-amount" onclick="copySubscriptionAmount()" style="display: none;">
-                            <span>Скопировать сумму</span>
+                            <span data-i18n="Скопировать сумму">Скопировать сумму</span>
                             <span class="service-link-arrow">→</span>
                         </button>
                         <button class="service-link subscription-copy" id="subscription-open-invoice" onclick="openSubscriptionInvoice()" style="display: none;">
-                            <span>Открыть оплату</span>
+                            <span data-i18n="Открыть оплату">Открыть оплату</span>
                             <span class="service-link-arrow">→</span>
                         </button>
                         <button class="service-link subscription-confirm" id="subscription-check" onclick="checkSubscriptionStatus()" style="display: none;">
-                            <span>Проверить оплату</span>
+                            <span data-i18n="Проверить оплату">Проверить оплату</span>
                             <span class="service-link-arrow">→</span>
                         </button>
                     </div>
 
                     <div class="subscription-admin" id="subscription-admin">
-                        <div class="subscription-admin-title">Админ доступ</div>
-                        <div class="subscription-admin-note">Ваш username: <span id="subscription-user-name">—</span></div>
+                        <div class="subscription-admin-title" data-i18n="Админ доступ">Админ доступ</div>
+                        <div class="subscription-admin-note"><span data-i18n="Ваш username:">Ваш username:</span> <span id="subscription-user-name">—</span></div>
                         <button class="service-link service-link-compact" onclick="prefillAdminUsername()">
-                            <span>Использовать мой username</span>
+                            <span data-i18n="Использовать мой username">Использовать мой username</span>
                             <span class="service-link-arrow">→</span>
                         </button>
                         <div class="subscription-admin-form">
-                            <input class="form-input" id="subscription-admin-user" placeholder="User ID или @username" />
-                            <input class="form-input" id="subscription-admin-key" placeholder="Admin key" />
+                            <input class="form-input" id="subscription-admin-user" placeholder="User ID или @username" data-i18n-placeholder="User ID или @username" />
+                            <input class="form-input" id="subscription-admin-key" placeholder="Admin key" data-i18n-placeholder="Admin key" />
                             <select class="form-select" id="subscription-admin-months">
                                 <option value="1">1 месяц</option>
                                 <option value="3">3 месяца</option>
@@ -744,7 +755,7 @@
                                 <option value="12">12 месяцев</option>
                             </select>
                             <button class="service-link" onclick="grantSubscriptionManual()">
-                                <span>Выдать подписку</span>
+                                <span data-i18n="Выдать подписку">Выдать подписку</span>
                                 <span class="service-link-arrow">→</span>
                             </button>
                         </div>
@@ -761,7 +772,7 @@
                         <path d="M3 3h8v8H3zM3 13h8v8H3zM13 3h8v4h-8zM13 9h8v4h-8zM13 15h8v4h-8zM13 21h8v2h-8z"/>
                     </svg>
                 </span>
-                <span class="nav-label">Панель</span>
+                <span class="nav-label" data-i18n="Панель">Панель</span>
             </button>
             <button class="nav-item" data-page="history">
                 <span class="nav-icon">
@@ -770,7 +781,7 @@
                         <path d="M12.5 7H11v6l5.2 3.2.8-1.3-4.5-2.7V7z"/>
                     </svg>
                 </span>
-                <span class="nav-label">История</span>
+                <span class="nav-label" data-i18n="История">История</span>
             </button>
             <button class="nav-item" data-page="report">
                 <span class="nav-icon">
@@ -779,7 +790,7 @@
                         <path d="M7 12h2v5H7zM10 7h2v10h-2zM13 10h2v7h-2zM16 9h2v8h-2z"/>
                     </svg>
                 </span>
-                <span class="nav-label">Отчёт</span>
+                <span class="nav-label" data-i18n="Отчёт">Отчёт</span>
             </button>
             <button class="nav-item" data-page="invest">
                 <span class="nav-icon">
@@ -787,7 +798,7 @@
                         <path d="M4 19h16v2H4zM6 17V7h3v10H6zm5 0V3h3v14h-3zm5 0v-6h3v6h-3z"/>
                     </svg>
                 </span>
-                <span class="nav-label">Инвестиции</span>
+                <span class="nav-label" data-i18n="Инвестиции">Инвестиции</span>
             </button>
             <button class="nav-item" data-page="services">
                 <span class="nav-icon">
@@ -797,7 +808,7 @@
                         <path d="M12 5.5c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 9c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
                     </svg>
                 </span>
-                <span class="nav-label">Сервисы</span>
+                <span class="nav-label" data-i18n="Сервисы">Сервисы</span>
             </button>
         </nav>
 
@@ -816,19 +827,19 @@
     <div id="add-transaction-modal" class="modal-overlay">
         <div class="modal-content">
             <div class="modal-header">
-                <div class="modal-title" id="transaction-modal-title">Добавить доход</div>
+                <div class="modal-title" id="transaction-modal-title" data-i18n="Добавить доход">Добавить доход</div>
             </div>
             
             <!-- Вкладки типа транзакции - ПАСТЕЛЬНЫЕ ЦВЕТА -->
             <div class="modal-tabs">
-                <button class="modal-tab income active" data-type="income">Доход</button>
-                <button class="modal-tab expense" data-type="expense">Расход</button>
-                <button class="modal-tab savings" data-type="savings">Накопление</button>
+                <button class="modal-tab income active" data-type="income" data-i18n="Доход">Доход</button>
+                <button class="modal-tab expense" data-type="expense" data-i18n="Расход">Расход</button>
+                <button class="modal-tab savings" data-type="savings" data-i18n="Накопление">Накопление</button>
             </div>
             
             <form id="add-transaction-form">
                 <div class="form-group">
-                    <label class="form-label">Сумма</label>
+                    <label class="form-label" data-i18n="Сумма">Сумма</label>
                     <div style="position: relative;">
                         <span style="position: absolute; left: 16px; top: 50%; transform: translateY(-50%); font-size: 17px; color: var(--ios-text-secondary);" id="modal-currency-symbol">₽</span>
                         <input type="number" class="form-input" id="transaction-amount" placeholder="0" min="1" step="1" required style="padding-left: 50px;">
@@ -838,30 +849,30 @@
                 <!-- Для накоплений здесь будет добавлен выбор назначения -->
                 
                 <div class="form-group">
-                    <label class="form-label">Категория</label>
+                    <label class="form-label" data-i18n="Категория">Категория</label>
                     <select class="form-select" id="transaction-category" required>
                         <!-- Динамически заполняется -->
                     </select>
                 </div>
                 
                 <div class="form-group">
-                    <label class="form-label">Кошелёк</label>
+                    <label class="form-label" data-i18n="Кошелёк">Кошелёк</label>
                     <select class="form-select" id="transaction-wallet">
                         <!-- Динамически заполняется -->
                     </select>
                 </div>
                 
                 <div class="form-group">
-                    <label class="form-label">Примечание (необязательно)</label>
-                    <input type="text" class="form-input" id="transaction-description" placeholder="Например: Зарплата за февраль">
+                    <label class="form-label" data-i18n="Примечание (необязательно)">Примечание (необязательно)</label>
+                    <input type="text" class="form-input" id="transaction-description" placeholder="Например: Зарплата за февраль" data-i18n-placeholder="Например: Зарплата за февраль">
                 </div>
                 
                 <div class="modal-actions">
                     <button type="button" class="modal-btn secondary" onclick="closeModal('add-transaction-modal')">
-                        Отмена
+                        <span data-i18n="Отмена">Отмена</span>
                     </button>
                     <button type="submit" class="modal-btn primary">
-                        Добавить
+                        <span data-i18n="Добавить">Добавить</span>
                     </button>
                 </div>
             </form>
@@ -872,24 +883,24 @@
     <div id="add-category-modal" class="modal-overlay">
         <div class="modal-content">
             <div class="modal-header">
-                <div class="modal-title" id="category-modal-title">Добавить категорию</div>
+                <div class="modal-title" id="category-modal-title" data-i18n="Добавить категорию">Добавить категорию</div>
             </div>
             
             <form id="add-category-form">
                 <div class="form-group">
-                    <label class="form-label">Название категории</label>
-                    <input type="text" class="form-input" id="category-name-input" placeholder="Например: Кафе" maxlength="20" required>
+                    <label class="form-label" data-i18n="Название категории">Название категории</label>
+                    <input type="text" class="form-input" id="category-name-input" placeholder="Например: Кафе" data-i18n-placeholder="Например: Кафе" maxlength="20" required>
                 </div>
                 
                 <div class="form-group">
-                    <label class="form-label">Иконка</label>
+                    <label class="form-label" data-i18n="Иконка">Иконка</label>
                     <div class="icon-picker" id="icons-grid">
                         <!-- Динамически заполняется -->
                     </div>
                 </div>
                 
                 <div class="form-group">
-                    <label class="form-label">Цвет</label>
+                    <label class="form-label" data-i18n="Цвет">Цвет</label>
                     <div class="color-picker" id="color-grid">
                         <!-- Динамически заполняется -->
                     </div>
@@ -897,10 +908,10 @@
                 
                 <div class="modal-actions">
                     <button type="button" class="modal-btn secondary" onclick="closeModal('add-category-modal')">
-                        Отмена
+                        <span data-i18n="Отмена">Отмена</span>
                     </button>
                     <button type="submit" class="modal-btn primary">
-                        Сохранить
+                        <span data-i18n="Сохранить">Сохранить</span>
                     </button>
                 </div>
             </form>
@@ -911,17 +922,17 @@
     <div id="add-goal-modal" class="modal-overlay">
         <div class="modal-content">
             <div class="modal-header">
-                <div class="modal-title">Новая цель</div>
+                <div class="modal-title" data-i18n="Новая цель">Новая цель</div>
             </div>
             
             <form id="add-goal-form">
                 <div class="form-group">
-                    <label class="form-label">Название цели</label>
-                    <input type="text" class="form-input" id="goal-name-input" placeholder="Например: Новый телефон" maxlength="30" required>
+                    <label class="form-label" data-i18n="Название цели">Название цели</label>
+                    <input type="text" class="form-input" id="goal-name-input" placeholder="Например: Новый телефон" data-i18n-placeholder="Например: Новый телефон" maxlength="30" required>
                 </div>
                 
                 <div class="form-group">
-                    <label class="form-label">Целевая сумма</label>
+                    <label class="form-label" data-i18n="Целевая сумма">Целевая сумма</label>
                     <div style="position: relative;">
                         <span style="position: absolute; left: 16px; top: 50%; transform: translateY(-50%); font-size: 17px; color: var(--ios-text-secondary);" id="goal-currency-symbol">₽</span>
                         <input type="number" class="form-input" id="goal-target-amount" placeholder="0" min="1" step="1" required style="padding-left: 50px;">
@@ -929,31 +940,31 @@
                 </div>
                 
                 <div class="form-group">
-                    <label class="form-label">Срок</label>
+                    <label class="form-label" data-i18n="Срок">Срок</label>
                     <select class="form-select" id="goal-deadline">
-                        <option value="none">Бессрочная</option>
-                        <option value="1month">1 месяц</option>
-                        <option value="3months">3 месяца</option>
-                        <option value="6months">6 месяцев</option>
-                        <option value="1year">1 год</option>
-                        <option value="custom">Указать дату</option>
+                        <option value="none" data-i18n="Бессрочная">Бессрочная</option>
+                        <option value="1month" data-i18n="1 месяц">1 месяц</option>
+                        <option value="3months" data-i18n="3 месяца">3 месяца</option>
+                        <option value="6months" data-i18n="6 месяцев">6 месяцев</option>
+                        <option value="1year" data-i18n="1 год">1 год</option>
+                        <option value="custom" data-i18n="Указать дату">Указать дату</option>
                     </select>
                 </div>
                 
                 <div class="form-group" id="custom-date-container" style="display: none;">
-                    <label class="form-label">Дата окончания</label>
+                    <label class="form-label" data-i18n="Дата окончания">Дата окончания</label>
                     <input type="date" class="form-input" id="goal-custom-date">
                 </div>
                 
                 <div class="form-group">
-                    <label class="form-label">Иконка</label>
+                    <label class="form-label" data-i18n="Иконка">Иконка</label>
                     <div class="icon-picker" id="goal-icons-grid">
                         <!-- Динамически заполняется -->
                     </div>
                 </div>
                 
                 <div class="form-group">
-                    <label class="form-label">Цвет прогресс-бара</label>
+                    <label class="form-label" data-i18n="Цвет прогресс-бара">Цвет прогресс-бара</label>
                     <div class="color-picker" id="goal-color-grid">
                         <!-- Динамически заполняется -->
                     </div>
@@ -961,10 +972,10 @@
                 
                 <div class="modal-actions">
                     <button type="button" class="modal-btn secondary" onclick="closeModal('add-goal-modal')">
-                        Отмена
+                        <span data-i18n="Отмена">Отмена</span>
                     </button>
                     <button type="submit" class="modal-btn primary">
-                        Создать цель
+                        <span data-i18n="Создать цель">Создать цель</span>
                     </button>
                 </div>
             </form>
@@ -975,7 +986,7 @@
     <div id="all-transactions-modal" class="modal-overlay">
         <div class="modal-content">
             <div class="modal-header">
-                <div class="modal-title">Все операции</div>
+            <div class="modal-title" data-i18n="Все операции">Все операции</div>
             </div>
             <div id="all-transactions-list" style="max-height: 400px; overflow-y: auto; margin: -16px;">
                 <!-- Динамически заполняется -->
@@ -1009,7 +1020,7 @@
     <div id="calendar-modal" class="modal-overlay">
         <div class="modal-content">
             <div class="modal-header">
-                <div class="modal-title">Выберите месяц</div>
+                <div class="modal-title" data-i18n="Выберите месяц">Выберите месяц</div>
             </div>
             <div class="calendar-grid" id="calendar-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; padding: 20px 0;">
                 <!-- Динамически заполняется -->
@@ -1021,7 +1032,7 @@
             </div>
             <div class="modal-actions" style="margin-top: 24px;">
                 <button type="button" class="modal-btn secondary" onclick="closeModal('calendar-modal')" style="width: 100%;">
-                    Отмена
+                    <span data-i18n="Отмена">Отмена</span>
                 </button>
             </div>
         </div>
@@ -1031,17 +1042,17 @@
     <div id="add-wallet-modal" class="modal-overlay">
         <div class="modal-content">
             <div class="modal-header">
-                <div class="modal-title">Добавить кошелёк</div>
+                <div class="modal-title" data-i18n="Добавить кошелёк">Добавить кошелёк</div>
             </div>
             
             <form id="add-wallet-form">
                 <div class="form-group">
-                    <label class="form-label">Название кошелька</label>
-                    <input type="text" class="form-input" id="wallet-name-input" placeholder="Например: Тинькофф" maxlength="20" required>
+                    <label class="form-label" data-i18n="Название кошелька">Название кошелька</label>
+                    <input type="text" class="form-input" id="wallet-name-input" placeholder="Например: Тинькофф" data-i18n-placeholder="Например: Тинькофф" maxlength="20" required>
                 </div>
                 
                 <div class="form-group">
-                    <label class="form-label">Иконка</label>
+                    <label class="form-label" data-i18n="Иконка">Иконка</label>
                     <div class="icon-picker" id="wallet-icons-grid">
                         <!-- Динамически заполняется -->
                     </div>
@@ -1050,16 +1061,16 @@
                 <div class="form-group">
                     <label class="form-checkbox" style="display: flex; align-items: center; gap: 8px;">
                         <input type="checkbox" id="wallet-is-default" style="width: 20px; height: 20px;">
-                        <span style="font-size: 15px; color: var(--ios-text-primary);">Сделать кошельком по умолчанию</span>
+                        <span style="font-size: 15px; color: var(--ios-text-primary);" data-i18n="Сделать кошельком по умолчанию">Сделать кошельком по умолчанию</span>
                     </label>
                 </div>
                 
                 <div class="modal-actions">
                     <button type="button" class="modal-btn secondary" onclick="closeModal('add-wallet-modal')">
-                        Отмена
+                        <span data-i18n="Отмена">Отмена</span>
                     </button>
                     <button type="submit" class="modal-btn primary">
-                        Добавить
+                        <span data-i18n="Добавить">Добавить</span>
                     </button>
                 </div>
             </form>

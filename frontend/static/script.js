@@ -58,6 +58,226 @@ let subscriptionAsset = 'USDT';
 const marketCacheKey = (market, kind) => `market_cache_${market}_${kind}`;
 const marketChartCacheKey = (market, id, range) => `market_chart_${market}_${id}_${range}`;
 
+const translations = {
+    en: {
+        'Финансы': 'Finance',
+        'Загрузка...': 'Loading...',
+        'Остаток': 'Balance',
+        'Общий баланс': 'Total balance',
+        'Доходы': 'Income',
+        'Расходы': 'Expenses',
+        'Накопления': 'Savings',
+        'Скрыть': 'Hide',
+        'Мои цели': 'Goals',
+        'Кошельки': 'Wallets',
+        'Последние операции': 'Recent transactions',
+        'Все': 'All',
+        'История': 'History',
+        'Отчёт': 'Report',
+        'Инвестиции': 'Investments',
+        'Сервисы': 'Services',
+        'Панель': 'Dashboard',
+        'Обзор': 'Overview',
+        'Баланс': 'Balance',
+        'Подписка': 'Subscription',
+        'Подписка активна': 'Subscription active',
+        'Подписка активна.': 'Subscription active.',
+        'Не активна': 'Inactive',
+        'Основной кошелёк': 'Primary wallet',
+        'Используется по умолчанию': 'Default wallet',
+        'Валюта': 'Currency',
+        'Калькулятор': 'Calculator',
+        'Статьи': 'Articles',
+        'Добавить на экран': 'Add to Home',
+        'Общий кошелёк': 'Shared wallet',
+        'Полный доступ': 'Full access',
+        'Оплата через Crypto Bot': 'Payment via Crypto Bot',
+        'USDT • сеть TON': 'USDT • TON network',
+        'Создайте оплату': 'Create payment',
+        'Промокод': 'Promo code',
+        'Активировать промокод': 'Redeem promo',
+        'Адрес': 'Address',
+        'Сумма': 'Amount',
+        'Создать оплату': 'Create payment',
+        'Скопировать адрес': 'Copy address',
+        'Скопировать сумму': 'Copy amount',
+        'Открыть оплату': 'Open invoice',
+        'Проверить оплату': 'Check payment',
+        'Админ доступ': 'Admin access',
+        'Ваш username:': 'Your username:',
+        'Ожидает оплаты': 'Awaiting payment',
+        'Оплата завершена': 'Payment completed',
+        'Счёт истёк': 'Invoice expired',
+        'Платёж отменён': 'Payment canceled',
+        'Недостаточно средств на выбранном кошельке': 'Insufficient funds in selected wallet',
+        'Подписка уже активна': 'Subscription already active',
+        'Введите промокод': 'Enter promo code',
+        'С': 'From',
+        'по': 'to',
+        'User ID или @username': 'User ID or @username',
+        '1 месяц — $2': '1 month — $2',
+        '3 месяца — $5.6': '3 months — $5.6',
+        '6 месяцев — $10.5': '6 months — $10.5',
+        '12 месяцев — $21.5': '12 months — $21.5',
+        'Admin key': 'Admin key',
+        'Выдать подписку': 'Grant subscription',
+        'Использовать мой username': 'Use my username',
+        'Язык': 'Language',
+        'Русский': 'Russian',
+        'Добавить операцию': 'Add transaction',
+        'Добавить доход': 'Add income',
+        'Добавить расход': 'Add expense',
+        'Добавить накопление': 'Add savings',
+        'Все операции': 'All transactions',
+        'Сложные проценты': 'Compound interest',
+        'Стартовый капитал': 'Initial capital',
+        'Ежемесячное пополнение': 'Monthly contribution',
+        'Годовая ставка, %': 'Annual rate, %',
+        'Начисление процентов': 'Compounding',
+        'Ежемесячно': 'Monthly',
+        'Ежеквартально': 'Quarterly',
+        'Ежегодно': 'Yearly',
+        'Срок, лет': 'Years',
+        'Рассчитать': 'Calculate',
+        'Результат': 'Result',
+        'Итоговая сумма': 'Total amount',
+        'Взносы всего': 'Contributions',
+        'Проценты': 'Interest',
+        'Расчет учитывает выбранную частоту начисления и ежемесячное пополнение.': 'Calculation accounts for the selected compounding and monthly contributions.',
+        'Рост капитала': 'Capital growth',
+        'Четыре принципа финансовой грамотности': 'Four principles of financial literacy',
+        'Бюджет и привычки': 'Budget and habits',
+        'Добавить на экран': 'Add to Home',
+        'Добавление работает через браузер. Внутри Telegram меню недоступно.': 'Add works via browser. Telegram menu is unavailable.',
+        'Откройте в Safari → «Поделиться» → «На экран Домой».': 'Open in Safari → Share → Add to Home Screen.',
+        'Откройте меню браузера → «Установить приложение».': 'Open browser menu → Install app.',
+        'Открыть в браузере': 'Open in browser',
+        'Общий кошелёк': 'Shared wallet',
+        'Загрузка...': 'Loading...',
+        'Создайте общий кошелёк или подключитесь по коду.': 'Create a shared wallet or join with a code.',
+        'Создать общий кошелёк': 'Create shared wallet',
+        'Вы будете владельцем и сможете пригласить друга.': 'You will be the owner and can invite a friend.',
+        'Подключиться по коду': 'Join with code',
+        'Введите код приглашения от владельца.': 'Enter the invite code from the owner.',
+        'Код приглашения': 'Invite code',
+        'Подключиться': 'Join',
+        'Приглашение': 'Invite',
+        'Код:': 'Code:',
+        'Скопировать код': 'Copy code',
+        'Скопировать ссылку': 'Copy link',
+        'Отключиться': 'Disconnect',
+        'Статус: не подключен': 'Status: not connected',
+        'Статус: владелец': 'Status: owner',
+        'Статус: участник': 'Status: member',
+        'Не удалось загрузить статус.': 'Failed to load status.',
+        'Кошелёк создан': 'Wallet created',
+        'Не удалось создать общий кошелёк': 'Failed to create shared wallet',
+        'Создать общий кошелёк': 'Create shared wallet',
+        'Подключиться по коду': 'Join with code',
+        'Создать': 'Create',
+        'Подключиться': 'Join',
+        'Код приглашения': 'Invite code',
+        'Добавить': 'Add',
+        'Отмена': 'Cancel',
+        'Ошибка загрузки': 'Load error',
+        'Пожалуйста, обновите страницу': 'Please refresh the page',
+        'Обновить': 'Reload',
+        'Добавить цель': 'Add goal',
+        'Название цели': 'Goal name',
+        'Сумма цели': 'Target amount',
+        'Срок (необязательно)': 'Deadline (optional)',
+        'Добавить кошелёк': 'Add wallet',
+        'Название кошелька': 'Wallet name',
+        'Добавить категорию': 'Add category',
+        'Название категории': 'Category name',
+        'Категория': 'Category',
+        'Кошелёк': 'Wallet',
+        'Примечание (необязательно)': 'Note (optional)',
+        'Например: Зарплата за февраль': 'Example: Salary for February',
+        'Например: Кафе': 'Example: Cafe',
+        'Иконка': 'Icon',
+        'Цвет': 'Color',
+        'Сохранить': 'Save',
+        'Новая цель': 'New goal',
+        'Название цели': 'Goal name',
+        'Например: Новый телефон': 'Example: New phone',
+        'Целевая сумма': 'Target amount',
+        'Срок': 'Duration',
+        'Бессрочная': 'No deadline',
+        '1 месяц': '1 month',
+        '3 месяца': '3 months',
+        '6 месяцев': '6 months',
+        '1 год': '1 year',
+        'Указать дату': 'Pick a date',
+        'Дата окончания': 'End date',
+        'Цвет прогресс-бара': 'Progress bar color',
+        'Создать цель': 'Create goal',
+        'Выберите месяц': 'Select month',
+        'Например: Тинькофф': 'Example: Tinkoff',
+        'Сделать кошельком по умолчанию': 'Set as default wallet',
+        'Доход': 'Income',
+        'Расход': 'Expense',
+        'Накопление': 'Savings',
+        'Месяц': 'Month',
+        'Неделя': 'Week',
+        'День': 'Day',
+        'Все': 'All'
+    }
+};
+
+let currentLang = 'ru';
+
+function t(key) {
+    if (currentLang === 'en') {
+        return translations.en[key] || key;
+    }
+    return key;
+}
+
+function applyTranslations() {
+    document.querySelectorAll('[data-i18n]').forEach((el) => {
+        const key = el.getAttribute('data-i18n');
+        if (key) el.textContent = t(key);
+    });
+    document.querySelectorAll('[data-i18n-placeholder]').forEach((el) => {
+        const key = el.getAttribute('data-i18n-placeholder');
+        if (key) el.setAttribute('placeholder', t(key));
+    });
+    const titleText = t('Финансы');
+    document.title = titleText;
+    const appTitleMeta = document.querySelector('meta[name="apple-mobile-web-app-title"]');
+    if (appTitleMeta) appTitleMeta.setAttribute('content', titleText);
+    document.documentElement.lang = currentLang;
+}
+
+function getLocale() {
+    return currentLang === 'en' ? 'en-US' : 'ru-RU';
+}
+
+function detectLanguage() {
+    const stored = localStorage.getItem('finance_lang');
+    if (stored === 'ru' || stored === 'en') return stored;
+    const deviceLang = (navigator.language || '').toLowerCase();
+    return deviceLang.startsWith('en') ? 'en' : 'ru';
+}
+
+function setLanguage(lang) {
+    currentLang = lang === 'en' ? 'en' : 'ru';
+    try { localStorage.setItem('finance_lang', currentLang); } catch {}
+    const selector = document.getElementById('language-select');
+    if (selector) selector.value = currentLang;
+    applyTranslations();
+    updateSubscriptionUI();
+    updateMonthDisplay();
+}
+
+function initLanguage() {
+    currentLang = detectLanguage();
+    const selector = document.getElementById('language-select');
+    if (selector) selector.value = currentLang;
+    applyTranslations();
+}
+
 function readMarketCache(market, kind) {
     try {
         const raw = localStorage.getItem(marketCacheKey(market, kind));
@@ -102,7 +322,15 @@ function writeMarketChartCache(market, id, range, points) {
 
 // Константы
 const currencySymbols = { 'RUB': '₽', 'USD': '$', 'EUR': '€', 'GEL': '₾' };
-const monthNames = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+const monthNames = {
+    ru: ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'],
+    en: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+};
+
+function getMonthName(index) {
+    const list = monthNames[currentLang] || monthNames.ru;
+    return list[index] || '';
+}
 const colorPalette = [
   '#2ED9FF', '#22D3A6', '#F5D547', '#FF9F1C',
   '#FF6B6B', '#FF4D9E', '#8A5CFF', '#5B8CFF',
@@ -322,6 +550,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
         if (await cleanupServiceWorkerCache()) return;
         initInviteFromUrl();
+        initLanguage();
         // Восстанавливаем сессию
         sessionToken = localStorage.getItem('finance_session_token');
         currentCurrency = localStorage.getItem('finance_currency') || 'RUB';
@@ -360,9 +589,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('loading').innerHTML = `
             <div style="text-align: center; padding: 40px;">
                 <div style="font-size: 48px; margin-bottom: 20px;">📱</div>
-                <div style="font-size: 18px; font-weight: 600; margin-bottom: 10px; color: var(--ios-text-primary);">Ошибка загрузки</div>
-                <div style="font-size: 14px; color: var(--ios-text-secondary); margin-bottom: 20px;">Пожалуйста, обновите страницу</div>
-                <button onclick="location.reload()" style="background: var(--ios-accent); color: white; border: none; padding: 12px 24px; border-radius: var(--border-radius); font-size: 16px; cursor: pointer; margin-top: 10px;">Обновить</button>
+                <div style="font-size: 18px; font-weight: 600; margin-bottom: 10px; color: var(--ios-text-primary);">${t('Ошибка загрузки')}</div>
+                <div style="font-size: 14px; color: var(--ios-text-secondary); margin-bottom: 20px;">${t('Пожалуйста, обновите страницу')}</div>
+                <button onclick="location.reload()" style="background: var(--ios-accent); color: white; border: none; padding: 12px 24px; border-radius: var(--border-radius); font-size: 16px; cursor: pointer; margin-top: 10px;">${t('Обновить')}</button>
             </div>
         `;
     }
@@ -1011,7 +1240,7 @@ function loadHistoryPage() {
 function updateMonthDisplay() {
     const monthElement = document.getElementById('current-month');
     if (monthElement) {
-        const month = monthNames[currentHistoryMonth.getMonth()];
+        const month = getMonthName(currentHistoryMonth.getMonth());
         const year = currentHistoryMonth.getFullYear();
         monthElement.textContent = `${month} ${year}`;
     }
@@ -1063,7 +1292,7 @@ function displayMonthTransactions(transactions) {
         const amountSign = isSavings ? '+' : (isIncome ? '+' : '−');
         const icon = isSavings ? '💰' : (isIncome ? '📈' : '📉');
         const iconClass = isSavings ? 'savings' : (isIncome ? 'income' : 'expense');
-        const date = new Date(trans.date).toLocaleDateString('ru-RU', {
+        const date = new Date(trans.date).toLocaleDateString(getLocale(), {
             day: 'numeric',
             month: 'short',
             hour: '2-digit',
@@ -1361,7 +1590,7 @@ function formatSubscriptionDate(value) {
     if (!value) return '';
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return '';
-    return date.toLocaleDateString('ru-RU');
+    return date.toLocaleDateString(getLocale());
 }
 
 function updateSubscriptionPeriod() {
@@ -1371,14 +1600,14 @@ function updateSubscriptionPeriod() {
         const start = formatSubscriptionDate(subscriptionStart);
         const end = formatSubscriptionDate(subscriptionEnd);
         if (start && end) {
-            el.innerHTML = `С <span class="subscription-date">${start}</span> по <span class="subscription-date">${end}</span>`;
+            el.innerHTML = `${t('С')} <span class="subscription-date">${start}</span> ${t('по')} <span class="subscription-date">${end}</span>`;
             return;
         }
     }
     if (subscriptionActive) {
-        el.textContent = 'Подписка активна';
+        el.textContent = t('Подписка активна');
     } else {
-        el.textContent = 'Не активна';
+        el.textContent = t('Не активна');
     }
 }
 
@@ -1490,7 +1719,7 @@ function updateSubscriptionUI() {
     const durationSelect = document.getElementById('subscription-duration');
     updateSubscriptionPrice();
     if (subscriptionActive) {
-        if (statusEl) statusEl.textContent = 'Подписка активна.';
+        if (statusEl) statusEl.textContent = t('Подписка активна.');
         if (createBtn) createBtn.style.display = 'none';
         if (addressWrap) addressWrap.style.display = 'none';
         if (amountWrap) amountWrap.style.display = 'none';
@@ -1502,7 +1731,7 @@ function updateSubscriptionUI() {
         if (durationSelect) durationSelect.disabled = true;
         return;
     }
-    if (statusEl) statusEl.textContent = formatSubscriptionStatus(subscriptionPayment.status) || 'Создайте оплату';
+    if (statusEl) statusEl.textContent = formatSubscriptionStatus(subscriptionPayment.status) || t('Создайте оплату');
     if (addressEl) addressEl.textContent = subscriptionPayment.address || '';
     const displayAsset = subscriptionPayment.asset || subscriptionPayment.currency || subscriptionAsset || 'USDT';
     if (amountEl) amountEl.textContent = subscriptionPayment.amount ? `${subscriptionPayment.amount} ${displayAsset}` : '';
@@ -1564,7 +1793,8 @@ function formatSubscriptionStatus(status) {
         expired: 'Счёт истёк',
         canceled: 'Платёж отменён'
     };
-    return map[status] || status;
+    const label = map[status] || status;
+    return t(label);
 }
 
 function getSubscriptionInvoiceUrl() {
@@ -1734,18 +1964,18 @@ async function loadSharedWalletStatus() {
     const copyCodeBtn = document.getElementById('shared-copy-code');
     const copyLinkBtn = document.getElementById('shared-copy-link');
     const leaveBtn = document.getElementById('shared-leave-btn');
-    if (statusEl) statusEl.textContent = 'Загрузка...';
+    if (statusEl) statusEl.textContent = t('Загрузка...');
     try {
         const res = await fetch(`/api/shared_wallet/status?user_id=${currentUser.id}`);
         const data = await res.json();
         if (data.error) throw new Error(data.error);
         sharedWalletState = { status: data.status || 'none', code: data.code || '', link: data.link || '' };
         if (sharedWalletState.status === 'none') {
-            if (statusEl) statusEl.textContent = 'Статус: не подключен';
+            if (statusEl) statusEl.textContent = t('Статус: не подключен');
             if (actionsEl) actionsEl.style.display = 'block';
             if (shareEl) shareEl.style.display = 'none';
         } else if (sharedWalletState.status === 'owner') {
-            if (statusEl) statusEl.textContent = 'Статус: владелец';
+            if (statusEl) statusEl.textContent = t('Статус: владелец');
             if (actionsEl) actionsEl.style.display = 'none';
             if (shareEl) shareEl.style.display = 'grid';
             if (codeEl) codeEl.textContent = sharedWalletState.code;
@@ -1754,7 +1984,8 @@ async function loadSharedWalletStatus() {
             if (leaveBtn) leaveBtn.style.display = 'flex';
         } else {
             const ownerName = data.owner_name ? ` ${data.owner_name}` : '';
-            if (statusEl) statusEl.textContent = `Статус: участник${ownerName ? ' • ' + ownerName : ''}`;
+            const ownerLabel = ownerName ? ' • ' + ownerName : '';
+            if (statusEl) statusEl.textContent = `${t('Статус: участник')}${ownerLabel}`;
             if (actionsEl) actionsEl.style.display = 'none';
             if (shareEl) shareEl.style.display = 'grid';
             if (codeEl) codeEl.textContent = '';
@@ -1767,7 +1998,7 @@ async function loadSharedWalletStatus() {
             if (input) input.value = pendingInviteCode;
         }
     } catch (e) {
-        if (statusEl) statusEl.textContent = 'Не удалось загрузить статус.';
+        if (statusEl) statusEl.textContent = t('Не удалось загрузить статус.');
     }
 }
 
@@ -1933,7 +2164,7 @@ function formatMarketLabel(value, range) {
     if (range === '1d') {
         return date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
     }
-    return date.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' });
+    return date.toLocaleDateString(getLocale(), { day: '2-digit', month: '2-digit' });
 }
 
 async function loadMarketChart(market, id, range = '1m', symbol = '') {
@@ -2620,7 +2851,7 @@ async function updateSavingsChart(transactions) {
         data: {
             labels: months.map(month => {
                 const [year, monthNum] = month.split('-');
-                return `${monthNames[parseInt(monthNum) - 1]} ${year}`;
+                return `${getMonthName(parseInt(monthNum) - 1)} ${year}`;
             }),
             datasets: [{
                 label: 'Накопления',
@@ -2835,7 +3066,7 @@ function updateDynamicsChart(data, period) {
             return new Date(item.period).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
         } else if (period === 'week') {
             const date = new Date(item.period);
-            return date.toLocaleDateString('ru-RU', { weekday: 'short', day: 'numeric' });
+            return date.toLocaleDateString(getLocale(), { weekday: 'short', day: 'numeric' });
         } else if (period === 'month') {
             return item.period;
         }
@@ -4166,7 +4397,7 @@ function showAllTransactions() {
             const amountSign = isIncome ? '+' : '−';
             const icon = isIncome ? '📈' : '📉';
             const iconClass = isIncome ? 'income' : 'expense';
-            const date = new Date(trans.date).toLocaleDateString('ru-RU', {
+            const date = new Date(trans.date).toLocaleDateString(getLocale(), {
                 day: 'numeric',
                 month: 'short',
                 hour: '2-digit',
@@ -4314,7 +4545,7 @@ function showCalendar() {
     
     // Заполняем месяцы
     let html = '';
-    monthNames.forEach((month, index) => {
+    (monthNames[currentLang] || monthNames.ru).forEach((month, index) => {
         const isActive = index === currentMonth;
         html += `
             <button class="period-btn ${isActive ? 'active' : ''}" 
@@ -4365,7 +4596,7 @@ function showNotification(message, type = 'info') {
     
     // Ждём немного и показываем новое
     setTimeout(() => {
-        notification.textContent = message;
+        notification.textContent = t(message);
         notification.className = `notification ${type}`;
         
         // Добавляем класс show с небольшой задержкой для анимации
@@ -4633,6 +4864,7 @@ window.grantSubscriptionManual = grantSubscriptionManual;
 window.prefillAdminUsername = prefillAdminUsername;
 window.setSubscriptionAsset = setSubscriptionAsset;
 window.setSubscriptionDuration = setSubscriptionDuration;
+window.setLanguage = setLanguage;
 window.redeemPromoCode = redeemPromoCode;
 window.openSharedWallet = openSharedWallet;
 window.closeSharedWallet = closeSharedWallet;
