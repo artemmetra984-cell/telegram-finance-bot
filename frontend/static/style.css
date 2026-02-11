@@ -641,7 +641,7 @@ body {
   border-radius: var(--border-radius);
   padding: var(--spacing-md);
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: var(--spacing-md);
   margin-bottom: 8px;
   border: 0.5px solid rgba(255, 255, 255, 0.05);
@@ -686,6 +686,7 @@ body {
   align-items: center;
   gap: 8px;
   min-width: 0;
+  flex-wrap: wrap;
 }
 
 .transaction-title {
@@ -694,6 +695,8 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  min-width: 0;
+  flex: 1 1 auto;
 }
 
 .transaction-category {
@@ -719,16 +722,18 @@ body {
   font-size: 15px;
   font-weight: 600;
   flex-shrink: 0;
-  margin-left: var(--spacing-sm);
-  min-width: 90px;
+  margin-left: 0;
+  min-width: 76px;
   text-align: right;
 }
 
 .transaction-right {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-left: var(--spacing-sm);
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  margin-left: auto;
+  flex-shrink: 0;
 }
 
 .transaction-actions {
