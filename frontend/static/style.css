@@ -1217,12 +1217,22 @@ body {
 }
 
 .service-link-compact {
-  padding: calc(var(--spacing-md) * 0.8);
+  padding: var(--spacing-md);
+  background: transparent;
+  border: none;
+  font-size: 16px;
+  font-weight: 600;
 }
 
 .service-link:hover {
   border-color: var(--ios-accent);
   box-shadow: 0 0 10px var(--ios-accent-glow);
+}
+
+.service-link-compact:hover {
+  border-color: transparent;
+  box-shadow: none;
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .service-link-arrow {
@@ -1428,6 +1438,10 @@ body {
 .subscription-period {
   color: var(--ios-text-secondary);
   font-size: 13px;
+}
+
+.subscription-date {
+  color: #5b8cff;
 }
 
 /* Articles */

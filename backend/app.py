@@ -801,6 +801,24 @@ def subscription_grant():
         print(f"Subscription grant error: {e}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/subscription/info')
+def subscription_info():
+    try:
+        user_id = request.args.get('user_id', type=int)
+        if not user_id:
+            return jsonify({'error': 'Missing user_id'}), 400
+        if not db:
+            return jsonify({'error': 'Database error'}), 500
+        info = db.get_subscription_info(user_id)
+        return jsonify({
+            'active': info['active'],
+            'subscription_start': info['activated_at'],
+            'subscription_end': info['expires_at']
+        })
+    except Exception as e:
+        print(f"Subscription info error: {e}")
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/subscription/lecryptio/create', methods=['POST'])
 def lecryptio_create():
     try:

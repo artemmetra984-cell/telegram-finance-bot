@@ -315,27 +315,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.log('🚀 Загрузка приложения (iOS 26 стиль)...');
     
     try {
-        try {
-            const url = new URL(window.location.href);
-            const ver = url.searchParams.get('v');
-            if (ver !== '6') {
-                url.searchParams.set('v', '6');
-                window.location.replace(url.toString());
-                return;
-            }
-        } catch {}
-        if ('serviceWorker' in navigator) {
-            const forced = localStorage.getItem('sw_force_v5');
-            if (!forced) {
-                navigator.serviceWorker.getRegistrations().then((regs) => {
-                    regs.forEach((reg) => reg.unregister());
-                }).catch(() => {});
-                if (window.caches && caches.keys) {
-                    caches.keys().then((keys) => keys.forEach((key) => caches.delete(key))).catch(() => {});
-                }
-                localStorage.setItem('sw_force_v5', '1');
-            }
-        }
+        if (await cleanupServiceWorkerCache()) return;
         initInviteFromUrl();
         // Восстанавливаем сессию
         sessionToken = localStorage.getItem('finance_session_token');
@@ -350,11 +330,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         initNavigation();
         updateCurrencyDisplay();
         setupAddButton();
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/sw.js?v=6', { updateViaCache: 'none' }).then((reg) => {
-                reg.update().catch(() => {});
-            }).catch(() => {});
-        }
+        // Service worker отключен, чтобы обновления приходили автоматически
         
         // Инициализируем сворачиваемые секции
         initCollapsibleSections();
@@ -386,6 +362,33 @@ document.addEventListener('DOMContentLoaded', async () => {
         `;
     }
 });
+
+document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) {
+        refreshSubscriptionInfo();
+    }
+});
+
+async function cleanupServiceWorkerCache() {
+    if (!('serviceWorker' in navigator)) return false;
+    const forced = localStorage.getItem('sw_cleanup_done');
+    try {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        if (regs && regs.length) {
+            await Promise.all(regs.map((reg) => reg.unregister()));
+        }
+        if (window.caches && caches.keys) {
+            const keys = await caches.keys();
+            await Promise.all(keys.map((key) => caches.delete(key)));
+        }
+        if (!forced) {
+            localStorage.setItem('sw_cleanup_done', '1');
+            window.location.reload();
+            return true;
+        }
+    } catch {}
+    return false;
+}
 
 async function initUser() {
     let telegramId, username = '', firstName = 'Пользователь';
@@ -1217,6 +1220,7 @@ function openSubscriptionModal() {
     if (modal) modal.classList.add('active');
     loadSubscriptionState();
     updateSubscriptionUI();
+    refreshSubscriptionInfo();
     startSubscriptionPolling();
 }
 
@@ -1234,7 +1238,7 @@ function updateSubscriptionPeriod() {
         const start = formatSubscriptionDate(subscriptionStart);
         const end = formatSubscriptionDate(subscriptionEnd);
         if (start && end) {
-            el.textContent = `С ${start} по ${end}`;
+            el.innerHTML = `С <span class="subscription-date">${start}</span> по <span class="subscription-date">${end}</span>`;
             return;
         }
     }
@@ -1243,6 +1247,19 @@ function updateSubscriptionPeriod() {
     } else {
         el.textContent = 'Не активна';
     }
+}
+
+async function refreshSubscriptionInfo() {
+    if (!currentUser) return;
+    try {
+        const res = await fetch(`/api/subscription/info?user_id=${currentUser.id}`);
+        const data = await res.json();
+        if (data.error) return;
+        subscriptionActive = !!data.active;
+        subscriptionStart = data.subscription_start || null;
+        subscriptionEnd = data.subscription_end || null;
+        updateSubscriptionUI();
+    } catch {}
 }
 
 function closeSubscriptionModal() {
@@ -3770,6 +3787,7 @@ function switchPage(pageName) {
                 break;
             case 'services':
                 loadDefaultWallet();
+                refreshSubscriptionInfo();
                 break;
         }
     }
