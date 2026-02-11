@@ -737,7 +737,9 @@ def subscription_activate():
         if not user_id:
             return jsonify({'error': 'Missing user_id'}), 400
         secret = os.getenv('ADMIN_SECRET')
-        if not secret or admin_key != secret:
+        if not secret:
+            return jsonify({'error': 'ADMIN_SECRET is not set'}), 500
+        if admin_key != secret:
             return jsonify({'error': 'Forbidden'}), 403
         if not db:
             return jsonify({'error': 'Database error'}), 500
@@ -755,14 +757,16 @@ def subscription_grant():
         username = (data.get('username') or '').lstrip('@').strip()
         admin_key = data.get('admin_key', '')
         secret = os.getenv('ADMIN_SECRET')
-        if not secret or admin_key != secret:
+        if not secret:
+            return jsonify({'error': 'ADMIN_SECRET is not set'}), 500
+        if admin_key != secret:
             return jsonify({'error': 'Forbidden'}), 403
         if not db:
             return jsonify({'error': 'Database error'}), 500
         if not user_id and username:
             user_id = db.get_user_id_by_username(username)
         if not user_id:
-            return jsonify({'error': 'User not found'}), 404
+            return jsonify({'error': 'User not found (user must open app once)'}), 404
         db.set_subscription_active(user_id, True)
         return jsonify({'success': True})
     except Exception as e:

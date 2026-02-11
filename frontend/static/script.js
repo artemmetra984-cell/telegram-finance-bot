@@ -1461,7 +1461,7 @@ async function grantSubscriptionManual() {
 
 function isAdminUser() {
     const name = (currentUser?.username || '').replace('@', '').toLowerCase();
-    return name === 'artem_katsay';
+    return name === 'artem_katsay' || name === 'antonzayar';
 }
 
 function prefillAdminUsername() {
