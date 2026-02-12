@@ -1003,7 +1003,10 @@ function updateSectionTotals() {
     goalsData.forEach(goal => {
         goalsTotal += parseFloat(goal.current_amount) || 0;
     });
-    document.getElementById('goals-summary').textContent = formatCurrency(goalsTotal) + ' ' + symbol;
+    const goalsSummaryEl = document.getElementById('goals-summary');
+    if (goalsSummaryEl) {
+        goalsSummaryEl.textContent = formatCurrency(goalsTotal) + ' ' + symbol;
+    }
     
     // Кошельки
     let walletsTotal = 0;
@@ -1389,12 +1392,7 @@ function updatePanelGoals() {
     if (!container) return;
     
     if (!goalsData || goalsData.length === 0) {
-        container.innerHTML = `
-            <button class="add-category-btn" onclick="showAddGoalModal()" style="padding: 20px;">
-                <span>🎯</span>
-                <span>${t('Добавить первую цель')}</span>
-            </button>
-        `;
+        container.innerHTML = '';
         return;
     }
     
@@ -1425,13 +1423,6 @@ function updatePanelGoals() {
             </button>
         `;
     });
-    
-    html += `
-        <button class="add-category-btn" onclick="showAddGoalModal()">
-            <span>+</span>
-            <span>${t('Добавить цель')}</span>
-        </button>
-    `;
     
     container.innerHTML = html;
 }

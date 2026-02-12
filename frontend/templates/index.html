@@ -128,30 +128,16 @@
                         <div class="category-grid" id="savings-categories">
                             <!-- Динамически заполняется -->
                         </div>
-                        <button class="hide-categories-btn" data-type="savings">
-                            <span data-i18n="Скрыть">Скрыть</span>
-                            <span>▲</span>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Цели -->
-                <div class="collapsible-section" data-type="goals">
-                    <div class="collapsible-header">
-                        <div class="collapsible-title">
-                            <div class="collapsible-icon">🎯</div>
-                            <div class="collapsible-text">
-                                <div class="collapsible-name" data-i18n="Мои цели">Мои цели</div>
-                                <div class="collapsible-summary" id="goals-summary">0 ₽</div>
+                        <div class="panel-goals-block">
+                            <div class="section-header">
+                                <div class="section-title" data-i18n="Мои цели">Мои цели</div>
+                                <button class="section-action" onclick="showAddGoalModal()" data-i18n="Создать цель">Создать цель</button>
+                            </div>
+                            <div class="category-grid" id="panel-goals">
+                                <!-- Динамически заполняется -->
                             </div>
                         </div>
-                        <div class="collapsible-arrow">▼</div>
-                    </div>
-                    <div class="collapsible-content">
-                        <div class="category-grid" id="panel-goals">
-                            <!-- Динамически заполняется -->
-                        </div>
-                        <button class="hide-categories-btn" data-type="goals">
+                        <button class="hide-categories-btn" data-type="savings">
                             <span data-i18n="Скрыть">Скрыть</span>
                             <span>▲</span>
                         </button>
