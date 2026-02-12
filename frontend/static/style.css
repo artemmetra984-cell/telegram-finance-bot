@@ -540,6 +540,7 @@ body {
   flex-direction: column;
   justify-content: center;
   align-items: flex-start;
+  text-align: left;
 }
 
 .category-name {
@@ -549,6 +550,26 @@ body {
   display: flex;
   align-items: center;
   width: 100%;
+  text-align: left;
+}
+
+.category-stats {
+  font-size: 12px;
+  color: var(--ios-text-secondary);
+  margin-top: 2px;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.debt-card .category-name {
+  font-size: 16px;
+}
+
+.debt-card .category-stats {
+  font-size: 12px;
 }
 
 .category-name-text {
@@ -556,6 +577,7 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  text-align: left;
 }
 
 .category-amount {
