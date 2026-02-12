@@ -1309,11 +1309,34 @@ body {
 
 .settings-card .service-title {
   color: var(--ios-accent);
+  margin-bottom: 0;
+}
+
+.settings-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.settings-arrow {
+  font-size: 18px;
+  color: var(--ios-text-secondary);
+  transition: transform var(--transition-fast);
 }
 
 .settings-items {
   display: flex;
   flex-direction: column;
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease, opacity 0.3s ease;
 }
 
 .settings-item {
@@ -1358,6 +1381,15 @@ body {
 
 .settings-card .currency-options {
   margin-top: var(--spacing-sm);
+}
+
+.settings-card.expanded .settings-items {
+  max-height: 1200px;
+  opacity: 1;
+}
+
+.settings-card.expanded .settings-arrow {
+  transform: rotate(90deg);
 }
 
 .service-card-toggle {

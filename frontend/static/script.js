@@ -945,6 +945,17 @@ function toggleCollapsibleSection(type, forceState = null) {
     }
 }
 
+function toggleSettingsCard(forceState = null) {
+    const card = document.getElementById('settings-card');
+    if (!card) return;
+    const isExpanded = card.classList.contains('expanded');
+    const shouldExpand = forceState !== null ? forceState : !isExpanded;
+    card.classList.toggle('expanded', shouldExpand);
+    card.classList.toggle('collapsed', !shouldExpand);
+    const header = card.querySelector('.settings-header');
+    if (header) header.setAttribute('aria-expanded', shouldExpand ? 'true' : 'false');
+}
+
 // ==================== //
 // ОБНОВЛЕНИЕ ИНТЕРФЕЙСА //
 // ==================== //
