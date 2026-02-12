@@ -1286,13 +1286,13 @@ function updateDebtsDisplay() {
                     <div class="debt-progress">
                         <div class="debt-progress-fill" style="width: ${progress}%; background: ${color};"></div>
                     </div>
-                </div>
-                <div class="category-amount" style="color: ${color};">
-                    ${progressText}
                     <div class="debt-actions">
                         <button class="debt-action-btn" onclick="event.stopPropagation(); openDebtModal(${debt.id})">✎</button>
                         ${canArchive ? `<button class="debt-action-btn" onclick="event.stopPropagation(); archiveDebt(${debt.id}, true)">${t('Архивировать')}</button>` : ''}
                     </div>
+                </div>
+                <div class="category-amount" style="color: ${color};">
+                    ${progressText}
                 </div>
             </div>
         `;
@@ -1322,23 +1322,23 @@ function updateDebtsDisplay() {
                             <div class="category-icon" style="background: ${color}20; color: ${color}; box-shadow: 0 0 15px ${color}50;">
                                 ${icon}
                             </div>
-                            <div class="category-info">
-                                <div class="category-name">
-                                    <span class="category-name-text">${debt.name}</span>
-                                </div>
-                                <div class="category-stats">${t('Погашено')}: ${formattedPaid} / ${formattedTarget} ${symbol}${note}</div>
-                                <div class="debt-progress">
-                                    <div class="debt-progress-fill" style="width: ${progress}%; background: ${color};"></div>
-                                </div>
+                        <div class="category-info">
+                            <div class="category-name">
+                                <span class="category-name-text">${debt.name}</span>
                             </div>
-                            <div class="category-amount" style="color: ${color};">
-                                ${progressText}
-                                <div class="debt-actions">
-                                    <button class="debt-action-btn" onclick="archiveDebt(${debt.id}, false)">${t('Вернуть')}</button>
-                                </div>
+                            <div class="category-stats">${t('Погашено')}: ${formattedPaid} / ${formattedTarget} ${symbol}${note}</div>
+                            <div class="debt-progress">
+                                <div class="debt-progress-fill" style="width: ${progress}%; background: ${color};"></div>
+                            </div>
+                            <div class="debt-actions">
+                                <button class="debt-action-btn" onclick="archiveDebt(${debt.id}, false)">${t('Вернуть')}</button>
                             </div>
                         </div>
-                    `;
+                        <div class="category-amount" style="color: ${color};">
+                            ${progressText}
+                        </div>
+                    </div>
+                `;
                 }).join('')}
             </div>
         `;
