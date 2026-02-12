@@ -1543,6 +1543,41 @@ body {
   gap: var(--spacing-sm);
 }
 
+.subscription-admin-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.08);
+  margin: var(--spacing-md) 0;
+}
+
+.promo-stats {
+  display: grid;
+  gap: 8px;
+  margin-top: var(--spacing-sm);
+}
+
+.promo-stat-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.promo-stat-code {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ios-text-primary);
+}
+
+.promo-stat-meta {
+  font-size: 12px;
+  color: var(--ios-text-secondary);
+  white-space: nowrap;
+}
+
 .subscription-period {
   color: var(--ios-text-secondary);
   font-size: 13px;

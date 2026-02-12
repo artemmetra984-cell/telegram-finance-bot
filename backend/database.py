@@ -959,6 +959,12 @@ class Database:
         cursor.execute('SELECT code FROM promo_redemptions WHERE code = ?', (code,))
         return cursor.fetchone() is not None
 
+    def get_promo_redemption_count(self, code):
+        cursor = self.conn.cursor()
+        cursor.execute('SELECT COUNT(*) as total FROM promo_redemptions WHERE code = ?', (code,))
+        row = cursor.fetchone()
+        return int(row['total']) if row else 0
+
     def redeem_promo_code(self, user_id, code, months):
         cursor = self.conn.cursor()
         owner_id = self._resolve_owner_id(user_id)

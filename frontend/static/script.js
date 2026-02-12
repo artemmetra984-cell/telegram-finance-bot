@@ -207,6 +207,7 @@ const translations = {
         '1 месяц': '1 month',
         '3 месяца': '3 months',
         '6 месяцев': '6 months',
+        '12 месяцев': '12 months',
         '1 год': '1 year',
         'Указать дату': 'Pick a date',
         'Дата окончания': 'End date',
@@ -273,6 +274,7 @@ const translations = {
         'Введите название категории': 'Enter category name',
         'Категория добавлена': 'Category added',
         'Ошибка добавления категории': 'Failed to add category',
+        'Добавить первую категорию': 'Add your first category',
         'Введите название цели': 'Enter goal name',
         'Сессия устарела, перезайдите': 'Session expired, please re-open',
         'Цель создана': 'Goal created',
@@ -327,7 +329,16 @@ const translations = {
         'Удалить': 'Delete',
         'Удалить операцию?': 'Delete transaction?',
         'Нет данных': 'No data',
-        'Карта': 'Card'
+        'Карта': 'Card',
+        'Промокоды': 'Promo codes',
+        'Показать статистику': 'Show stats',
+        'Использовано': 'Used',
+        'Многоразовый': 'Reusable',
+        'Одноразовый': 'Single-use',
+        'Введите admin key': 'Enter admin key',
+        'За этот период данных нет': 'No data for this period',
+        'Добавляйте операции в разделе «Панель»': 'Add transactions in the Dashboard section',
+        'Цель': 'Goal'
     }
 };
 
@@ -361,15 +372,26 @@ function getLocale() {
 }
 
 function detectLanguage() {
+    const manual = localStorage.getItem('finance_lang_manual') === '1';
     const stored = localStorage.getItem('finance_lang');
-    if (stored === 'ru' || stored === 'en') return stored;
+    if (manual && (stored === 'ru' || stored === 'en')) return stored;
+    if (!manual && stored) {
+        try { localStorage.removeItem('finance_lang'); } catch {}
+    }
+    const telegramLang = (window.Telegram?.WebApp?.initDataUnsafe?.user?.language_code || '').toLowerCase();
+    if (telegramLang) {
+        return telegramLang.startsWith('en') ? 'en' : 'ru';
+    }
     const deviceLang = (navigator.language || '').toLowerCase();
     return deviceLang.startsWith('en') ? 'en' : 'ru';
 }
 
 function setLanguage(lang) {
     currentLang = lang === 'en' ? 'en' : 'ru';
-    try { localStorage.setItem('finance_lang', currentLang); } catch {}
+    try {
+        localStorage.setItem('finance_lang', currentLang);
+        localStorage.setItem('finance_lang_manual', '1');
+    } catch {}
     const selector = document.getElementById('language-select');
     if (selector) selector.value = currentLang;
     applyTranslations();
@@ -1018,7 +1040,7 @@ function updateCategorySection(type, title) {
                 </div>
                 <div class="category-info">
                     <div class="category-name">
-                        <span class="category-name-text">${cat.name}</span>
+                        <span class="category-name-text">${t(cat.name)}</span>
                     </div>
                 </div>
                 <div class="category-amount ${isPositive ? 'amount-positive' : 'amount-negative'}">
@@ -1033,14 +1055,14 @@ function updateCategorySection(type, title) {
         html += `
             <button class="add-category-btn" onclick="showAddCategoryModal('${type}')">
                 <span>+</span>
-                <span>Добавить категорию</span>
+                <span>${t('Добавить категорию')}</span>
             </button>
         `;
     } else {
         html += `
             <button class="add-category-btn" onclick="showAddCategoryModal('${type}')" style="padding: 20px;">
                 <span>+</span>
-                <span>Добавить первую категорию</span>
+                <span>${t('Добавить первую категорию')}</span>
             </button>
         `;
     }
@@ -1072,7 +1094,7 @@ function updateSavingsDisplay() {
                 </div>
                 <div class="category-info">
                     <div class="category-name">
-                        <span class="category-name-text">${cat.name}</span>
+                        <span class="category-name-text">${t(cat.name)}</span>
                     </div>
                 </div>
                 <div class="category-amount" style="color: ${color};">
@@ -1094,7 +1116,7 @@ function updateSavingsDisplay() {
                 </div>
                 <div class="category-info">
                     <div class="category-name">
-                        <span class="category-name-text">Накопления</span>
+                        <span class="category-name-text">${t('Накопления')}</span>
                     </div>
                 </div>
                 <div class="category-amount" style="color: ${savingsColor};">
@@ -1108,7 +1130,7 @@ function updateSavingsDisplay() {
     html += `
         <button class="add-category-btn" onclick="showAddCategoryModal('savings')">
             <span>+</span>
-            <span>Добавить категорию</span>
+            <span>${t('Добавить категорию')}</span>
         </button>
     `;
     
@@ -1123,7 +1145,7 @@ function updatePanelGoals() {
         container.innerHTML = `
             <button class="add-category-btn" onclick="showAddGoalModal()" style="padding: 20px;">
                 <span>🎯</span>
-                <span>Добавить первую цель</span>
+                <span>${t('Добавить первую цель')}</span>
             </button>
         `;
         return;
@@ -1148,7 +1170,7 @@ function updatePanelGoals() {
                     <div class="category-name">
                         <span class="category-name-text">${goal.name}</span>
                     </div>
-                    <div class="category-stats">Цель: ${formatCurrency(currentAmount)} / ${formatCurrency(targetAmount)} ${symbol}</div>
+                    <div class="category-stats">${t('Цель')}: ${formatCurrency(currentAmount)} / ${formatCurrency(targetAmount)} ${symbol}</div>
                 </div>
                 <div class="category-amount" style="color: ${color};">
                     ${progress.toFixed(0)}%
@@ -1160,7 +1182,7 @@ function updatePanelGoals() {
     html += `
         <button class="add-category-btn" onclick="showAddGoalModal()">
             <span>+</span>
-            <span>Добавить цель</span>
+            <span>${t('Добавить цель')}</span>
         </button>
     `;
     
@@ -1187,7 +1209,7 @@ function updateWalletsDisplay() {
                 </div>
                 <div class="category-info">
                     <div class="category-name">
-                        <span class="category-name-text">${wallet.name}</span>
+                        <span class="category-name-text">${t(wallet.name)}</span>
                     </div>
                 </div>
                 <div class="category-amount">
@@ -1200,7 +1222,7 @@ function updateWalletsDisplay() {
     html += `
         <button class="add-category-btn" onclick="showAddWalletModal()">
             <span>+</span>
-            <span>Добавить кошелёк</span>
+            <span>${t('Добавить кошелёк')}</span>
         </button>
     `;
     
@@ -1216,7 +1238,7 @@ function updateRecentTransactions(transactions) {
             <div class="transaction-item" style="justify-content: center; padding: 30px;">
                 <div style="text-align: center; color: var(--ios-text-secondary);">
                     <div style="font-size: 24px; margin-bottom: 8px;">📭</div>
-                    <div>Нет операций</div>
+                    <div>${t('Нет операций')}</div>
                 </div>
             </div>
         `;
@@ -1238,7 +1260,7 @@ function updateRecentTransactions(transactions) {
                 <div class="transaction-info">
                     <div class="transaction-title-row">
                         <div class="transaction-title">${trans.description || t('Без описания')}</div>
-                        <div class="transaction-category">${trans.category}</div>
+                        <div class="transaction-category">${t(trans.category)}</div>
                     </div>
                 </div>
                 <div class="transaction-right">
@@ -1357,7 +1379,7 @@ function showAddTransactionForCategory(type, category) {
 
 function showWalletTransactions(walletName) {
     switchPage('history');
-    showNotification(`${t('Показываем операции кошелька')}: ${walletName}`, 'info');
+    showNotification(`${t('Показываем операции кошелька')}: ${t(walletName)}`, 'info');
 }
 
 // ==================== //
@@ -1432,20 +1454,22 @@ function displayMonthTransactions(transactions) {
             minute: '2-digit'
         });
         
+        const categoryLabel = t(trans.category);
+        const titleText = trans.description || categoryLabel;
         html += `
             <div class="transaction-item">
                 <div class="transaction-icon ${iconClass}">${icon}</div>
                 <div class="transaction-info">
-                    <div class="transaction-title">${trans.description || trans.category}</div>
-                    <div class="transaction-details">${trans.category} • ${date} • ${trans.wallet}</div>
+                    <div class="transaction-title">${titleText}</div>
+                    <div class="transaction-details">${categoryLabel} • ${date} • ${t(trans.wallet)}</div>
                 </div>
                 <div class="transaction-right">
                     <div class="transaction-amount ${amountClass}">
                         ${amountSign}${formatCurrency(trans.amount)} ${symbol}
                     </div>
                     <div class="transaction-actions">
-                        <button class="transaction-action-btn" onclick="openEditTransactionById(${trans.id})" title="Изменить">✎</button>
-                        <button class="transaction-action-btn danger" onclick="deleteTransactionById(${trans.id})" title="Удалить">🗑</button>
+                        <button class="transaction-action-btn" onclick="openEditTransactionById(${trans.id})" title="${t('Изменить')}">✎</button>
+                        <button class="transaction-action-btn danger" onclick="deleteTransactionById(${trans.id})" title="${t('Удалить')}">🗑</button>
                     </div>
                 </div>
             </div>
@@ -1460,8 +1484,8 @@ function showEmptyHistoryState() {
     container.innerHTML = `
         <div style="text-align: center; padding: 60px 20px; color: var(--ios-text-tertiary);">
             <div style="font-size: 48px; margin-bottom: 16px;">📭</div>
-            <div style="font-size: 17px; font-weight: 600; margin-bottom: 8px; color: var(--ios-text-secondary);">За этот период данных нет</div>
-            <div style="font-size: 15px;">Добавляйте операции в разделе «Панель»</div>
+            <div style="font-size: 17px; font-weight: 600; margin-bottom: 8px; color: var(--ios-text-secondary);">${t('За этот период данных нет')}</div>
+            <div style="font-size: 15px;">${t('Добавляйте операции в разделе «Панель»')}</div>
         </div>
     `;
 }
@@ -2071,6 +2095,56 @@ async function grantSubscriptionManual() {
     }
 }
 
+async function loadPromoStats() {
+    if (!isAdminUser()) {
+        showNotification('Недостаточно прав', 'error');
+        return;
+    }
+    const adminKey = document.getElementById('subscription-admin-key')?.value || '';
+    if (!adminKey) {
+        showNotification('Введите admin key', 'error');
+        return;
+    }
+    const container = document.getElementById('promo-stats');
+    if (container) {
+        container.innerHTML = `<div style="color: var(--ios-text-secondary); text-align: center;">${t('Загрузка...')}</div>`;
+    }
+    try {
+        const res = await fetch('/api/subscription/promo_stats', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ admin_key: adminKey })
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+        const items = Array.isArray(data.items) ? data.items : [];
+        if (!items.length) {
+            if (container) {
+                container.innerHTML = `<div style="color: var(--ios-text-secondary); text-align: center;">${t('Нет данных')}</div>`;
+            }
+            return;
+        }
+        if (container) {
+            container.innerHTML = items.map((item) => {
+                const monthsText = `${item.months} ${t('мес.')}`;
+                const typeText = item.type === 'multi' ? t('Многоразовый') : t('Одноразовый');
+                const usedText = item.limit ? `${item.used}/${item.limit}` : `${item.used}`;
+                return `
+                    <div class="promo-stat-item">
+                        <div class="promo-stat-code">${item.code}</div>
+                        <div class="promo-stat-meta">${monthsText} • ${typeText} • ${t('Использовано')}: ${usedText}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+    } catch (e) {
+        showNotification(e.message || 'Ошибка', 'error');
+        if (container) {
+            container.innerHTML = `<div style="color: var(--ios-text-secondary); text-align: center;">${t('Нет данных')}</div>`;
+        }
+    }
+}
+
 function isAdminUser() {
     const name = (currentUser?.username || '').replace('@', '').toLowerCase();
     return name === 'artem_katsay' || name === 'antonzayar';
@@ -2665,6 +2739,8 @@ async function updateIncomeChart(transactions) {
     const sorted = Object.entries(incomeByCategory)
         .sort((a, b) => b[1] - a[1]); // от большего к меньшему
     const categories = sorted.map(([name]) => name);
+    const displayLabels = categories.map(name => t(name));
+    const displayLabels = categories.map(name => t(name));
     const amounts = sorted.map(([, value]) => value);
     
     // Удаляем старый график
@@ -2691,7 +2767,7 @@ async function updateIncomeChart(transactions) {
     charts['income-chart'] = new Chart(ctx, {
         type: 'doughnut',
         data: {
-            labels: categories,
+            labels: displayLabels,
             datasets: [{
                 data: amounts,
                 backgroundColor: backgroundColors,
@@ -2814,7 +2890,7 @@ async function updateExpenseChart(transactions) {
     charts['expense-chart'] = new Chart(ctx, {
         type: 'doughnut',
         data: {
-            labels: categories,
+            labels: displayLabels,
             datasets: [{
                 data: amounts,
                 backgroundColor: backgroundColors,
@@ -2896,7 +2972,7 @@ function updateIncomeStats(transactions) {
         <div style="display: grid; gap: 8px; text-align: left;">
             <div>${t('Всего')}: <strong>${formatCurrency(total)} ${symbol}</strong></div>
             <div>${t('Средний доход')}: <strong>${formatCurrency(avg)} ${symbol}</strong></div>
-            <div>${t('Топ категория')}: <strong>${top[0]}</strong> (${formatCurrency(top[1])} ${symbol})</div>
+            <div>${t('Топ категория')}: <strong>${t(top[0])}</strong> (${formatCurrency(top[1])} ${symbol})</div>
         </div>
     `;
 }
@@ -2925,7 +3001,7 @@ function updateExpenseTop(transactions) {
         <div style="display: grid; gap: 8px; text-align: left;">
             ${top.map(([name, amount]) => `
                 <div style="display: flex; justify-content: space-between; gap: 12px;">
-                    <span>${name}</span>
+                    <span>${t(name)}</span>
                     <strong>${formatCurrency(amount)} ${symbol}</strong>
                 </div>
             `).join('')}
@@ -3073,7 +3149,7 @@ async function updateDistributionChart() {
         return;
     }
     
-    const labels = walletsData.map(w => w.name);
+    const labels = walletsData.map(w => t(w.name));
     const amounts = walletsData.map(w => w.balance || 0);
     const colors = walletsData.map((w, i) => colorPalette[i % colorPalette.length]);
     const borderColors = colors.map(color => color + 'FF');
@@ -3092,7 +3168,7 @@ async function updateDistributionChart() {
             html += `
                 <div class="legend-item">
                     <div class="legend-color" style="background: ${colors[index]}; box-shadow: 0 0 15px ${colors[index]}80;"></div>
-                    <div class="legend-name">${wallet.name}</div>
+                    <div class="legend-name">${t(wallet.name)}</div>
                     <div class="legend-percentage">${percentage}%</div>
                 </div>
             `;
@@ -3286,7 +3362,7 @@ function updateChartLegend(legendId, categories, amounts, colors) {
             <div class="legend-item">
                 <div class="legend-color" style="background: ${color}; box-shadow: 0 0 15px ${color}80;"></div>
                 <div class="legend-text">
-                    <div class="legend-title">${category}</div>
+                    <div class="legend-title">${t(category)}</div>
                     <div class="legend-meta">${formatCurrency(amount)} ${symbol} • ${percentage}%</div>
                 </div>
             </div>
@@ -3512,11 +3588,11 @@ function updateDefaultWalletDisplay() {
     const defaultWalletData = walletsData.find(w => w.name === defaultWallet);
     
     if (defaultWalletData) {
-        defaultWalletName.textContent = defaultWalletData.name;
+        defaultWalletName.textContent = t(defaultWalletData.name);
         defaultWalletIcon.textContent = defaultWalletData.icon || '💳';
         defaultWalletIcon.style.boxShadow = '0 0 20px var(--ios-accent-glow)';
     } else {
-        defaultWalletName.textContent = defaultWallet;
+        defaultWalletName.textContent = t(defaultWallet);
         defaultWalletIcon.textContent = '💳';
     }
     
@@ -3539,7 +3615,7 @@ function updateWalletDropdown() {
                 <div class="wallet-option-info">
                     <div class="wallet-option-icon">${wallet.icon || '💳'}</div>
                     <div class="wallet-option-text">
-                        <div class="wallet-option-name">${wallet.name}</div>
+                    <div class="wallet-option-name">${t(wallet.name)}</div>
                         <div class="wallet-option-balance">${formatCurrency(wallet.balance || 0)} ${symbol}</div>
                     </div>
                 </div>
@@ -3679,7 +3755,7 @@ function populateTransactionCategories() {
     categories.forEach(cat => {
         const option = document.createElement('option');
         option.value = cat.name;
-        option.textContent = cat.name;
+        option.textContent = t(cat.name);
         select.appendChild(option);
     });
     
@@ -3699,7 +3775,7 @@ function populateWallets() {
     walletsData.forEach(wallet => {
         const option = document.createElement('option');
         option.value = wallet.name;
-        option.textContent = `${wallet.name} ${wallet.name === defaultWallet ? `(${t('по умолчанию')})` : ''}`;
+        option.textContent = `${t(wallet.name)} ${wallet.name === defaultWallet ? `(${t('по умолчанию')})` : ''}`;
         if (wallet.name === defaultWallet) {
             option.selected = true;
         }
@@ -4541,8 +4617,8 @@ function showAllTransactions() {
                 <div class="transaction-item">
                     <div class="transaction-icon ${iconClass}">${icon}</div>
                     <div class="transaction-info">
-                        <div class="transaction-title">${trans.description || trans.category}</div>
-                        <div class="transaction-details">${trans.category} • ${date} • ${trans.wallet}</div>
+                        <div class="transaction-title">${trans.description || t(trans.category)}</div>
+                        <div class="transaction-details">${t(trans.category)} • ${date} • ${t(trans.wallet)}</div>
                     </div>
                     <div class="transaction-amount ${amountClass}">
                         ${amountSign}${formatCurrency(trans.amount)} ${symbol}
@@ -5000,6 +5076,7 @@ window.checkSubscriptionStatus = checkSubscriptionStatus;
 window.openSubscriptionInvoice = openSubscriptionInvoice;
 window.copySubscriptionAmount = copySubscriptionAmount;
 window.grantSubscriptionManual = grantSubscriptionManual;
+window.loadPromoStats = loadPromoStats;
 window.prefillAdminUsername = prefillAdminUsername;
 window.setSubscriptionAsset = setSubscriptionAsset;
 window.setSubscriptionDuration = setSubscriptionDuration;

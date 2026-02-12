@@ -929,6 +929,46 @@ def subscription_redeem():
         print(f"Subscription redeem error: {e}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/subscription/promo_stats', methods=['POST'])
+def subscription_promo_stats():
+    try:
+        data = request.json or {}
+        admin_key = data.get('admin_key', '')
+        secret = os.getenv('ADMIN_SECRET')
+        if not secret:
+            return jsonify({'error': 'ADMIN_SECRET is not set'}), 500
+        if admin_key != secret:
+            return jsonify({'error': 'Forbidden'}), 403
+        if not db:
+            return jsonify({'error': 'Database error'}), 500
+
+        items = []
+        for code, months in PROMO_CODE_MAP.items():
+            used = db.get_promo_redemption_count(code)
+            items.append({
+                'code': code,
+                'months': months,
+                'used': used,
+                'limit': 1,
+                'type': 'single'
+            })
+        for code, months in PROMO_MULTI_CODE_MAP.items():
+            used = db.get_promo_multi_count(code)
+            limit = PROMO_MULTI_LIMITS.get(months, 0) or None
+            items.append({
+                'code': code,
+                'months': months,
+                'used': used,
+                'limit': limit,
+                'type': 'multi'
+            })
+
+        items.sort(key=lambda x: (x['months'], x['code']))
+        return jsonify({'items': items})
+    except Exception as e:
+        print(f"Promo stats error: {e}")
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/subscription/lecryptio/create', methods=['POST'])
 def lecryptio_create():
     try:
