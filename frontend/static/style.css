@@ -1301,6 +1301,65 @@ body {
   color: var(--ios-text-primary);
 }
 
+.settings-card {
+  background: linear-gradient(135deg, rgba(93, 156, 236, 0.12), rgba(177, 156, 217, 0.12));
+  border: 1px solid rgba(93, 156, 236, 0.22);
+  box-shadow: 0 0 18px rgba(93, 156, 236, 0.15);
+}
+
+.settings-card .service-title {
+  color: var(--ios-accent);
+}
+
+.settings-items {
+  display: flex;
+  flex-direction: column;
+}
+
+.settings-item {
+  padding: 8px 0;
+}
+
+.settings-item + .settings-item {
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  margin-top: 10px;
+  padding-top: 16px;
+}
+
+.settings-item-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ios-text-primary);
+  margin-bottom: 8px;
+}
+
+.settings-item-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+}
+
+.settings-item-row .settings-item-title {
+  margin-bottom: 0;
+}
+
+.settings-link {
+  padding: 0;
+}
+
+.settings-card .default-wallet-section {
+  margin: 0;
+}
+
+.settings-card .language-select {
+  margin-top: var(--spacing-sm);
+}
+
+.settings-card .currency-options {
+  margin-top: var(--spacing-sm);
+}
+
 .service-card-toggle {
   display: flex;
   align-items: center;

@@ -87,6 +87,7 @@ const translations = {
         'Подписка активна': 'Subscription active',
         'Подписка активна.': 'Subscription active.',
         'Не активна': 'Inactive',
+        'Настройки': 'Settings',
         'Основной кошелёк': 'Primary wallet',
         'Используется по умолчанию': 'Default wallet',
         'Валюта': 'Currency',
