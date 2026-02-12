@@ -1224,8 +1224,29 @@ function updateSavingsDisplay() {
     
     let html = '';
     
-    // Показываем накопления из категорий
     const usedColors = new Set();
+    const hasPiggyCategory = categories.some(cat => cat.name === 'Накопления');
+    const piggyAmount = stats['Накопления'] || 0;
+    if (!hasPiggyCategory) {
+        const piggyColor = pickDistinctColor('#FFD166', 0, usedColors);
+        html += `
+            <button class="category-card" onclick="showAddTransactionForCategory('savings', 'Накопления')">
+                <div class="category-icon" style="background: ${piggyColor}20; color: ${piggyColor}; box-shadow: 0 0 15px ${piggyColor}80;">
+                    💰
+                </div>
+                <div class="category-info">
+                    <div class="category-name">
+                        <span class="category-name-text">${t('Накопления')}</span>
+                    </div>
+                </div>
+                <div class="category-amount" style="color: ${piggyColor};">
+                    ${formatCurrency(piggyAmount)} ${symbol}
+                </div>
+            </button>
+        `;
+    }
+    
+    // Показываем накопления из категорий
     categories.forEach((cat, index) => {
         const amount = stats[cat.name] || 0;
         const icon = cat.icon || '💰';
@@ -1248,27 +1269,6 @@ function updateSavingsDisplay() {
         `;
     });
     
-    // Если нет категорий накоплений, показываем общие накопления
-    if (categories.length === 0) {
-        const totalSavings = (categoryStats.expense?.['Накопления'] || 0) + (categoryStats.expense?.['Цели'] || 0);
-        const usedColors = new Set();
-        const savingsColor = pickDistinctColor('#FFD166', 0, usedColors);
-        html += `
-            <button class="category-card" onclick="showAddTransactionForCategory('savings', 'Накопления')">
-                <div class="category-icon" style="background: ${savingsColor}20; color: ${savingsColor}; box-shadow: 0 0 15px ${savingsColor}80;">
-                    💰
-                </div>
-                <div class="category-info">
-                    <div class="category-name">
-                        <span class="category-name-text">${t('Накопления')}</span>
-                    </div>
-                </div>
-                <div class="category-amount" style="color: ${savingsColor};">
-                    ${formatCurrency(totalSavings)} ${symbol}
-                </div>
-            </button>
-        `;
-    }
     
     // Добавляем кнопку "Добавить категорию"
     html += `
@@ -5307,8 +5307,10 @@ async function addNewGoal(e) {
         const data = await response.json();
         if (data.error) throw new Error(data.error);
         
+        let createdGoalId = null;
         if (data.goal) {
             const goalData = data.goal;
+            createdGoalId = goalData.id;
             const existingIndex = goalsData.findIndex(g => g.id === goalData.id);
             if (existingIndex >= 0) {
                 goalsData[existingIndex] = { ...goalsData[existingIndex], ...goalData };
@@ -5316,6 +5318,7 @@ async function addNewGoal(e) {
                 goalsData.unshift(goalData);
             }
         } else if (data.goal_id) {
+            createdGoalId = data.goal_id;
             goalsData.push({
                 id: data.goal_id,
                 name: name,
@@ -5334,6 +5337,13 @@ async function addNewGoal(e) {
         updateSectionTotals();
         
         closeModal('add-goal-modal');
+        if (createdGoalId && currentSavingsDestination === 'goal') {
+            selectedGoalId = createdGoalId;
+        }
+        const addTransactionModal = document.getElementById('add-transaction-modal');
+        if (addTransactionModal && addTransactionModal.classList.contains('active')) {
+            setupSavingsDestination();
+        }
         nameInput.value = '';
         amountInput.value = '';
         
