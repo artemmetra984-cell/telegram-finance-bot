@@ -2740,7 +2740,6 @@ async function updateIncomeChart(transactions) {
         .sort((a, b) => b[1] - a[1]); // от большего к меньшему
     const categories = sorted.map(([name]) => name);
     const displayLabels = categories.map(name => t(name));
-    const displayLabels = categories.map(name => t(name));
     const amounts = sorted.map(([, value]) => value);
     
     // Удаляем старый график
