@@ -688,6 +688,21 @@ body {
   box-shadow: 0 0 10px var(--pastel-purple-glow);
 }
 
+.debt-progress {
+  width: 100%;
+  height: 6px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+  margin-top: 6px;
+}
+
+.debt-progress-fill {
+  height: 100%;
+  border-radius: 6px;
+  transition: width var(--transition-fast);
+}
+
 .transaction-info {
   flex: 1;
   min-width: 0;
@@ -1269,6 +1284,7 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: var(--spacing-md);
+  padding: var(--spacing-md);
 }
 
 .service-card-toggle .service-title {
@@ -2047,6 +2063,7 @@ body {
 /* Основной кошелёк */
 .default-wallet-section {
   margin-bottom: var(--spacing-lg);
+  margin-top: var(--spacing-sm);
 }
 
 .default-wallet-display {
@@ -2441,16 +2458,6 @@ body {
   transform: translateY(-2px);
 }
 
-.savings-destination.debt-mode .destination-option:hover {
-  border-color: var(--pastel-purple);
-}
-
-.savings-destination.debt-mode .destination-option.active {
-  border-color: var(--pastel-purple);
-  background: var(--pastel-purple);
-  color: #1d1026;
-  box-shadow: 0 0 15px var(--pastel-purple-glow);
-}
 
 .destination-icon {
   font-size: 24px;

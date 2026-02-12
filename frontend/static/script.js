@@ -28,7 +28,7 @@ let editingTransactionId = null;
 let currentMonthTransactions = [];
 let isCreatingGoal = false;
 let debtsEnabled = false;
-let currentDebtMode = 'add';
+const debtTargetAmount = 30000;
 let compoundListenersInitialized = false;
 const compoundStorageKey = 'finance_compound_calc';
 let marketState = { crypto: 'gainers', stocks: 'gainers' };
@@ -337,9 +337,8 @@ const translations = {
         'Долги': 'Debts',
         'Долг': 'Debt',
         'Добавить долг': 'Add debt',
-        'Списать долг': 'Repay debt',
         'Долг добавлен': 'Debt added',
-        'Долг списан': 'Debt repaid',
+        'Погашено': 'Paid',
         'Зарплата': 'Salary',
         'Фриланс': 'Freelance',
         'Инвестиции': 'Investments',
@@ -983,11 +982,9 @@ function updateSectionTotals() {
     // Долги
     const debtsTotalEl = document.getElementById('debts-total');
     if (debtsTotalEl) {
-        const debtIncome = categoryStats.income?.['Долги'] || 0;
         const debtExpense = categoryStats.expense?.['Долги'] || 0;
-        const debtBalance = debtIncome - debtExpense;
-        const sign = debtBalance < 0 ? '−' : '';
-        debtsTotalEl.textContent = `${sign}${formatCurrency(Math.abs(debtBalance))} ${symbol}`;
+        const remaining = Math.max(debtTargetAmount - debtExpense, 0);
+        debtsTotalEl.textContent = `${formatCurrency(remaining)} ${symbol}`;
     }
 }
 
@@ -1187,13 +1184,14 @@ function updateDebtsDisplay() {
     
     section.style.display = 'block';
     
-    const debtIncome = categoryStats.income?.['Долги'] || 0;
     const debtExpense = categoryStats.expense?.['Долги'] || 0;
-    const debtBalance = debtIncome - debtExpense;
-    const sign = debtBalance < 0 ? '−' : '';
     const symbol = currencySymbols[currentCurrency] || '₽';
     const color = '#AF52DE';
-    const icon = '🤝';
+    const icon = '💸';
+    const progress = debtTargetAmount > 0 ? Math.min((debtExpense / debtTargetAmount) * 100, 100) : 0;
+    const progressText = `${progress.toFixed(0)}%`;
+    const formattedPaid = formatCurrency(debtExpense);
+    const formattedTarget = formatCurrency(debtTargetAmount);
     
     container.innerHTML = `
         <button class="category-card" onclick="showAddTransactionForCategory('debt', 'Долги')">
@@ -1204,9 +1202,13 @@ function updateDebtsDisplay() {
                 <div class="category-name">
                     <span class="category-name-text">${t('Долги')}</span>
                 </div>
+                <div class="category-stats">${t('Погашено')}: ${formattedPaid} / ${formattedTarget} ${symbol}</div>
+                <div class="debt-progress">
+                    <div class="debt-progress-fill" style="width: ${progress}%; background: ${color};"></div>
+                </div>
             </div>
             <div class="category-amount" style="color: ${color};">
-                ${sign}${formatCurrency(Math.abs(debtBalance))} ${symbol}
+                ${progressText}
             </div>
         </button>
     `;
@@ -1378,7 +1380,7 @@ function updateRecentTransactions(transactions) {
         const isIncome = isSavings ? true : trans.type === 'income';
         const amountClass = isSavings ? 'amount-savings' : (isIncome ? 'amount-positive' : 'amount-negative');
         const amountSign = isSavings ? '+' : (isIncome ? '+' : '−');
-        const icon = isDebt ? '💜' : (isSavings ? '💰' : (isIncome ? '📈' : '📉'));
+        const icon = isDebt ? '💸' : (isSavings ? '💰' : (isIncome ? '📈' : '📉'));
         const iconClass = isDebt ? 'debt' : (isSavings ? 'savings' : (isIncome ? 'income' : 'expense'));
         html += `
             <div class="transaction-item">
@@ -1430,9 +1432,6 @@ function openEditTransaction(transaction) {
     currentTransactionType = isDebt ? 'debt' : (transaction.category === 'Накопления' ? 'savings' : transaction.type);
     currentSavingsDestination = 'piggybank';
     selectedGoalId = null;
-    if (isDebt) {
-        currentDebtMode = transaction.type === 'expense' ? 'repay' : 'add';
-    }
     showAddTransactionModal(transaction.category);
 
     const amountInput = document.getElementById('transaction-amount');
@@ -1576,7 +1575,7 @@ function displayMonthTransactions(transactions) {
         const isIncome = isSavings ? true : trans.type === 'income';
         const amountClass = isSavings ? 'amount-savings' : (isIncome ? 'amount-positive' : 'amount-negative');
         const amountSign = isSavings ? '+' : (isIncome ? '+' : '−');
-        const icon = isDebt ? '💜' : (isSavings ? '💰' : (isIncome ? '📈' : '📉'));
+        const icon = isDebt ? '💸' : (isSavings ? '💰' : (isIncome ? '📈' : '📉'));
         const iconClass = isDebt ? 'debt' : (isSavings ? 'savings' : (isIncome ? 'income' : 'expense'));
         const date = new Date(trans.date).toLocaleDateString(getLocale(), {
             day: 'numeric',
@@ -3819,9 +3818,6 @@ function showAddTransactionModal(prefilledCategory = null) {
     const modal = document.getElementById('add-transaction-modal');
     if (!modal) return;
 
-    if (!editingTransactionId && currentTransactionType === 'debt') {
-        currentDebtMode = 'add';
-    }
     updateDebtsUI(false);
     
     // Сбрасываем форму
@@ -3845,9 +3841,6 @@ function showAddTransactionModal(prefilledCategory = null) {
         'debt': t('Добавить долг')
     };
     document.getElementById('transaction-modal-title').textContent = titleMap[currentTransactionType] || t('Добавить операцию');
-    if (currentTransactionType === 'debt') {
-        updateDebtModalTitle();
-    }
     
     // Заполняем категории
     populateTransactionCategories();
@@ -3869,7 +3862,6 @@ function showAddTransactionModal(prefilledCategory = null) {
     
     // Настройка для накоплений
     setupSavingsDestination();
-    setupDebtMode();
     
     // Фокус на сумму
     setTimeout(() => {
@@ -3945,56 +3937,6 @@ function updateTransactionCategoryVisibility() {
         group.style.display = '';
         if (select) select.disabled = false;
     }
-}
-
-function updateDebtModalTitle() {
-    const title = document.getElementById('transaction-modal-title');
-    if (!title) return;
-    if (editingTransactionId) {
-        title.textContent = t('Изменить операцию');
-        return;
-    }
-    if (currentTransactionType === 'debt') {
-        title.textContent = currentDebtMode === 'repay' ? t('Списать долг') : t('Добавить долг');
-    }
-}
-
-function setupDebtMode() {
-    const amountField = document.getElementById('transaction-amount')?.parentNode?.parentNode;
-    const oldMode = document.getElementById('debt-mode');
-    if (oldMode) oldMode.remove();
-    
-    if (currentTransactionType !== 'debt' || !amountField) return;
-    if (!currentDebtMode) currentDebtMode = 'add';
-    
-    const modeHTML = `
-        <div class="form-group" id="debt-mode">
-            <label class="form-label">${t('Долг')}</label>
-            <div class="savings-destination debt-mode">
-                <button type="button" class="destination-option ${currentDebtMode === 'add' ? 'active' : ''}"
-                        data-mode="add" onclick="selectDebtMode('add')">
-                    <div class="destination-icon">➕</div>
-                    <div>${t('Добавить долг')}</div>
-                </button>
-                <button type="button" class="destination-option ${currentDebtMode === 'repay' ? 'active' : ''}"
-                        data-mode="repay" onclick="selectDebtMode('repay')">
-                    <div class="destination-icon">➖</div>
-                    <div>${t('Списать долг')}</div>
-                </button>
-            </div>
-        </div>
-    `;
-    
-    amountField.insertAdjacentHTML('afterend', modeHTML);
-    updateDebtModalTitle();
-}
-
-function selectDebtMode(mode) {
-    currentDebtMode = mode === 'repay' ? 'repay' : 'add';
-    document.querySelectorAll('#debt-mode .destination-option').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.mode === currentDebtMode);
-    });
-    updateDebtModalTitle();
 }
 
 // ИСПРАВЛЕНО: настройка выбора накоплений
@@ -4198,10 +4140,8 @@ async function submitTransaction(e) {
     
     try {
         let transactionType = currentTransactionType;
-        if (currentTransactionType === 'savings') {
+        if (currentTransactionType === 'savings' || currentTransactionType === 'debt') {
             transactionType = 'expense';
-        } else if (currentTransactionType === 'debt') {
-            transactionType = currentDebtMode === 'repay' ? 'expense' : 'income';
         }
         const endpoint = isEditing ? '/api/transaction/update' : '/api/transaction';
         const payload = {
@@ -4274,7 +4214,7 @@ async function submitTransaction(e) {
             showNotification('Операция обновлена', 'success');
         } else {
             if (currentTransactionType === 'debt') {
-                showNotification(currentDebtMode === 'repay' ? t('Долг списан') : t('Долг добавлен'), 'success');
+                showNotification(t('Долг добавлен'), 'success');
             } else {
                 const messages = {
                     'income': '✅ Доход добавлен',
@@ -4673,9 +4613,6 @@ function initEventListeners() {
             currentTransactionType = this.dataset.type;
             selectedGoalId = null;
             currentSavingsDestination = 'piggybank';
-            if (currentTransactionType === 'debt' && !editingTransactionId) {
-                currentDebtMode = 'add';
-            }
             
             // Обновляем активную вкладку
             document.querySelectorAll('.modal-tab').forEach(t => {
@@ -4691,9 +4628,6 @@ function initEventListeners() {
                 'debt': t('Добавить долг')
             };
             document.getElementById('transaction-modal-title').textContent = editingTransactionId ? t('Изменить операцию') : (titleMap[currentTransactionType] || t('Добавить операцию'));
-            if (currentTransactionType === 'debt') {
-                updateDebtModalTitle();
-            }
             
             // Обновляем категории
             populateTransactionCategories();
@@ -4701,7 +4635,6 @@ function initEventListeners() {
             
             // Настройка для накоплений
             setupSavingsDestination();
-            setupDebtMode();
         };
     });
     
@@ -4850,7 +4783,7 @@ function showAllTransactions() {
             const isIncome = isSavings ? true : trans.type === 'income';
             const amountClass = isSavings ? 'amount-savings' : (isIncome ? 'amount-positive' : 'amount-negative');
             const amountSign = isSavings ? '+' : (isIncome ? '+' : '−');
-            const icon = isDebt ? '💜' : (isSavings ? '💰' : (isIncome ? '📈' : '📉'));
+            const icon = isDebt ? '💸' : (isSavings ? '💰' : (isIncome ? '📈' : '📉'));
             const iconClass = isDebt ? 'debt' : (isSavings ? 'savings' : (isIncome ? 'income' : 'expense'));
             const date = new Date(trans.date).toLocaleDateString(getLocale(), {
                 day: 'numeric',
@@ -5302,7 +5235,6 @@ window.toggleWalletDropdown = toggleWalletDropdown;
 window.showAllTransactions = showAllTransactions;
 window.showAllCategories = showAllCategories;
 window.selectSavingsDestination = selectSavingsDestination;
-window.selectDebtMode = selectDebtMode;
 window.selectGoal = selectGoal;
 window.addToGoal = addToGoal;
 window.exportData = exportData;
