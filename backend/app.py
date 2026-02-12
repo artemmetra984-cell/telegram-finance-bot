@@ -1549,6 +1549,14 @@ def nowpayments_ipn():
         print(f"NowPayments IPN error: {e}")
         return jsonify({'error': str(e)}), 500
 
+def ensure_expense_category(user_id, name, icon, color):
+    if not db:
+        return
+    try:
+        db.add_category(user_id, 'expense', name, icon, color)
+    except Exception:
+        pass
+
 @app.route('/api/transaction', methods=['POST'])
 def add_transaction():
     try:
@@ -1603,6 +1611,10 @@ def add_transaction():
             debt_id = None
         
         if db:
+            if category == 'Накопления':
+                ensure_expense_category(user_id, 'Накопления', '💰', '#FFD166')
+            if category == 'Цели':
+                ensure_expense_category(user_id, 'Цели', '🎯', '#FF9500')
             if trans_type == 'expense':
                 wallet_balance = db.get_wallet_balance(user_id, wallet)
                 if amount > wallet_balance:
@@ -1968,11 +1980,12 @@ def add_to_goal():
                 wallet_balance = db.get_wallet_balance(user_id, wallet)
                 if amount > wallet_balance:
                     return jsonify({'error': 'insufficient_funds'}), 400
+                ensure_expense_category(user_id, 'Цели', '🎯', '#FF9500')
                 transaction_id = db.add_transaction(
                     user_id,
                     'expense',
                     amount,
-                    'Накопления',
+                    'Цели',
                     wallet,
                     f'Накопления в цель ID: {goal_id}'
                 )

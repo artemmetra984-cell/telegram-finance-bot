@@ -582,7 +582,7 @@ class Database:
             SELECT 
                 COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END), 0) as total_income,
                 COALESCE(SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END), 0) as total_expense,
-                COALESCE(SUM(CASE WHEN category = 'Накопления' AND type = 'expense' THEN amount ELSE 0 END), 0) as total_savings
+                COALESCE(SUM(CASE WHEN category IN ('Накопления','Цели') AND type = 'expense' THEN amount ELSE 0 END), 0) as total_savings
             FROM transactions WHERE user_id = ?
         ''', (owner_id,))
         
@@ -1209,7 +1209,7 @@ class Database:
             SELECT 
                 COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END), 0) as total_income,
                 COALESCE(SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END), 0) as total_expense,
-                COALESCE(SUM(CASE WHEN category = 'Накопления' AND type = 'expense' THEN amount ELSE 0 END), 0) as total_savings
+                COALESCE(SUM(CASE WHEN category IN ('Накопления','Цели') AND type = 'expense' THEN amount ELSE 0 END), 0) as total_savings
             FROM transactions WHERE user_id = ?
         ''', (owner_id,))
         
@@ -1276,7 +1276,7 @@ class Database:
                 strftime('%Y-%m', date) as month,
                 SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END) as income,
                 SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) as expense,
-                SUM(CASE WHEN category = 'Накопления' AND type = 'expense' THEN amount ELSE 0 END) as savings
+                SUM(CASE WHEN category IN ('Накопления','Цели') AND type = 'expense' THEN amount ELSE 0 END) as savings
             FROM transactions WHERE user_id = ?
             GROUP BY strftime('%Y-%m', date)
             ORDER BY month DESC

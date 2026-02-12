@@ -63,6 +63,10 @@ let subscriptionAsset = 'USDT';
 const marketCacheKey = (market, kind) => `market_cache_${market}_${kind}`;
 const marketChartCacheKey = (market, id, range) => `market_chart_${market}_${id}_${range}`;
 
+function isSavingsCategoryName(name) {
+    return name === 'Накопления' || name === 'Цели';
+}
+
 const translations = {
     en: {
         'Финансы': 'Finance',
@@ -72,6 +76,7 @@ const translations = {
         'Доходы': 'Income',
         'Расходы': 'Expenses',
         'Накопления': 'Savings',
+        'Цели': 'Goals',
         'Скрыть': 'Hide',
         'Мои цели': 'Goals',
         'Кошельки': 'Wallets',
@@ -289,6 +294,7 @@ const translations = {
         'Ошибка добавления категории': 'Failed to add category',
         'Добавить первую категорию': 'Add your first category',
         'Введите название цели': 'Enter goal name',
+        'Сначала создайте цель': 'Create a goal first',
         'Сессия устарела, перезайдите': 'Session expired, please re-open',
         'Цель создана': 'Goal created',
         'Ошибка создания цели': 'Failed to create goal',
@@ -1014,7 +1020,7 @@ function updateSectionTotals() {
     document.getElementById('expense-total').textContent = formatCurrency(expenseTotal) + ' ' + symbol;
     
     // Накопления
-    let savingsTotal = categoryStats.expense?.['Накопления'] || 0;
+    let savingsTotal = (categoryStats.expense?.['Накопления'] || 0) + (categoryStats.expense?.['Цели'] || 0);
     document.getElementById('savings-total').textContent = formatCurrency(savingsTotal) + ' ' + symbol;
     
     // Цели
@@ -1205,7 +1211,7 @@ function updateSavingsDisplay() {
     
     // Если нет категорий накоплений, показываем общие накопления
     if (categories.length === 0) {
-        const totalSavings = categoryStats.expense?.['Накопления'] || 0;
+        const totalSavings = (categoryStats.expense?.['Накопления'] || 0) + (categoryStats.expense?.['Цели'] || 0);
         const usedColors = new Set();
         const savingsColor = pickDistinctColor('#FFD166', 0, usedColors);
         html += `
@@ -1549,7 +1555,7 @@ function updateRecentTransactions(transactions) {
     const symbol = currencySymbols[currentCurrency] || '₽';
     
     transactions.forEach(trans => {
-        const isSavings = trans.category === 'Накопления';
+        const isSavings = isSavingsCategoryName(trans.category);
         const isDebt = trans.category === 'Долги';
         const isIncome = isSavings ? true : trans.type === 'income';
         const amountClass = isSavings ? 'amount-savings' : (isIncome ? 'amount-positive' : 'amount-negative');
@@ -1603,7 +1609,7 @@ function openEditTransaction(transaction) {
     if (!transaction) return;
     editingTransactionId = transaction.id;
     const isDebt = transaction.category === 'Долги';
-    currentTransactionType = isDebt ? 'debt' : (transaction.category === 'Накопления' ? 'savings' : transaction.type);
+    currentTransactionType = isDebt ? 'debt' : (isSavingsCategoryName(transaction.category) ? 'savings' : transaction.type);
     currentSavingsDestination = 'piggybank';
     selectedGoalId = null;
     currentDebtId = isDebt ? (transaction.debt_id || null) : null;
@@ -1759,13 +1765,13 @@ function displayMonthTransactions(transactions) {
     } else if (currentFilter === 'expense') {
         filteredTransactions = transactions.filter(t => t.type === 'expense');
     } else if (currentFilter === 'savings') {
-        filteredTransactions = transactions.filter(t => t.category === 'Накопления');
+        filteredTransactions = transactions.filter(t => isSavingsCategoryName(t.category));
     }
     
     let html = '';
     
     filteredTransactions.forEach(trans => {
-        const isSavings = trans.category === 'Накопления';
+        const isSavings = isSavingsCategoryName(trans.category);
         const isDebt = trans.category === 'Долги';
         const isIncome = isSavings ? true : trans.type === 'income';
         const amountClass = isSavings ? 'amount-savings' : (isIncome ? 'amount-positive' : 'amount-negative');
@@ -2927,7 +2933,7 @@ async function updateOverviewTab() {
         document.getElementById('overview-balance').textContent = formatCurrency(totalIncome - totalExpense) + ' ' + symbol;
         
         // Обновляем накопления
-        const savingsTransactions = expenseTransactions.filter(t => t.category === 'Накопления');
+        const savingsTransactions = expenseTransactions.filter(t => isSavingsCategoryName(t.category));
         const totalSavings = savingsTransactions.reduce((sum, t) => sum + t.amount, 0);
         document.getElementById('overview-savings').textContent = formatCurrency(totalSavings) + ' ' + symbol;
         
@@ -3365,7 +3371,7 @@ async function updateSavingsChart(transactions) {
     const ctx = document.getElementById('savings-chart');
     if (!ctx) return;
     
-    const savingsTransactions = transactions.filter(t => t.category === 'Накопления');
+    const savingsTransactions = transactions.filter(t => isSavingsCategoryName(t.category));
     
     if (savingsTransactions.length === 0) {
         ctx.innerHTML = `
@@ -3761,9 +3767,11 @@ function updateGoalsDisplay() {
                                 <div class="goal-name">${goal.name}</div>
                                 <div class="goal-date">${goal.deadline || t('Бессрочная')}</div>
                             </div>
-                            <div style="font-size: 16px; font-weight: 600; text-shadow: 0 0 10px ${color}80;">${formatCurrency(currentAmount)} / ${formatCurrency(targetAmount)} ${symbol}</div>
-                            <div class="goal-actions">
-                                <button class="goal-action-btn" onclick="archiveGoal(${goal.id}, false)">${t('Вернуть')}</button>
+                            <div class="goal-right">
+                                <div class="goal-amount" style="color: ${color}; text-shadow: 0 0 10px ${color}80;">${formatCurrency(currentAmount)} / ${formatCurrency(targetAmount)} ${symbol}</div>
+                                <div class="goal-actions">
+                                    <button class="goal-action-btn" onclick="archiveGoal(${goal.id}, false)">${t('Вернуть')}</button>
+                                </div>
                             </div>
                         </div>
                         <div class="goal-progress">
@@ -3799,10 +3807,12 @@ function updateGoalsDisplay() {
                         <div class="goal-name">${goal.name}</div>
                         <div class="goal-date">${goal.deadline || t('Бессрочная')}</div>
                     </div>
-                    <div style="font-size: 16px; font-weight: 600; text-shadow: 0 0 10px ${color}80;">${formatCurrency(currentAmount)} / ${formatCurrency(targetAmount)} ${symbol}</div>
-                    <div class="goal-actions">
-                        <button class="goal-action-btn" onclick="event.stopPropagation(); showAddGoalModal(${goal.id})">✎</button>
-                        <button class="goal-action-btn" onclick="event.stopPropagation(); archiveGoal(${goal.id}, true)">${t('Архивировать')}</button>
+                    <div class="goal-right">
+                        <div class="goal-amount" style="color: ${color}; text-shadow: 0 0 10px ${color}80;">${formatCurrency(currentAmount)} / ${formatCurrency(targetAmount)} ${symbol}</div>
+                        <div class="goal-actions">
+                            <button class="goal-action-btn" onclick="event.stopPropagation(); showAddGoalModal(${goal.id})">✎</button>
+                            <button class="goal-action-btn" onclick="event.stopPropagation(); archiveGoal(${goal.id}, true)">${t('Архивировать')}</button>
+                        </div>
                     </div>
                 </div>
                 <div class="goal-progress">
@@ -3843,9 +3853,11 @@ function updateGoalsDisplay() {
                                     <div class="goal-name">${goal.name}</div>
                                     <div class="goal-date">${goal.deadline || t('Бессрочная')}</div>
                                 </div>
-                                <div style="font-size: 16px; font-weight: 600; text-shadow: 0 0 10px ${color}80;">${formatCurrency(currentAmount)} / ${formatCurrency(targetAmount)} ${symbol}</div>
-                                <div class="goal-actions">
-                                    <button class="goal-action-btn" onclick="archiveGoal(${goal.id}, false)">${t('Вернуть')}</button>
+                                <div class="goal-right">
+                                    <div class="goal-amount" style="color: ${color}; text-shadow: 0 0 10px ${color}80;">${formatCurrency(currentAmount)} / ${formatCurrency(targetAmount)} ${symbol}</div>
+                                    <div class="goal-actions">
+                                        <button class="goal-action-btn" onclick="archiveGoal(${goal.id}, false)">${t('Вернуть')}</button>
+                                    </div>
                                 </div>
                             </div>
                             <div class="goal-progress">
@@ -4480,6 +4492,19 @@ function setupSavingsDestination() {
                 </div>
             `;
             document.getElementById('savings-destination').insertAdjacentHTML('afterend', goalSelectorHTML);
+        } else if (currentSavingsDestination === 'goal') {
+            const emptyHTML = `
+                <div class="form-group" id="goal-selector">
+                    <label class="form-label">${t('Цель')}</label>
+                    <div style="color: var(--ios-text-secondary); font-size: 14px; margin-bottom: 12px;">
+                        ${t('Сначала создайте цель')}
+                    </div>
+                    <button type="button" class="modal-btn secondary" onclick="showAddGoalModal()" style="width: 100%;">
+                        <span>${t('Создать цель')}</span>
+                    </button>
+                </div>
+            `;
+            document.getElementById('savings-destination').insertAdjacentHTML('afterend', emptyHTML);
         }
     }
 }
@@ -4607,6 +4632,22 @@ function selectSavingsDestination(destination) {
         const savingsDestination = document.getElementById('savings-destination');
         if (savingsDestination) {
             savingsDestination.insertAdjacentHTML('afterend', goalSelectorHTML);
+        }
+    } else if (destination === 'goal') {
+        const emptyHTML = `
+            <div class="form-group" id="goal-selector">
+                <label class="form-label">${t('Цель')}</label>
+                <div style="color: var(--ios-text-secondary); font-size: 14px; margin-bottom: 12px;">
+                    ${t('Сначала создайте цель')}
+                </div>
+                <button type="button" class="modal-btn secondary" onclick="showAddGoalModal()" style="width: 100%;">
+                    <span>${t('Создать цель')}</span>
+                </button>
+            </div>
+        `;
+        const savingsDestination = document.getElementById('savings-destination');
+        if (savingsDestination) {
+            savingsDestination.insertAdjacentHTML('afterend', emptyHTML);
         }
     }
 }
@@ -4786,10 +4827,22 @@ async function submitTransaction(e) {
                 if (wallet) wallet.balance = walletUpdate.balance;
             });
         }
+
+        if (category === 'Накопления' || category === 'Цели') {
+            const exists = categoriesData.expense?.some(cat => cat.name === category);
+            if (!exists) {
+                const icon = category === 'Цели' ? '🎯' : '💰';
+                const color = category === 'Цели' ? '#FF9500' : '#FFD166';
+                categoriesData.expense = [{ name: category, icon, color }, ...(categoriesData.expense || [])];
+            }
+        }
         
         // Обновляем интерфейс
         updateBalanceDisplay(data.summary);
         updateSectionTotals();
+        if (currentPage === 'panel') {
+            updatePanelCategories();
+        }
         
         if (data.recent_transactions) {
             allTransactions = data.recent_transactions;
@@ -5446,7 +5499,7 @@ function showAllTransactions() {
         const symbol = currencySymbols[currentCurrency] || '₽';
         
         allTransactions.forEach(trans => {
-            const isSavings = trans.category === 'Накопления';
+            const isSavings = isSavingsCategoryName(trans.category);
             const isDebt = trans.category === 'Долги';
             const isIncome = isSavings ? true : trans.type === 'income';
             const amountClass = isSavings ? 'amount-savings' : (isIncome ? 'amount-positive' : 'amount-negative');
