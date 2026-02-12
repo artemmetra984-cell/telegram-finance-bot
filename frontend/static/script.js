@@ -92,6 +92,11 @@ function initViewportVars() {
     window.addEventListener('resize', updateViewportVars);
 }
 
+function updateBodyModalState() {
+    const hasActiveModal = !!document.querySelector('.modal-overlay.active');
+    document.body.classList.toggle('modal-open', hasActiveModal);
+}
+
 function isSavingsCategoryName(name) {
     return name === 'Накопления' || name === 'Цели';
 }
@@ -259,6 +264,10 @@ const translations = {
         'Цель архивирована': 'Goal archived',
         'Цель возвращена': 'Goal restored',
         'Цель в архиве': 'Goal is archived',
+        'Удалить цель': 'Delete goal',
+        'Удалить цель?': 'Delete goal?',
+        'Цель удалена': 'Goal deleted',
+        'Средства переведены в копилку': 'Funds moved to piggy bank',
         'Выберите месяц': 'Select month',
         'Например: Тинькофф': 'Example: Tinkoff',
         'Сделать кошельком по умолчанию': 'Set as default wallet',
@@ -2057,11 +2066,13 @@ function openAddToHome() {
         }
     }
     if (modal) modal.classList.add('active');
+    updateBodyModalState();
 }
 
 function closeAddToHome() {
     const modal = document.getElementById('add-to-home-modal');
     if (modal) modal.classList.remove('active');
+    updateBodyModalState();
 }
 
 function openAddToHomeLink() {
@@ -2076,12 +2087,14 @@ function openAddToHomeLink() {
 function openSharedWallet() {
     const modal = document.getElementById('shared-wallet-modal');
     if (modal) modal.classList.add('active');
+    updateBodyModalState();
     loadSharedWalletStatus();
 }
 
 function openSubscriptionModal() {
     const modal = document.getElementById('subscription-modal');
     if (modal) modal.classList.add('active');
+    updateBodyModalState();
     loadSubscriptionState();
     updateSubscriptionUI();
     refreshSubscriptionInfo();
@@ -2162,6 +2175,7 @@ async function refreshSubscriptionInfo() {
 function closeSubscriptionModal() {
     const modal = document.getElementById('subscription-modal');
     if (modal) modal.classList.remove('active');
+    updateBodyModalState();
     stopSubscriptionPolling();
 }
 
@@ -2538,6 +2552,7 @@ function prefillAdminUsername() {
 function closeSharedWallet() {
     const modal = document.getElementById('shared-wallet-modal');
     if (modal) modal.classList.remove('active');
+    updateBodyModalState();
 }
 
 async function loadSharedWalletStatus() {
@@ -2704,6 +2719,7 @@ async function openMarketModal(item) {
     const symbol = currencySymbols[currentCurrency] || '₽';
     sub.textContent = `${t('Изменение')}: ${item.change >= 0 ? '+' : ''}${item.change.toFixed(2)}%${item.price ? ` • ${t('Цена')}: ${item.price} ${item.market === 'crypto' ? '$' : symbol}` : ''}`;
     modal.classList.add('active');
+    updateBodyModalState();
     marketChartState.market = item.market || '';
     marketChartState.id = item.id || item.symbol || '';
     marketChartState.symbol = item.symbol || '';
@@ -2716,6 +2732,7 @@ async function openMarketModal(item) {
 function closeMarketModal() {
     const modal = document.getElementById('market-modal');
     if (modal) modal.classList.remove('active');
+    updateBodyModalState();
 }
 
 function setupMarketRangeButtons() {
@@ -3953,6 +3970,44 @@ async function archiveGoal(goalId, archived) {
     }
 }
 
+async function deleteGoal() {
+    if (!currentUser || !editingGoalId) return;
+    if (!confirm(t('Удалить цель?'))) return;
+    try {
+        const response = await fetch('/api/goal/delete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                user_id: currentUser.id,
+                goal_id: editingGoalId
+            })
+        });
+        const data = await response.json();
+        if (data.error) throw new Error(data.error);
+        goalsData = (goalsData || []).filter(goal => goal.id !== editingGoalId);
+        if (selectedGoalId === editingGoalId) {
+            selectedGoalId = null;
+            currentSavingsDestination = 'piggybank';
+        }
+        closeModal('add-goal-modal');
+        updateGoalsDisplay();
+        updatePanelGoals();
+        updateSavingsDisplay();
+        updateSectionTotals();
+        await loadPanelData();
+        if (currentPage === 'report') {
+            await loadReportData();
+            await updateOverviewTab();
+        }
+        const movedNote = data.moved_to_piggybank ? ` ${t('Средства переведены в копилку')}` : '';
+        showNotification(`${t('Цель удалена')}.${movedNote}`, 'success');
+        editingGoalId = null;
+    } catch (error) {
+        console.error('❌ Ошибка удаления цели:', error);
+        showNotification(`${t('Ошибка')}: ${error.message}`, 'error');
+    }
+}
+
 async function addToGoalApi(goalId, amount, wallet) {
     if (!currentUser) return;
     
@@ -4237,6 +4292,7 @@ function showAddTransactionModal(prefilledCategory = null) {
     
     // Показываем модальное окно
     modal.classList.add('active');
+    updateBodyModalState();
     
     // Настройка для накоплений
     setupSavingsDestination();
@@ -4341,6 +4397,7 @@ function openDebtModal(debtId = null) {
 function closeDebtModal() {
     const modal = document.getElementById('add-debt-modal');
     if (modal) modal.classList.remove('active');
+    updateBodyModalState();
     editingDebtId = null;
 }
 
@@ -4933,6 +4990,7 @@ function showAddCategoryModal(type) {
     setupColorPicker();
     
     modal.classList.add('active');
+    updateBodyModalState();
     
     setTimeout(() => {
         document.getElementById('category-name-input').focus();
@@ -5079,10 +5137,12 @@ function showAddGoalModal(goalId = null) {
     const deadlineSelect = document.getElementById('goal-deadline');
     const customDateInput = document.getElementById('goal-custom-date');
     const customDateContainer = document.getElementById('custom-date-container');
+    const deleteBtn = document.getElementById('goal-delete-btn');
 
     const goal = editingGoalId ? goalsData.find(g => g.id === editingGoalId) : null;
     if (titleEl) titleEl.textContent = goal ? t('Изменить цель') : t('Новая цель');
     if (submitText) submitText.textContent = goal ? t('Сохранить') : t('Создать цель');
+    if (deleteBtn) deleteBtn.style.display = goal ? 'inline-flex' : 'none';
 
     if (nameInput) nameInput.value = goal?.name || '';
     if (amountInput) amountInput.value = goal?.target_amount || '';
@@ -5171,6 +5231,7 @@ function showAddGoalModal(goalId = null) {
     }
     
     modal.classList.add('active');
+    updateBodyModalState();
     
     setTimeout(() => {
         document.getElementById('goal-name-input').focus();
@@ -5457,6 +5518,7 @@ function initEventListeners() {
         modal.onclick = function(e) {
             if (e.target === this) {
                 this.classList.remove('active');
+                updateBodyModalState();
             }
         };
     });
@@ -5480,6 +5542,12 @@ function initEventListeners() {
             defaultWalletDisplay.classList.remove('active');
         }
     });
+
+    document.addEventListener('touchmove', function(e) {
+        if (document.body.classList.contains('modal-open') && !e.target.closest('.modal-content')) {
+            e.preventDefault();
+        }
+    }, { passive: false });
 }
 
 function setupAddButton() {
@@ -5561,6 +5629,7 @@ function showAllTransactions() {
     }
     
     modal.classList.add('active');
+    updateBodyModalState();
 }
 
 function showAddWalletModal() {
@@ -5592,6 +5661,7 @@ function showAddWalletModal() {
     }
     
     modal.classList.add('active');
+    updateBodyModalState();
     
     setTimeout(() => {
         document.getElementById('wallet-name-input').focus();
@@ -5700,6 +5770,7 @@ function showCalendar() {
     yearDisplay.textContent = currentYear;
     
     modal.classList.add('active');
+    updateBodyModalState();
 }
 
 function selectCalendarMonth(monthIndex) {
@@ -5754,6 +5825,7 @@ function showNotification(message, type = 'info') {
 function closeModal(modalId) {
     const modal = document.getElementById(modalId);
     if (modal) modal.classList.remove('active');
+    updateBodyModalState();
     if (modalId === 'add-transaction-modal') {
         resetTransactionEditing();
     }
@@ -5783,6 +5855,7 @@ function openCompoundCalculator() {
     const modal = document.getElementById('compound-modal');
     if (!modal) return;
     modal.classList.add('active');
+    updateBodyModalState();
     const result = document.getElementById('calc-result');
     if (result) result.style.display = 'none';
     const chartWrap = document.getElementById('calc-chart-wrap');
@@ -5846,6 +5919,7 @@ function calculateCompound() {
 function closeCompoundCalculator() {
     const modal = document.getElementById('compound-modal');
     if (modal) modal.classList.remove('active');
+    updateBodyModalState();
 }
 
 function saveCompoundState() {
@@ -5960,11 +6034,13 @@ function openArticle(articleId) {
     titleEl.textContent = title;
     bodyEl.innerHTML = body;
     modal.classList.add('active');
+    updateBodyModalState();
 }
 
 function closeArticle() {
     const modal = document.getElementById('article-modal');
     if (modal) modal.classList.remove('active');
+    updateBodyModalState();
 }
 
 // Глобальные функции
@@ -6011,6 +6087,7 @@ window.openDebtPayment = openDebtPayment;
 window.deleteDebt = deleteDebt;
 window.archiveDebt = archiveDebt;
 window.archiveGoal = archiveGoal;
+window.deleteGoal = deleteGoal;
 window.copySubscriptionAddress = copySubscriptionAddress;
 window.createCryptoPayPayment = createCryptoPayPayment;
 window.checkSubscriptionStatus = checkSubscriptionStatus;

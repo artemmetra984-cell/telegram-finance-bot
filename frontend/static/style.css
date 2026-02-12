@@ -115,6 +115,16 @@ body {
   min-height: 100vh;
 }
 
+body.modal-open {
+  overflow: hidden;
+  height: 100%;
+  overscroll-behavior: contain;
+}
+
+body.modal-open #main-content {
+  overscroll-behavior: contain;
+}
+
 /* iOS-like scroll */
 ::-webkit-scrollbar {
   display: none;
@@ -2451,6 +2461,8 @@ body {
   z-index: 2000;
   padding: var(--spacing-md);
   animation: fadeIn 0.3s;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
 }
 
 @keyframes fadeIn {
@@ -2475,6 +2487,8 @@ body {
   box-shadow: var(--shadow-floating);
   -webkit-overflow-scrolling: touch;
   will-change: transform;
+  touch-action: pan-y;
+  overscroll-behavior: contain;
 }
 
 body.keyboard-open .modal-overlay {

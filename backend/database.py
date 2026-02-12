@@ -833,6 +833,28 @@ class Database:
         cursor.execute('UPDATE goals SET archived = ? WHERE id = ? AND user_id = ?', (1 if archived else 0, goal_id, owner_id))
         self.conn.commit()
         return cursor.rowcount > 0
+
+    def move_goal_transactions_to_piggybank(self, user_id, goal_id):
+        cursor = self.conn.cursor()
+        owner_id = self._resolve_owner_id(user_id)
+        pattern = f'%Накопления в цель ID: {goal_id}%'
+        cursor.execute('''
+            UPDATE transactions
+            SET category = 'Накопления'
+            WHERE user_id = ?
+              AND type = 'expense'
+              AND category = 'Цели'
+              AND description LIKE ?
+        ''', (owner_id, pattern))
+        self.conn.commit()
+        return cursor.rowcount
+
+    def delete_goal(self, user_id, goal_id):
+        cursor = self.conn.cursor()
+        owner_id = self._resolve_owner_id(user_id)
+        cursor.execute('DELETE FROM goals WHERE id = ? AND user_id = ?', (goal_id, owner_id))
+        self.conn.commit()
+        return cursor.rowcount > 0
     
     def update_goal_progress(self, goal_id, amount):
         cursor = self.conn.cursor()

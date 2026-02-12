@@ -1941,6 +1941,49 @@ def archive_goal():
         print(f"Archive goal error: {e}")
         return jsonify({'error': str(e)}), 500
 
+# Удаление цели с переносом средств в копилку (если цель не завершена)
+@app.route('/api/goal/delete', methods=['POST'])
+def delete_goal():
+    try:
+        data = request.json or {}
+        user_id = data.get('user_id')
+        goal_id = data.get('goal_id')
+
+        if user_id is None or goal_id is None:
+            return jsonify({'error': 'Missing fields'}), 400
+        if not db:
+            return jsonify({'error': 'Database error'}), 500
+        try:
+            goal_id = int(goal_id)
+        except (TypeError, ValueError):
+            return jsonify({'error': 'Invalid goal_id'}), 400
+
+        goal = db.get_goal_by_id(user_id, goal_id)
+        if not goal:
+            return jsonify({'error': 'Goal not found'}), 404
+
+        current_amount = float(goal['current_amount'] or 0)
+        target_amount = float(goal['target_amount'] or 0)
+        moved_rows = 0
+        moved_to_piggybank = current_amount > 0 and target_amount > 0 and current_amount < target_amount
+
+        if moved_to_piggybank:
+            ensure_expense_category(user_id, 'Накопления', '💰', '#FFD166')
+            moved_rows = db.move_goal_transactions_to_piggybank(user_id, goal_id)
+
+        if not db.delete_goal(user_id, goal_id):
+            return jsonify({'error': 'Goal not found'}), 404
+
+        return jsonify({
+            'success': True,
+            'moved_to_piggybank': moved_to_piggybank,
+            'moved_amount': current_amount if moved_to_piggybank else 0,
+            'moved_rows': moved_rows
+        })
+    except Exception as e:
+        print(f"Delete goal error: {e}")
+        return jsonify({'error': str(e)}), 500
+
 # НОВЫЙ ЭНДПОИНТ: Добавить накопления в цель
 @app.route('/api/add_to_goal', methods=['POST'])
 def add_to_goal():
