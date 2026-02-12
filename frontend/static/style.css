@@ -2832,7 +2832,8 @@ body {
   gap: 6px;
   margin-top: 6px;
   justify-content: flex-end;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  white-space: nowrap;
 }
 
 .goal-card .goal-header .goal-actions {
