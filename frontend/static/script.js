@@ -67,15 +67,16 @@ let baseViewportHeight = window.innerHeight;
 function updateViewportVars() {
     const vv = window.visualViewport;
     const height = vv ? vv.height : window.innerHeight;
-    const offsetTop = vv ? vv.offsetTop : 0;
+    const rawOffsetTop = vv ? vv.offsetTop : 0;
     if (height > baseViewportHeight) {
         baseViewportHeight = height;
     }
-    let keyboardHeight = Math.max(0, baseViewportHeight - height - offsetTop);
+    let keyboardHeight = Math.max(0, baseViewportHeight - height);
     if (keyboardHeight < 20) {
         baseViewportHeight = height;
         keyboardHeight = 0;
     }
+    const offsetTop = keyboardHeight > 0 ? 0 : rawOffsetTop;
     document.documentElement.style.setProperty('--app-height', `${height}px`);
     document.documentElement.style.setProperty('--app-offset-top', `${offsetTop}px`);
     document.documentElement.style.setProperty('--keyboard-height', `${keyboardHeight}px`);

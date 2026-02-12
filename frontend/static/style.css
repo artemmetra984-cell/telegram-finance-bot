@@ -2479,7 +2479,7 @@ body {
 
 body.keyboard-open .modal-overlay {
   align-items: flex-end;
-  padding-bottom: calc(var(--keyboard-height) + var(--spacing-md));
+  padding-bottom: var(--spacing-md);
 }
 
 body.keyboard-open .modal-content {
