@@ -365,6 +365,12 @@ body {
   box-shadow: 0 0 15px var(--pastel-red-glow);
 }
 
+.collapsible-section[data-type="debts"] .collapsible-header {
+  background: linear-gradient(135deg, var(--pastel-purple) 0%, rgba(177, 156, 217, 0.9) 100%);
+  border: 1px solid rgba(177, 156, 217, 0.3);
+  box-shadow: 0 0 15px var(--pastel-purple-glow);
+}
+
 .collapsible-section[data-type="savings"] .collapsible-header {
   background: linear-gradient(135deg, var(--pastel-yellow) 0%, rgba(255, 209, 102, 0.9) 100%);
   border: 1px solid rgba(255, 209, 102, 0.3);
@@ -674,6 +680,12 @@ body {
   background: rgba(255, 214, 10, 0.15);
   color: var(--pastel-yellow);
   box-shadow: 0 0 10px var(--pastel-yellow-glow);
+}
+
+.transaction-icon.debt {
+  background: rgba(177, 156, 217, 0.18);
+  color: var(--pastel-purple);
+  box-shadow: 0 0 10px var(--pastel-purple-glow);
 }
 
 .transaction-info {
@@ -1250,6 +1262,69 @@ body {
   font-weight: 600;
   margin-bottom: var(--spacing-md);
   color: var(--ios-text-primary);
+}
+
+.service-card-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+}
+
+.service-card-toggle .service-title {
+  margin-bottom: 0;
+}
+
+.service-toggle {
+  display: flex;
+  align-items: center;
+}
+
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 46px;
+  height: 26px;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--ios-tertiary);
+  transition: all var(--transition-fast);
+  border-radius: 20px;
+  box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.35);
+}
+
+.slider:before {
+  position: absolute;
+  content: '';
+  height: 20px;
+  width: 20px;
+  left: 3px;
+  top: 3px;
+  background: #fff;
+  border-radius: 50%;
+  transition: all var(--transition-fast);
+}
+
+.switch input:checked + .slider {
+  background: var(--pastel-purple);
+  box-shadow: 0 0 12px var(--pastel-purple-glow);
+}
+
+.switch input:checked + .slider:before {
+  transform: translateX(20px);
 }
 
 .service-link {
@@ -2255,6 +2330,10 @@ body {
   color: var(--pastel-yellow);
 }
 
+.modal-tab.debt {
+  color: var(--pastel-purple);
+}
+
 .modal-tab.income.active {
   background: linear-gradient(135deg, var(--pastel-green), rgba(104, 194, 164, 0.9));
   color: white;
@@ -2271,6 +2350,12 @@ body {
   background: linear-gradient(135deg, var(--pastel-yellow), rgba(255, 209, 102, 0.9));
   color: white;
   box-shadow: 0 0 15px var(--pastel-yellow-glow);
+}
+
+.modal-tab.debt.active {
+  background: linear-gradient(135deg, var(--pastel-purple), rgba(177, 156, 217, 0.9));
+  color: white;
+  box-shadow: 0 0 15px var(--pastel-purple-glow);
 }
 
 /* Form Styles */
@@ -2354,6 +2439,17 @@ body {
   color: black;
   box-shadow: 0 0 15px var(--pastel-yellow-glow);
   transform: translateY(-2px);
+}
+
+.savings-destination.debt-mode .destination-option:hover {
+  border-color: var(--pastel-purple);
+}
+
+.savings-destination.debt-mode .destination-option.active {
+  border-color: var(--pastel-purple);
+  background: var(--pastel-purple);
+  color: #1d1026;
+  box-shadow: 0 0 15px var(--pastel-purple-glow);
 }
 
 .destination-icon {

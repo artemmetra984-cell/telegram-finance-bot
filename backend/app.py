@@ -617,6 +617,7 @@ def init_user():
             default_wallet = db.get_effective_default_wallet(user_id)
             subscription_info = db.get_subscription_info(user_id)
             subscription_active = subscription_info['active']
+            debts_enabled = db.get_debts_enabled(user_id)
             
             categories = {'income': [], 'expense': [], 'savings': []}
             all_categories = db.get_categories(user_id)
@@ -688,6 +689,7 @@ def init_user():
             default_wallet = 'Карта'
             subscription_active = False
             subscription_info = {'activated_at': None, 'expires_at': None}
+            debts_enabled = False
         
         return jsonify({
             'user_id': user_id,
@@ -708,10 +710,27 @@ def init_user():
             'default_wallet': default_wallet,
             'subscription_active': subscription_active,
             'subscription_start': subscription_info['activated_at'],
-            'subscription_end': subscription_info['expires_at']
+            'subscription_end': subscription_info['expires_at'],
+            'debts_enabled': debts_enabled
         })
     except Exception as e:
         print(f"Init error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/settings/debts', methods=['POST'])
+def update_debts_setting():
+    try:
+        data = request.json or {}
+        user_id = data.get('user_id')
+        enabled = data.get('enabled')
+        if user_id is None or enabled is None:
+            return jsonify({'error': 'Missing fields'}), 400
+        if not db:
+            return jsonify({'error': 'Database error'}), 500
+        db.set_debts_enabled(user_id, bool(enabled))
+        return jsonify({'success': True, 'debts_enabled': bool(enabled)})
+    except Exception as e:
+        print(f"Debts setting error: {e}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/shared_wallet/status')

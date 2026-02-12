@@ -25,6 +25,7 @@ class Database:
                 currency TEXT DEFAULT 'RUB',
                 session_token TEXT UNIQUE,
                 default_wallet TEXT DEFAULT 'Карта',
+                debts_enabled INTEGER DEFAULT 0,
                 last_login TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
@@ -239,6 +240,12 @@ class Database:
             except Exception:
                 pass
         
+        # Миграция: поле debts_enabled
+        try:
+            cursor.execute("ALTER TABLE users ADD COLUMN debts_enabled INTEGER DEFAULT 0")
+        except sqlite3.OperationalError:
+            pass
+        
         self.conn.commit()
         print("✅ Tables ready")
     
@@ -306,10 +313,24 @@ class Database:
     def get_user_by_session(self, session_token):
         cursor = self.conn.cursor()
         cursor.execute('''
-            SELECT id, telegram_id, username, first_name, currency, default_wallet 
+            SELECT id, telegram_id, username, first_name, currency, default_wallet, debts_enabled
             FROM users WHERE session_token = ?
         ''', (session_token,))
         return cursor.fetchone()
+
+    def get_debts_enabled(self, user_id):
+        cursor = self.conn.cursor()
+        owner_id = self._resolve_owner_id(user_id)
+        cursor.execute('SELECT debts_enabled FROM users WHERE id = ?', (owner_id,))
+        row = cursor.fetchone()
+        return bool(row['debts_enabled']) if row and row['debts_enabled'] is not None else False
+
+    def set_debts_enabled(self, user_id, enabled):
+        cursor = self.conn.cursor()
+        owner_id = self._resolve_owner_id(user_id)
+        cursor.execute('UPDATE users SET debts_enabled = ? WHERE id = ?', (1 if enabled else 0, owner_id))
+        self.conn.commit()
+        return True
 
     def get_user_id_by_username(self, username):
         cursor = self.conn.cursor()

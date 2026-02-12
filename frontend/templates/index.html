@@ -89,6 +89,29 @@
                     </div>
                 </div>
 
+                <!-- Долги -->
+                <div class="collapsible-section" data-type="debts" id="debts-section" style="display: none;">
+                    <div class="collapsible-header">
+                        <div class="collapsible-title">
+                            <div class="collapsible-icon debts">💜</div>
+                            <div class="collapsible-text">
+                                <div class="collapsible-name" data-i18n="Долги">Долги</div>
+                                <div class="collapsible-summary" id="debts-total">0 ₽</div>
+                            </div>
+                        </div>
+                        <div class="collapsible-arrow">▼</div>
+                    </div>
+                    <div class="collapsible-content">
+                        <div class="category-grid" id="debts-categories">
+                            <!-- Динамически заполняется -->
+                        </div>
+                        <button class="hide-categories-btn" data-type="debts">
+                            <span data-i18n="Скрыть">Скрыть</span>
+                            <span>▲</span>
+                        </button>
+                    </div>
+                </div>
+
                 <!-- Накопления -->
                 <div class="collapsible-section" data-type="savings">
                     <div class="collapsible-header">
@@ -391,7 +414,7 @@
                         <div class="subscription-period" id="subscription-period" data-i18n="Не активна">Не активна</div>
                     </div>
                     <!-- Основной кошелёк -->
-                    <div class="service-card">
+                    <div class="service-card service-card-toggle">
                         <div class="service-title" data-i18n="Основной кошелёк">Основной кошелёк</div>
                         <div class="default-wallet-section">
                             <div class="default-wallet-display">
@@ -437,6 +460,17 @@
                                 <option value="ru" data-i18n="Русский">Русский</option>
                                 <option value="en">English</option>
                             </select>
+                        </div>
+                    </div>
+
+                    <!-- Долги -->
+                    <div class="service-card">
+                        <div class="service-title" data-i18n="Долги">Долги</div>
+                        <div class="service-toggle">
+                            <label class="switch">
+                                <input type="checkbox" id="debts-toggle">
+                                <span class="slider"></span>
+                            </label>
                         </div>
                     </div>
 
@@ -842,6 +876,7 @@
                 <button class="modal-tab income active" data-type="income" data-i18n="Доход">Доход</button>
                 <button class="modal-tab expense" data-type="expense" data-i18n="Расход">Расход</button>
                 <button class="modal-tab savings" data-type="savings" data-i18n="Накопление">Накопление</button>
+                <button class="modal-tab debt" data-type="debt" data-i18n="Долг" style="display: none;">Долг</button>
             </div>
             
             <form id="add-transaction-form">
@@ -855,7 +890,7 @@
                 
                 <!-- Для накоплений здесь будет добавлен выбор назначения -->
                 
-                <div class="form-group">
+                <div class="form-group" id="transaction-category-group">
                     <label class="form-label" data-i18n="Категория">Категория</label>
                     <select class="form-select" id="transaction-category" required>
                         <!-- Динамически заполняется -->
