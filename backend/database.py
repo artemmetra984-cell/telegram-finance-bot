@@ -43,7 +43,22 @@ class Database:
                 category TEXT NOT NULL,
                 wallet TEXT DEFAULT 'Карта',
                 description TEXT,
+                debt_id INTEGER,
                 date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users (id)
+            )
+        ''')
+
+        # Таблица долгов
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS debts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                name TEXT NOT NULL,
+                target_amount REAL NOT NULL,
+                note TEXT,
+                archived INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (user_id) REFERENCES users (id)
             )
         ''')
@@ -223,6 +238,8 @@ class Database:
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_categories_user_id ON categories(user_id)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_wallets_user_id ON wallets(user_id)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_goals_user_id ON goals(user_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_debts_user_id ON debts(user_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_transactions_debt_id ON transactions(debt_id)')
         cursor.execute('CREATE UNIQUE INDEX IF NOT EXISTS idx_shared_owner ON shared_wallets(owner_id)')
         cursor.execute('CREATE UNIQUE INDEX IF NOT EXISTS idx_shared_member ON shared_wallets(member_id)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_subscriptions_user_id ON subscriptions(user_id)')
@@ -245,6 +262,16 @@ class Database:
         # Миграция: поле debts_enabled
         try:
             cursor.execute("ALTER TABLE users ADD COLUMN debts_enabled INTEGER DEFAULT 0")
+        except sqlite3.OperationalError:
+            pass
+        # Миграция: поле debt_id для транзакций
+        try:
+            cursor.execute("ALTER TABLE transactions ADD COLUMN debt_id INTEGER")
+        except sqlite3.OperationalError:
+            pass
+        # Миграция: поле archived для долгов
+        try:
+            cursor.execute("ALTER TABLE debts ADD COLUMN archived INTEGER DEFAULT 0")
         except sqlite3.OperationalError:
             pass
         # Миграция: долг (сумма и комментарий)
@@ -354,6 +381,84 @@ class Database:
         cursor.execute('UPDATE users SET debts_enabled = ? WHERE id = ?', (1 if enabled else 0, owner_id))
         self.conn.commit()
         return True
+
+    def create_debt(self, user_id, name, target_amount, note=''):
+        cursor = self.conn.cursor()
+        owner_id = self._resolve_owner_id(user_id)
+        cursor.execute('''
+            INSERT INTO debts (user_id, name, target_amount, note)
+            VALUES (?, ?, ?, ?)
+        ''', (owner_id, name, target_amount, note or ''))
+        self.conn.commit()
+        return cursor.lastrowid
+
+    def get_debt_by_id(self, user_id, debt_id):
+        cursor = self.conn.cursor()
+        owner_id = self._resolve_owner_id(user_id)
+        cursor.execute('SELECT * FROM debts WHERE id = ? AND user_id = ?', (debt_id, owner_id))
+        return cursor.fetchone()
+
+    def get_debt_paid_amount(self, user_id, debt_id):
+        cursor = self.conn.cursor()
+        owner_id = self._resolve_owner_id(user_id)
+        cursor.execute('''
+            SELECT COALESCE(SUM(amount), 0) as total
+            FROM transactions
+            WHERE user_id = ? AND debt_id = ? AND type = 'expense' AND category = 'Долги'
+        ''', (owner_id, debt_id))
+        row = cursor.fetchone()
+        return float(row['total']) if row and row['total'] else 0
+
+    def update_debt(self, user_id, debt_id, name, target_amount, note=''):
+        cursor = self.conn.cursor()
+        owner_id = self._resolve_owner_id(user_id)
+        cursor.execute('''
+            UPDATE debts
+            SET name = ?, target_amount = ?, note = ?
+            WHERE id = ? AND user_id = ?
+        ''', (name, target_amount, note or '', debt_id, owner_id))
+        self.conn.commit()
+        return cursor.rowcount > 0
+
+    def delete_debt(self, user_id, debt_id):
+        cursor = self.conn.cursor()
+        owner_id = self._resolve_owner_id(user_id)
+        cursor.execute('DELETE FROM debts WHERE id = ? AND user_id = ?', (debt_id, owner_id))
+        self.conn.commit()
+        return cursor.rowcount > 0
+
+    def set_debt_archived(self, user_id, debt_id, archived):
+        cursor = self.conn.cursor()
+        owner_id = self._resolve_owner_id(user_id)
+        cursor.execute('UPDATE debts SET archived = ? WHERE id = ? AND user_id = ?', (1 if archived else 0, debt_id, owner_id))
+        self.conn.commit()
+        return cursor.rowcount > 0
+
+    def get_debts(self, user_id):
+        cursor = self.conn.cursor()
+        owner_id = self._resolve_owner_id(user_id)
+        cursor.execute('SELECT COUNT(*) as count FROM debts WHERE user_id = ?', (owner_id,))
+        count_row = cursor.fetchone()
+        if count_row and count_row['count'] == 0:
+            cursor.execute('SELECT debt_target_amount, debt_note FROM users WHERE id = ?', (owner_id,))
+            legacy = cursor.fetchone()
+            if legacy and legacy['debt_target_amount'] and legacy['debt_target_amount'] > 0:
+                cursor.execute('''
+                    INSERT INTO debts (user_id, name, target_amount, note)
+                    VALUES (?, ?, ?, ?)
+                ''', (owner_id, 'Долг', legacy['debt_target_amount'], legacy['debt_note'] or ''))
+                self.conn.commit()
+        cursor.execute('''
+            SELECT d.id, d.name, d.target_amount, d.note, d.archived,
+                   COALESCE(SUM(t.amount), 0) as paid_amount
+            FROM debts d
+            LEFT JOIN transactions t
+              ON t.debt_id = d.id AND t.user_id = ? AND t.type = 'expense' AND t.category = 'Долги'
+            WHERE d.user_id = ?
+            GROUP BY d.id
+            ORDER BY d.created_at DESC
+        ''', (owner_id, owner_id))
+        return cursor.fetchall()
 
     def set_debt_settings(self, user_id, amount, note=''):
         cursor = self.conn.cursor()
@@ -511,7 +616,7 @@ class Database:
             'wallets': wallet_balances
         }
     
-    def add_transaction(self, user_id, trans_type, amount, category, wallet, description):
+    def add_transaction(self, user_id, trans_type, amount, category, wallet, description, debt_id=None):
         cursor = self.conn.cursor()
         owner_id = self._resolve_owner_id(user_id)
         
@@ -523,9 +628,9 @@ class Database:
             ''', (owner_id, wallet, '💳', 0, 0))
         
         cursor.execute('''
-            INSERT INTO transactions (user_id, type, amount, category, wallet, description)
-            VALUES (?, ?, ?, ?, ?, ?)
-        ''', (owner_id, trans_type, amount, category, wallet, description or ''))
+            INSERT INTO transactions (user_id, type, amount, category, wallet, description, debt_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (owner_id, trans_type, amount, category, wallet, description or '', debt_id))
         
         if trans_type == 'income':
             cursor.execute('''
@@ -576,7 +681,7 @@ class Database:
         self.conn.commit()
         return True
 
-    def update_transaction(self, user_id, transaction_id, trans_type, amount, category, wallet, description):
+    def update_transaction(self, user_id, transaction_id, trans_type, amount, category, wallet, description, debt_id=None):
         cursor = self.conn.cursor()
         owner_id = self._resolve_owner_id(user_id)
         cursor.execute('''
@@ -621,9 +726,9 @@ class Database:
 
         cursor.execute('''
             UPDATE transactions
-            SET type = ?, amount = ?, category = ?, wallet = ?, description = ?
+            SET type = ?, amount = ?, category = ?, wallet = ?, description = ?, debt_id = ?
             WHERE id = ? AND user_id = ?
-        ''', (trans_type, amount, category, wallet, description or '', transaction_id, owner_id))
+        ''', (trans_type, amount, category, wallet, description or '', debt_id, transaction_id, owner_id))
         self.conn.commit()
         return True
     

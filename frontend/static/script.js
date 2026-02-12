@@ -15,6 +15,7 @@ let currentCurrency = 'RUB';
 let categoriesData = { income: [], expense: [], savings: [] };
 let walletsData = [];
 let goalsData = [];
+let debtsData = [];
 let categoryStats = { income: {}, expense: {}, wallets: {} };
 let currentHistoryMonth = new Date();
 let currentFilter = 'all';
@@ -28,8 +29,8 @@ let editingTransactionId = null;
 let currentMonthTransactions = [];
 let isCreatingGoal = false;
 let debtsEnabled = false;
-let debtTargetAmount = 0;
-let debtNote = '';
+let currentDebtId = null;
+let editingDebtId = null;
 let compoundListenersInitialized = false;
 const compoundStorageKey = 'finance_compound_calc';
 let marketState = { crypto: 'gainers', stocks: 'gainers' };
@@ -341,11 +342,23 @@ const translations = {
         'Долг добавлен': 'Debt added',
         'Погашено': 'Paid',
         'Создать долг': 'Create debt',
+        'Название долга': 'Debt name',
         'Сумма долга': 'Debt amount',
         'Комментарий (необязательно)': 'Comment (optional)',
         'Долг создан': 'Debt created',
+        'Долг обновлён': 'Debt updated',
+        'Долг удалён': 'Debt deleted',
         'Сначала создайте долг': 'Create a debt first',
         'Например: Рассрочка': 'Example: Installment',
+        'Например: Кредит': 'Example: Loan',
+        'Выберите долг': 'Select debt',
+        'Введите название долга': 'Enter debt name',
+        'Удалить долг': 'Delete debt',
+        'Изменить долг': 'Edit debt',
+        'Архив': 'Archive',
+        'Архивировать': 'Archive',
+        'Вернуть': 'Restore',
+        'Нельзя удалить долг с платежами': 'Cannot delete a debt with payments',
         'Зарплата': 'Salary',
         'Фриланс': 'Freelance',
         'Инвестиции': 'Investments',
@@ -863,11 +876,10 @@ async function initUser() {
         categoriesData = data.categories || { income: [], expense: [], savings: [] };
         walletsData = data.wallets || [];
         goalsData = data.goals || [];
+        debtsData = data.debts || [];
         categoryStats = data.category_stats || { income: {}, expense: {}, wallets: {} };
         allTransactions = data.recent_transactions || [];
         debtsEnabled = !!data.debts_enabled;
-        debtTargetAmount = Number(data.debt_target_amount) || 0;
-        debtNote = data.debt_note || '';
         subscriptionActive = !!data.subscription_active;
         subscriptionStart = data.subscription_start || null;
         subscriptionEnd = data.subscription_end || null;
@@ -991,9 +1003,13 @@ function updateSectionTotals() {
     // Долги
     const debtsTotalEl = document.getElementById('debts-total');
     if (debtsTotalEl) {
-        if (debtTargetAmount > 0) {
-            const debtExpense = categoryStats.expense?.['Долги'] || 0;
-            const remaining = Math.max(debtTargetAmount - debtExpense, 0);
+        const activeDebts = debtsData.filter(debt => !debt.archived);
+        if (activeDebts.length > 0) {
+            const remaining = activeDebts.reduce((sum, debt) => {
+                const target = Number(debt.target_amount) || 0;
+                const paid = Number(debt.paid_amount) || 0;
+                return sum + Math.max(target - paid, 0);
+            }, 0);
             debtsTotalEl.textContent = `${formatCurrency(remaining)} ${symbol}`;
         } else {
             debtsTotalEl.textContent = `0 ${symbol}`;
@@ -1035,16 +1051,11 @@ async function loadPanelData() {
         categoriesData = data.categories || categoriesData;
         walletsData = data.wallets || walletsData;
         goalsData = data.goals || goalsData;
+        debtsData = data.debts || debtsData;
         categoryStats = data.category_stats || categoryStats;
         allTransactions = data.recent_transactions || allTransactions;
         if (typeof data.debts_enabled !== 'undefined') {
             debtsEnabled = !!data.debts_enabled;
-        }
-        if (typeof data.debt_target_amount !== 'undefined') {
-            debtTargetAmount = Number(data.debt_target_amount) || 0;
-        }
-        if (typeof data.debt_note !== 'undefined') {
-            debtNote = data.debt_note || '';
         }
         
         // Обновляем отображение
@@ -1065,6 +1076,7 @@ async function loadPanelData() {
 }
 
 function updatePanelCategories() {
+    injectDebtCategory();
     updateCategorySection('income', 'Доходы');
     updateCategorySection('expense', 'Расходы');
 }
@@ -1202,52 +1214,104 @@ function updateDebtsDisplay() {
     }
     
     section.style.display = 'block';
+    injectDebtCategory();
 
-    if (debtTargetAmount <= 0) {
-        container.innerHTML = `
-            <button class="add-category-btn" onclick="openDebtModal()">
-                <span>+</span>
-                <span>${t('Создать долг')}</span>
-            </button>
-        `;
-        return;
-    }
-    
-    const debtExpense = categoryStats.expense?.['Долги'] || 0;
     const symbol = currencySymbols[currentCurrency] || '₽';
     const color = '#AF52DE';
     const icon = '💸';
-    const progress = debtTargetAmount > 0 ? Math.min((debtExpense / debtTargetAmount) * 100, 100) : 0;
-    const progressText = `${progress.toFixed(0)}%`;
-    const formattedPaid = formatCurrency(debtExpense);
-    const formattedTarget = formatCurrency(debtTargetAmount);
+    let html = '';
     
-    container.innerHTML = `
-        <button class="category-card" onclick="showAddTransactionForCategory('debt', 'Долги')">
-            <div class="category-icon" style="background: ${color}20; color: ${color}; box-shadow: 0 0 15px ${color}50;">
-                ${icon}
-            </div>
-            <div class="category-info">
-                <div class="category-name">
-                    <span class="category-name-text">${t('Долги')}</span>
+    const activeDebts = debtsData.filter(debt => !debt.archived);
+    const archivedDebts = debtsData.filter(debt => debt.archived);
+    activeDebts.forEach(debt => {
+        const paid = Number(debt.paid_amount) || 0;
+        const target = Number(debt.target_amount) || 0;
+        const progress = target > 0 ? Math.min((paid / target) * 100, 100) : 0;
+        const progressText = `${progress.toFixed(0)}%`;
+        const formattedPaid = formatCurrency(paid);
+        const formattedTarget = formatCurrency(target);
+        const note = debt.note ? ` • ${debt.note}` : '';
+        const canArchive = progress >= 100;
+        
+        html += `
+            <div class="category-card debt-card" onclick="openDebtPayment(${debt.id})">
+                <div class="category-icon" style="background: ${color}20; color: ${color}; box-shadow: 0 0 15px ${color}50;">
+                    ${icon}
                 </div>
-                <div class="category-stats">${t('Погашено')}: ${formattedPaid} / ${formattedTarget} ${symbol}</div>
-                <div class="debt-progress">
-                    <div class="debt-progress-fill" style="width: ${progress}%; background: ${color};"></div>
+                <div class="category-info">
+                    <div class="category-name">
+                        <span class="category-name-text">${debt.name}</span>
+                    </div>
+                    <div class="category-stats">${t('Погашено')}: ${formattedPaid} / ${formattedTarget} ${symbol}${note}</div>
+                    <div class="debt-progress">
+                        <div class="debt-progress-fill" style="width: ${progress}%; background: ${color};"></div>
+                    </div>
+                </div>
+                <div class="category-amount" style="color: ${color};">
+                    ${progressText}
+                    <div class="debt-actions">
+                        <button class="debt-action-btn" onclick="event.stopPropagation(); openDebtModal(${debt.id})">✎</button>
+                        ${canArchive ? `<button class="debt-action-btn" onclick="event.stopPropagation(); archiveDebt(${debt.id}, true)">${t('Архивировать')}</button>` : ''}
+                    </div>
                 </div>
             </div>
-            <div class="category-amount" style="color: ${color};">
-                ${progressText}
-            </div>
+        `;
+    });
+    
+    html += `
+        <button class="add-category-btn" onclick="openDebtModal()">
+            <span>+</span>
+            <span>${t('Создать долг')}</span>
         </button>
     `;
+
+    if (archivedDebts.length > 0) {
+        html += `
+            <div class="debt-archive-block">
+                <div class="debt-archive-title">${t('Архив')}</div>
+                ${archivedDebts.map(debt => {
+                    const paid = Number(debt.paid_amount) || 0;
+                    const target = Number(debt.target_amount) || 0;
+                    const progress = target > 0 ? Math.min((paid / target) * 100, 100) : 0;
+                    const progressText = `${progress.toFixed(0)}%`;
+                    const formattedPaid = formatCurrency(paid);
+                    const formattedTarget = formatCurrency(target);
+                    const note = debt.note ? ` • ${debt.note}` : '';
+                    return `
+                        <div class="category-card debt-card archived">
+                            <div class="category-icon" style="background: ${color}20; color: ${color}; box-shadow: 0 0 15px ${color}50;">
+                                ${icon}
+                            </div>
+                            <div class="category-info">
+                                <div class="category-name">
+                                    <span class="category-name-text">${debt.name}</span>
+                                </div>
+                                <div class="category-stats">${t('Погашено')}: ${formattedPaid} / ${formattedTarget} ${symbol}${note}</div>
+                                <div class="debt-progress">
+                                    <div class="debt-progress-fill" style="width: ${progress}%; background: ${color};"></div>
+                                </div>
+                            </div>
+                            <div class="category-amount" style="color: ${color};">
+                                ${progressText}
+                                <div class="debt-actions">
+                                    <button class="debt-action-btn" onclick="archiveDebt(${debt.id}, false)">${t('Вернуть')}</button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+        `;
+    }
+    
+    container.innerHTML = html;
 }
 
 function updateDebtsUI(syncToggle = true) {
     const section = document.getElementById('debts-section');
     const tab = document.querySelector('.modal-tab.debt');
     const toggle = document.getElementById('debts-toggle');
-    const hasDebt = debtTargetAmount > 0;
+    const hasDebt = debtsData.some(debt => !debt.archived);
     const shouldShowTab = (debtsEnabled && hasDebt) || currentTransactionType === 'debt';
     
     if (section) section.style.display = debtsEnabled ? 'block' : 'none';
@@ -1264,12 +1328,25 @@ function updateDebtsUI(syncToggle = true) {
     }
 }
 
+function injectDebtCategory() {
+    if (!categoriesData.expense) categoriesData.expense = [];
+    const hasDebt = debtsEnabled && debtsData.some(debt => !debt.archived);
+    const existingIndex = categoriesData.expense.findIndex(cat => cat.name === 'Долги');
+    if (hasDebt && existingIndex === -1) {
+        categoriesData.expense.unshift({ name: 'Долги', icon: '💸', color: '#AF52DE' });
+    }
+    if (!hasDebt && existingIndex !== -1) {
+        categoriesData.expense.splice(existingIndex, 1);
+    }
+}
+
 async function setDebtsEnabled(enabled) {
     const nextValue = !!enabled;
     const prevValue = debtsEnabled;
     debtsEnabled = nextValue;
     updateDebtsUI(true);
     updateDebtsDisplay();
+    updatePanelCategories();
     if (!currentUser) return;
     try {
         const response = await fetch('/api/settings/debts', {
@@ -1285,10 +1362,12 @@ async function setDebtsEnabled(enabled) {
         debtsEnabled = !!data.debts_enabled;
         updateDebtsUI(true);
         updateDebtsDisplay();
+        updatePanelCategories();
     } catch (error) {
         debtsEnabled = prevValue;
         updateDebtsUI(true);
         updateDebtsDisplay();
+        updatePanelCategories();
         showNotification('Ошибка сохранения', 'error');
     }
 }
@@ -1462,6 +1541,7 @@ function openEditTransaction(transaction) {
     currentTransactionType = isDebt ? 'debt' : (transaction.category === 'Накопления' ? 'savings' : transaction.type);
     currentSavingsDestination = 'piggybank';
     selectedGoalId = null;
+    currentDebtId = isDebt ? (transaction.debt_id || null) : null;
     showAddTransactionModal(transaction.category);
 
     const amountInput = document.getElementById('transaction-amount');
@@ -1532,12 +1612,28 @@ async function deleteTransactionById(id) {
 }
 
 function showAddTransactionForCategory(type, category) {
-    if (type === 'debt' && debtTargetAmount <= 0) {
+    if (type === 'debt' && debtsData.length === 0) {
         openDebtModal();
+        return;
+    }
+    if (type === 'expense' && category === 'Долги') {
+        const activeDebts = debtsData.filter(debt => !debt.archived);
+        if (!activeDebts.length) {
+            openDebtModal();
+            return;
+        }
+        openDebtPayment(activeDebts[0].id);
         return;
     }
     currentTransactionType = type;
     showAddTransactionModal(category);
+}
+
+function openDebtPayment(debtId) {
+    if (!debtsData.some(d => d.id === debtId && !d.archived)) return;
+    currentTransactionType = 'debt';
+    currentDebtId = debtId;
+    showAddTransactionModal('Долги');
 }
 
 function showWalletTransactions(walletName) {
@@ -3005,6 +3101,9 @@ async function updateExpenseTab() {
 async function updateExpenseChart(transactions) {
     const ctx = document.getElementById('expense-chart');
     if (!ctx) return;
+
+    // Ensure debt category exists for color/icon lookup in charts
+    injectDebtCategory();
     
     const expenseTransactions = transactions.filter(t => t.type === 'expense');
     
@@ -3027,6 +3126,7 @@ async function updateExpenseChart(transactions) {
     const sorted = Object.entries(expenseByCategory)
         .sort((a, b) => b[1] - a[1]); // от большего к меньшему
     const categories = sorted.map(([name]) => name);
+    const displayLabels = categories.map(name => t(name));
     const amounts = sorted.map(([, value]) => value);
     
     // Удаляем старый график
@@ -3896,6 +3996,7 @@ function showAddTransactionModal(prefilledCategory = null) {
     
     // Настройка для накоплений
     setupSavingsDestination();
+    setupDebtSelector();
     
     // Фокус на сумму
     setTimeout(() => {
@@ -3960,55 +4061,159 @@ function populateWallets() {
     });
 }
 
-function openDebtModal() {
+function openDebtModal(debtId = null) {
     const modal = document.getElementById('add-debt-modal');
     if (!modal) return;
+    editingDebtId = debtId;
+    const nameInput = document.getElementById('debt-name-input');
     const amountInput = document.getElementById('debt-amount-input');
     const noteInput = document.getElementById('debt-note-input');
-    if (amountInput) amountInput.value = debtTargetAmount > 0 ? debtTargetAmount : '';
-    if (noteInput) noteInput.value = debtNote || '';
+    const title = modal.querySelector('.modal-title');
+    const submitText = document.getElementById('debt-submit-text');
+    const deleteBtn = document.getElementById('debt-delete-btn');
+
+    if (editingDebtId) {
+        const debt = debtsData.find(d => d.id === editingDebtId);
+        if (debt) {
+            if (nameInput) nameInput.value = debt.name || '';
+            if (amountInput) amountInput.value = debt.target_amount || '';
+            if (noteInput) noteInput.value = debt.note || '';
+        }
+        if (title) title.textContent = t('Изменить долг');
+        if (submitText) submitText.textContent = t('Сохранить');
+        if (deleteBtn) deleteBtn.style.display = 'inline-flex';
+    } else {
+        if (nameInput) nameInput.value = '';
+        if (amountInput) amountInput.value = '';
+        if (noteInput) noteInput.value = '';
+        if (title) title.textContent = t('Создать долг');
+        if (submitText) submitText.textContent = t('Создать долг');
+        if (deleteBtn) deleteBtn.style.display = 'none';
+    }
     modal.classList.add('active');
-    setTimeout(() => amountInput?.focus(), 100);
+    setTimeout(() => (nameInput || amountInput)?.focus(), 100);
 }
 
 function closeDebtModal() {
     const modal = document.getElementById('add-debt-modal');
     if (modal) modal.classList.remove('active');
+    editingDebtId = null;
 }
 
 async function saveDebt(e) {
     if (e) e.preventDefault();
+    const nameInput = document.getElementById('debt-name-input');
     const amountInput = document.getElementById('debt-amount-input');
     const noteInput = document.getElementById('debt-note-input');
-    if (!amountInput || !currentUser) return;
+    if (!amountInput || !currentUser || !nameInput) return;
+    const name = nameInput.value.trim();
     const amount = parseFloat(amountInput.value);
     const note = noteInput ? noteInput.value.trim() : '';
+    if (!name) {
+        showNotification('Введите название долга', 'error');
+        return;
+    }
     if (!amount || amount <= 0) {
         showNotification('Введите корректную сумму', 'error');
         return;
     }
     try {
-        const response = await fetch('/api/debt', {
+        const endpoint = editingDebtId ? '/api/debt/update' : '/api/debt';
+        const payload = {
+            user_id: currentUser.id,
+            name: name,
+            amount: amount,
+            note: note
+        };
+        if (editingDebtId) payload.debt_id = editingDebtId;
+        const response = await fetch(endpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                user_id: currentUser.id,
-                amount: amount,
-                note: note
-            })
+            body: JSON.stringify(payload)
         });
         const data = await response.json();
         if (data.error) throw new Error(data.error);
-        debtTargetAmount = Number(data.debt_target_amount) || amount;
-        debtNote = data.debt_note || note;
+        if (data.debt) {
+            if (editingDebtId) {
+                debtsData = debtsData.map(d => d.id === data.debt.id ? data.debt : d);
+            } else {
+                debtsData = [data.debt, ...debtsData];
+            }
+        }
         debtsEnabled = !!data.debts_enabled;
         updateDebtsUI(true);
         updateDebtsDisplay();
         updateSectionTotals();
+        updatePanelCategories();
+        if (!currentDebtId && data.debt) currentDebtId = data.debt.id;
         closeDebtModal();
-        showNotification(t('Долг создан'), 'success');
+        showNotification(editingDebtId ? t('Долг обновлён') : t('Долг создан'), 'success');
+        editingDebtId = null;
     } catch (error) {
         console.error('❌ Ошибка сохранения долга:', error);
+        showNotification('Ошибка сохранения', 'error');
+    }
+}
+
+async function deleteDebt() {
+    if (!editingDebtId || !currentUser) return;
+    if (!confirm(t('Удалить долг') + '?')) return;
+    try {
+        const response = await fetch('/api/debt/delete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                user_id: currentUser.id,
+                debt_id: editingDebtId
+            })
+        });
+        const data = await response.json();
+        if (data.error) {
+            if (data.error === 'debt_has_payments') {
+                showNotification(t('Нельзя удалить долг с платежами'), 'error');
+                return;
+            }
+            throw new Error(data.error);
+        }
+        debtsData = debtsData.filter(d => d.id !== editingDebtId);
+        if (currentDebtId === editingDebtId) {
+            const active = debtsData.find(d => !d.archived);
+            currentDebtId = active ? active.id : null;
+        }
+        editingDebtId = null;
+        updateDebtsUI(true);
+        updateDebtsDisplay();
+        updateSectionTotals();
+        updatePanelCategories();
+        closeDebtModal();
+        showNotification(t('Долг удалён'), 'success');
+    } catch (error) {
+        console.error('❌ Ошибка удаления долга:', error);
+        showNotification('Ошибка удаления', 'error');
+    }
+}
+
+async function archiveDebt(debtId, archived) {
+    if (!currentUser) return;
+    try {
+        const response = await fetch('/api/debt/archive', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                user_id: currentUser.id,
+                debt_id: debtId,
+                archived: !!archived
+            })
+        });
+        const data = await response.json();
+        if (data.error) throw new Error(data.error);
+        debtsData = debtsData.map(d => d.id === debtId ? { ...d, archived: !!archived } : d);
+        updateDebtsUI(true);
+        updateDebtsDisplay();
+        updateSectionTotals();
+        updatePanelCategories();
+    } catch (error) {
+        console.error('❌ Ошибка архивации:', error);
         showNotification('Ошибка сохранения', 'error');
     }
 }
@@ -4074,6 +4279,94 @@ function setupSavingsDestination() {
             document.getElementById('savings-destination').insertAdjacentHTML('afterend', goalSelectorHTML);
         }
     }
+}
+
+function setupDebtSelector() {
+    const amountField = document.getElementById('transaction-amount')?.parentNode?.parentNode;
+    const oldSelector = document.getElementById('debt-selector');
+    if (oldSelector) oldSelector.remove();
+    if (currentTransactionType !== 'debt' || !amountField) return;
+
+    const activeDebts = debtsData.filter(debt => !debt.archived);
+    if (!activeDebts.length) {
+        const emptyHTML = `
+            <div class="form-group" id="debt-selector">
+                <label class="form-label">${t('Долг')}</label>
+                <div style="color: var(--ios-text-secondary); font-size: 14px; margin-bottom: 12px;">
+                    ${t('Сначала создайте долг')}
+                </div>
+                <button type="button" class="modal-btn secondary" onclick="openDebtModal()" style="width: 100%;">
+                    <span>${t('Создать долг')}</span>
+                </button>
+            </div>
+        `;
+        amountField.insertAdjacentHTML('afterend', emptyHTML);
+        return;
+    }
+    
+    if (!currentDebtId || !activeDebts.some(d => d.id === currentDebtId)) {
+        currentDebtId = activeDebts[0].id;
+    }
+    
+    const selectorHTML = `
+        <div class="form-group" id="debt-selector">
+            <label class="form-label">${t('Выберите долг')}</label>
+            <div id="debt-options" style="max-height: 200px; overflow-y: auto;">
+                ${generateDebtOptions(activeDebts)}
+            </div>
+        </div>
+    `;
+    amountField.insertAdjacentHTML('afterend', selectorHTML);
+}
+
+function generateDebtOptions(list) {
+    const symbol = currencySymbols[currentCurrency] || '₽';
+    return (list || []).map(debt => {
+        const paid = Number(debt.paid_amount) || 0;
+        const target = Number(debt.target_amount) || 0;
+        const progress = target > 0 ? Math.min((paid / target) * 100, 100) : 0;
+        const isSelected = debt.id === currentDebtId;
+        const color = '#AF52DE';
+        
+        return `
+            <div class="goal-option ${isSelected ? 'active' : ''}" onclick="selectDebt(${debt.id})">
+                <div class="goal-option-icon" style="background: ${color}20; color: ${color}; box-shadow: 0 0 15px ${color}50;">
+                    💸
+                </div>
+                <div class="goal-option-info">
+                    <div class="goal-option-name">${debt.name}</div>
+                    <div class="goal-option-details">
+                        ${formatCurrency(paid)} / ${formatCurrency(target)} ${symbol} (${progress.toFixed(1)}%)
+                    </div>
+                    <div class="goal-option-progress">
+                        <div class="goal-option-progress-fill" style="width: ${progress}%; background: ${color}; color: ${color};"></div>
+                    </div>
+                </div>
+                <div class="goal-option-check">
+                    ${isSelected ? '✓' : ''}
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function selectDebt(debtId) {
+    currentDebtId = debtId;
+    document.querySelectorAll('#debt-options .goal-option').forEach(option => {
+        option.classList.remove('active');
+    });
+    const selectedOption = document.querySelector(`#debt-options .goal-option[onclick="selectDebt(${debtId})"]`);
+    if (selectedOption) {
+        selectedOption.classList.add('active');
+        const check = selectedOption.querySelector('.goal-option-check');
+        if (check) check.textContent = '✓';
+    }
+    document.querySelectorAll('#debt-options .goal-option').forEach(option => {
+        if (!option.classList.contains('active')) {
+            const check = option.querySelector('.goal-option-check');
+            if (check) check.textContent = '';
+        }
+    });
 }
 
 function selectSavingsDestination(destination) {
@@ -4182,7 +4475,7 @@ async function submitTransaction(e) {
     }
 
     if (currentTransactionType === 'debt') {
-        if (debtTargetAmount <= 0) {
+        if (!currentDebtId) {
             showNotification(t('Сначала создайте долг'), 'error');
             openDebtModal();
             return;
@@ -4244,6 +4537,9 @@ async function submitTransaction(e) {
             wallet: wallet,
             description: description
         };
+        if (currentTransactionType === 'debt') {
+            payload.debt_id = currentDebtId;
+        }
         if (isEditing) {
             payload.transaction_id = editingTransactionId;
         }
@@ -4727,6 +5023,7 @@ function initEventListeners() {
             
             // Настройка для накоплений
             setupSavingsDestination();
+            setupDebtSelector();
         };
     });
     
@@ -5332,6 +5629,7 @@ window.toggleWalletDropdown = toggleWalletDropdown;
 window.showAllTransactions = showAllTransactions;
 window.showAllCategories = showAllCategories;
 window.selectSavingsDestination = selectSavingsDestination;
+window.selectDebt = selectDebt;
 window.selectGoal = selectGoal;
 window.addToGoal = addToGoal;
 window.exportData = exportData;
@@ -5348,6 +5646,9 @@ window.openSubscriptionModal = openSubscriptionModal;
 window.closeSubscriptionModal = closeSubscriptionModal;
 window.openDebtModal = openDebtModal;
 window.closeDebtModal = closeDebtModal;
+window.openDebtPayment = openDebtPayment;
+window.deleteDebt = deleteDebt;
+window.archiveDebt = archiveDebt;
 window.copySubscriptionAddress = copySubscriptionAddress;
 window.createCryptoPayPayment = createCryptoPayPayment;
 window.checkSubscriptionStatus = checkSubscriptionStatus;

@@ -618,9 +618,7 @@ def init_user():
             subscription_info = db.get_subscription_info(user_id)
             subscription_active = subscription_info['active']
             debts_enabled = db.get_debts_enabled(user_id)
-            debt_settings = db.get_debt_settings(user_id)
-            debt_target_amount = debt_settings['target_amount']
-            debt_note = debt_settings['note']
+            debts_data = db.get_debts(user_id)
             
             categories = {'income': [], 'expense': [], 'savings': []}
             all_categories = db.get_categories(user_id)
@@ -667,6 +665,7 @@ def init_user():
                     'category': trans['category'],
                     'wallet': trans['wallet'] or default_wallet,
                     'description': trans['description'] or '',
+                    'debt_id': trans['debt_id'],
                     'date': trans['date']
                 })
             
@@ -693,8 +692,7 @@ def init_user():
             subscription_active = False
             subscription_info = {'activated_at': None, 'expires_at': None}
             debts_enabled = False
-            debt_target_amount = 0
-            debt_note = ''
+            debts_data = []
         
         return jsonify({
             'user_id': user_id,
@@ -709,6 +707,14 @@ def init_user():
             'categories': categories,
             'wallets': wallets_data,
             'goals': goals_data,
+            'debts': [{
+                'id': d['id'],
+                'name': d['name'],
+                'target_amount': d['target_amount'],
+                'paid_amount': d['paid_amount'],
+                'note': d['note'] or '',
+                'archived': bool(d['archived'])
+            } for d in debts_data],
             'recent_transactions': recent_transactions,
             'total_transactions': total_transactions,
             'currency': currency,
@@ -716,9 +722,7 @@ def init_user():
             'subscription_active': subscription_active,
             'subscription_start': subscription_info['activated_at'],
             'subscription_end': subscription_info['expires_at'],
-            'debts_enabled': debts_enabled,
-            'debt_target_amount': debt_target_amount,
-            'debt_note': debt_note
+            'debts_enabled': debts_enabled
         })
     except Exception as e:
         print(f"Init error: {e}")
@@ -741,13 +745,14 @@ def update_debts_setting():
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/debt', methods=['POST'])
-def update_debt():
+def create_debt():
     try:
         data = request.json or {}
         user_id = data.get('user_id')
+        name = (data.get('name') or '').strip()
         amount = data.get('amount')
         note = data.get('note') or ''
-        if user_id is None or amount is None:
+        if user_id is None or amount is None or not name:
             return jsonify({'error': 'Missing fields'}), 400
         if not db:
             return jsonify({'error': 'Database error'}), 500
@@ -757,15 +762,102 @@ def update_debt():
             return jsonify({'error': 'Invalid amount'}), 400
         if amount_value <= 0:
             return jsonify({'error': 'Invalid amount'}), 400
-        db.set_debt_settings(user_id, amount_value, note)
+        debt_id = db.create_debt(user_id, name, amount_value, note)
+        db.set_debts_enabled(user_id, True)
         return jsonify({
             'success': True,
             'debts_enabled': True,
-            'debt_target_amount': amount_value,
-            'debt_note': note
+            'debt': {
+                'id': debt_id,
+                'name': name,
+                'target_amount': amount_value,
+                'paid_amount': 0,
+                'note': note,
+                'archived': False
+            }
         })
     except Exception as e:
         print(f"Debt update error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/debt/update', methods=['POST'])
+def update_debt():
+    try:
+        data = request.json or {}
+        user_id = data.get('user_id')
+        debt_id = data.get('debt_id')
+        name = (data.get('name') or '').strip()
+        amount = data.get('amount')
+        note = data.get('note') or ''
+        if not all([user_id, debt_id, name, amount]):
+            return jsonify({'error': 'Missing fields'}), 400
+        if not db:
+            return jsonify({'error': 'Database error'}), 500
+        try:
+            amount_value = float(amount)
+        except (TypeError, ValueError):
+            return jsonify({'error': 'Invalid amount'}), 400
+        if amount_value <= 0:
+            return jsonify({'error': 'Invalid amount'}), 400
+        existing = db.get_debt_by_id(user_id, int(debt_id))
+        if not existing:
+            return jsonify({'error': 'Debt not found'}), 404
+        db.update_debt(user_id, int(debt_id), name, amount_value, note)
+        paid_amount = db.get_debt_paid_amount(user_id, int(debt_id))
+        updated = db.get_debt_by_id(user_id, int(debt_id))
+        return jsonify({
+            'success': True,
+            'debt': {
+                'id': updated['id'],
+                'name': updated['name'],
+                'target_amount': updated['target_amount'],
+                'paid_amount': paid_amount,
+                'note': updated['note'] or '',
+                'archived': bool(updated['archived'])
+            }
+        })
+    except Exception as e:
+        print(f"Debt update error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/debt/delete', methods=['POST'])
+def delete_debt():
+    try:
+        data = request.json or {}
+        user_id = data.get('user_id')
+        debt_id = data.get('debt_id')
+        if not user_id or not debt_id:
+            return jsonify({'error': 'Missing fields'}), 400
+        if not db:
+            return jsonify({'error': 'Database error'}), 500
+        paid_amount = db.get_debt_paid_amount(user_id, int(debt_id))
+        if paid_amount > 0:
+            return jsonify({'error': 'debt_has_payments'}), 400
+        if not db.delete_debt(user_id, int(debt_id)):
+            return jsonify({'error': 'Debt not found'}), 404
+        return jsonify({'success': True})
+    except Exception as e:
+        print(f"Debt delete error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/debt/archive', methods=['POST'])
+def archive_debt():
+    try:
+        data = request.json or {}
+        user_id = data.get('user_id')
+        debt_id = data.get('debt_id')
+        archived = data.get('archived')
+        if user_id is None or debt_id is None or archived is None:
+            return jsonify({'error': 'Missing fields'}), 400
+        if not db:
+            return jsonify({'error': 'Database error'}), 500
+        existing = db.get_debt_by_id(user_id, int(debt_id))
+        if not existing:
+            return jsonify({'error': 'Debt not found'}), 404
+        db.set_debt_archived(user_id, int(debt_id), bool(archived))
+        return jsonify({'success': True})
+    except Exception as e:
+        print(f"Debt archive error: {e}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/shared_wallet/status')
@@ -1466,6 +1558,8 @@ def add_transaction():
         category = data.get('category')
         wallet = data.get('wallet', 'Карта')
         description = data.get('description', '')
+        debt_id = data.get('debt_id')
+        debt_id = data.get('debt_id')
         
         if not all([user_id, trans_type, amount, category]):
             return jsonify({'error': 'Missing fields'}), 400
@@ -1482,6 +1576,30 @@ def add_transaction():
                 return jsonify({'error': 'Amount must be positive'}), 400
         except ValueError:
             return jsonify({'error': 'Invalid amount'}), 400
+
+        if category == 'Долги':
+            if not debt_id:
+                return jsonify({'error': 'Missing debt_id'}), 400
+            try:
+                debt_id = int(debt_id)
+            except (TypeError, ValueError):
+                return jsonify({'error': 'Invalid debt_id'}), 400
+            if not db.get_debt_by_id(user_id, debt_id):
+                return jsonify({'error': 'Debt not found'}), 404
+        else:
+            debt_id = None
+
+        if category == 'Долги':
+            if not debt_id:
+                return jsonify({'error': 'Missing debt_id'}), 400
+            try:
+                debt_id = int(debt_id)
+            except (TypeError, ValueError):
+                return jsonify({'error': 'Invalid debt_id'}), 400
+            if not db.get_debt_by_id(user_id, debt_id):
+                return jsonify({'error': 'Debt not found'}), 404
+        else:
+            debt_id = None
         
         if db:
             if trans_type == 'expense':
@@ -1489,7 +1607,7 @@ def add_transaction():
                 if amount > wallet_balance:
                     return jsonify({'error': 'insufficient_funds'}), 400
 
-            transaction_id = db.add_transaction(user_id, trans_type, amount, category, wallet, description)
+            transaction_id = db.add_transaction(user_id, trans_type, amount, category, wallet, description, debt_id)
             
             stats = db.get_user_stats(user_id)
             wallets = db.get_wallets(user_id)
@@ -1515,6 +1633,7 @@ def add_transaction():
                 'category': t['category'],
                 'wallet': t['wallet'],
                 'description': t['description'] or '',
+                'debt_id': t['debt_id'],
                 'date': t['date']
             } for t in recent]
         })
@@ -1565,7 +1684,7 @@ def update_transaction():
             if amount > available_balance:
                 return jsonify({'error': 'insufficient_funds'}), 400
 
-        if not db.update_transaction(user_id, int(transaction_id), trans_type, amount, category, wallet, description):
+        if not db.update_transaction(user_id, int(transaction_id), trans_type, amount, category, wallet, description, debt_id):
             return jsonify({'error': 'Transaction not found'}), 404
 
         stats = db.get_user_stats(user_id)
@@ -1588,6 +1707,7 @@ def update_transaction():
                 'category': t['category'],
                 'wallet': t['wallet'],
                 'description': t['description'] or '',
+                'debt_id': t['debt_id'],
                 'date': t['date']
             } for t in recent]
         })
@@ -1628,6 +1748,7 @@ def delete_transaction():
                 'category': t['category'],
                 'wallet': t['wallet'],
                 'description': t['description'] or '',
+                'debt_id': t['debt_id'],
                 'date': t['date']
             } for t in recent]
         })
@@ -1788,6 +1909,7 @@ def get_all_transactions(user_id):
                     'category': trans['category'],
                     'wallet': trans['wallet'],
                     'description': trans['description'] or '',
+                    'debt_id': trans['debt_id'],
                     'date': trans['date']
                 })
             return jsonify(result)
@@ -1816,6 +1938,7 @@ def get_transactions(user_id):
                     'category': trans['category'],
                     'wallet': trans['wallet'],
                     'description': trans['description'] or '',
+                    'debt_id': trans['debt_id'],
                     'date': trans['date']
                 })
             return jsonify(result)

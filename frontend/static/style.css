@@ -2333,6 +2333,10 @@ body {
   cursor: pointer;
   transition: all var(--transition-fast);
   color: var(--ios-text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
 }
 
 .modal-tab.income {
@@ -2627,6 +2631,56 @@ body {
 .modal-btn.primary:hover {
   background: #4A8CE4;
   box-shadow: var(--shadow-glow);
+}
+
+.modal-btn.danger {
+  background: rgba(255, 59, 48, 0.15);
+  color: #FF453A;
+  border: 1px solid rgba(255, 59, 48, 0.3);
+}
+
+.modal-btn.danger:hover {
+  background: rgba(255, 59, 48, 0.22);
+  box-shadow: 0 0 12px rgba(255, 59, 48, 0.35);
+}
+
+.debt-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+  justify-content: flex-end;
+}
+
+.debt-action-btn {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.2);
+  color: var(--ios-text-primary);
+  font-size: 11px;
+  padding: 4px 6px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.debt-action-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.debt-archive-block {
+  padding: var(--spacing-md);
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.debt-archive-title {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--ios-text-secondary);
+  margin-bottom: 8px;
+}
+
+.debt-card.archived {
+  opacity: 0.7;
 }
 
 /* ==================== */
