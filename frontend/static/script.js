@@ -62,6 +62,34 @@ let subscriptionPoller = null;
 let subscriptionAsset = 'USDT';
 const marketCacheKey = (market, kind) => `market_cache_${market}_${kind}`;
 const marketChartCacheKey = (market, id, range) => `market_chart_${market}_${id}_${range}`;
+let baseViewportHeight = window.innerHeight;
+
+function updateViewportVars() {
+    const vv = window.visualViewport;
+    const height = vv ? vv.height : window.innerHeight;
+    const offsetTop = vv ? vv.offsetTop : 0;
+    if (height > baseViewportHeight) {
+        baseViewportHeight = height;
+    }
+    let keyboardHeight = Math.max(0, baseViewportHeight - height - offsetTop);
+    if (keyboardHeight < 20) {
+        baseViewportHeight = height;
+        keyboardHeight = 0;
+    }
+    document.documentElement.style.setProperty('--app-height', `${height}px`);
+    document.documentElement.style.setProperty('--app-offset-top', `${offsetTop}px`);
+    document.documentElement.style.setProperty('--keyboard-height', `${keyboardHeight}px`);
+    document.body.classList.toggle('keyboard-open', keyboardHeight > 80);
+}
+
+function initViewportVars() {
+    updateViewportVars();
+    if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', updateViewportVars);
+        window.visualViewport.addEventListener('scroll', updateViewportVars);
+    }
+    window.addEventListener('resize', updateViewportVars);
+}
 
 function isSavingsCategoryName(name) {
     return name === 'Накопления' || name === 'Цели';
@@ -772,6 +800,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         initNavigation();
         updateCurrencyDisplay();
         setupAddButton();
+        initViewportVars();
         // Service worker отключен, чтобы обновления приходили автоматически
         
         // Инициализируем сворачиваемые секции
@@ -1430,7 +1459,7 @@ function updatePanelGoals() {
         const icon = goal.icon || '🎯';
         
         html += `
-            <button class="category-card" onclick="addToGoal(${goal.id})">
+            <div class="category-card debt-card" onclick="addToGoal(${goal.id})">
                 <div class="category-icon" style="background: ${color}20; color: ${color}; box-shadow: 0 0 15px ${color}50;">
                     ${icon}
                 </div>
@@ -1439,15 +1468,18 @@ function updatePanelGoals() {
                         <span class="category-name-text">${goal.name}</span>
                     </div>
                     <div class="category-stats">${t('Цель')}: ${formatCurrency(currentAmount)} / ${formatCurrency(targetAmount)} ${symbol}</div>
+                    <div class="debt-progress">
+                        <div class="debt-progress-fill" style="width: ${progress}%; background: ${color};"></div>
+                    </div>
+                    <div class="debt-actions">
+                        <button class="debt-action-btn" onclick="event.stopPropagation(); showAddGoalModal(${goal.id})">✎</button>
+                        <button class="debt-action-btn" onclick="event.stopPropagation(); archiveGoal(${goal.id}, true)">${t('Архивировать')}</button>
+                    </div>
                 </div>
                 <div class="category-amount" style="color: ${color};">
                     ${progress.toFixed(0)}%
-                    <div class="goal-actions">
-                        <button class="goal-action-btn" onclick="event.stopPropagation(); showAddGoalModal(${goal.id})">✎</button>
-                        <button class="goal-action-btn" onclick="event.stopPropagation(); archiveGoal(${goal.id}, true)">${t('Архивировать')}</button>
-                    </div>
                 </div>
-            </button>
+            </div>
         `;
     });
     
@@ -1469,7 +1501,7 @@ function updatePanelGoals() {
                     const color = goal.color || '#FF9500';
                     const icon = goal.icon || '🎯';
                     return `
-                        <div class="category-card goal-card archived">
+                        <div class="category-card debt-card archived">
                             <div class="category-icon" style="background: ${color}20; color: ${color}; box-shadow: 0 0 15px ${color}50;">
                                 ${icon}
                             </div>
@@ -1478,12 +1510,15 @@ function updatePanelGoals() {
                                     <span class="category-name-text">${goal.name}</span>
                                 </div>
                                 <div class="category-stats">${t('Цель')}: ${formatCurrency(currentAmount)} / ${formatCurrency(targetAmount)} ${symbol}</div>
+                                <div class="debt-progress">
+                                    <div class="debt-progress-fill" style="width: ${progress}%; background: ${color};"></div>
+                                </div>
+                                <div class="debt-actions">
+                                    <button class="debt-action-btn" onclick="archiveGoal(${goal.id}, false)">${t('Вернуть')}</button>
+                                </div>
                             </div>
                             <div class="category-amount" style="color: ${color};">
                                 ${progress.toFixed(0)}%
-                                <div class="goal-actions">
-                                    <button class="goal-action-btn" onclick="archiveGoal(${goal.id}, false)">${t('Вернуть')}</button>
-                                </div>
                             </div>
                         </div>
                     `;
@@ -3767,12 +3802,7 @@ function updateGoalsDisplay() {
                                 <div class="goal-name">${goal.name}</div>
                                 <div class="goal-date">${goal.deadline || t('Бессрочная')}</div>
                             </div>
-                            <div class="goal-right">
-                                <div class="goal-amount" style="color: ${color}; text-shadow: 0 0 10px ${color}80;">${formatCurrency(currentAmount)} / ${formatCurrency(targetAmount)} ${symbol}</div>
-                                <div class="goal-actions">
-                                    <button class="goal-action-btn" onclick="archiveGoal(${goal.id}, false)">${t('Вернуть')}</button>
-                                </div>
-                            </div>
+                            <div class="goal-amount" style="color: ${color}; text-shadow: 0 0 10px ${color}80;">${formatCurrency(currentAmount)} / ${formatCurrency(targetAmount)} ${symbol}</div>
                         </div>
                         <div class="goal-progress">
                             <div class="progress-bar">
@@ -3782,6 +3812,9 @@ function updateGoalsDisplay() {
                                 <span>${t('Прогресс')}</span>
                                 <span>${progress.toFixed(1)}%</span>
                             </div>
+                        </div>
+                        <div class="debt-actions">
+                            <button class="debt-action-btn" onclick="archiveGoal(${goal.id}, false)">${t('Вернуть')}</button>
                         </div>
                     </div>
                 `;
@@ -3807,13 +3840,7 @@ function updateGoalsDisplay() {
                         <div class="goal-name">${goal.name}</div>
                         <div class="goal-date">${goal.deadline || t('Бессрочная')}</div>
                     </div>
-                    <div class="goal-right">
-                        <div class="goal-amount" style="color: ${color}; text-shadow: 0 0 10px ${color}80;">${formatCurrency(currentAmount)} / ${formatCurrency(targetAmount)} ${symbol}</div>
-                        <div class="goal-actions">
-                            <button class="goal-action-btn" onclick="event.stopPropagation(); showAddGoalModal(${goal.id})">✎</button>
-                            <button class="goal-action-btn" onclick="event.stopPropagation(); archiveGoal(${goal.id}, true)">${t('Архивировать')}</button>
-                        </div>
-                    </div>
+                    <div class="goal-amount" style="color: ${color}; text-shadow: 0 0 10px ${color}80;">${formatCurrency(currentAmount)} / ${formatCurrency(targetAmount)} ${symbol}</div>
                 </div>
                 <div class="goal-progress">
                     <div class="progress-bar">
@@ -3823,6 +3850,10 @@ function updateGoalsDisplay() {
                         <span>${t('Прогресс')}</span>
                         <span>${progress.toFixed(1)}%</span>
                     </div>
+                </div>
+                <div class="debt-actions">
+                    <button class="debt-action-btn" onclick="event.stopPropagation(); showAddGoalModal(${goal.id})">✎</button>
+                    <button class="debt-action-btn" onclick="event.stopPropagation(); archiveGoal(${goal.id}, true)">${t('Архивировать')}</button>
                 </div>
             </div>
         `;
@@ -3853,12 +3884,7 @@ function updateGoalsDisplay() {
                                     <div class="goal-name">${goal.name}</div>
                                     <div class="goal-date">${goal.deadline || t('Бессрочная')}</div>
                                 </div>
-                                <div class="goal-right">
-                                    <div class="goal-amount" style="color: ${color}; text-shadow: 0 0 10px ${color}80;">${formatCurrency(currentAmount)} / ${formatCurrency(targetAmount)} ${symbol}</div>
-                                    <div class="goal-actions">
-                                        <button class="goal-action-btn" onclick="archiveGoal(${goal.id}, false)">${t('Вернуть')}</button>
-                                    </div>
-                                </div>
+                                <div class="goal-amount" style="color: ${color}; text-shadow: 0 0 10px ${color}80;">${formatCurrency(currentAmount)} / ${formatCurrency(targetAmount)} ${symbol}</div>
                             </div>
                             <div class="goal-progress">
                                 <div class="progress-bar">
@@ -3868,6 +3894,9 @@ function updateGoalsDisplay() {
                                     <span>${t('Прогресс')}</span>
                                     <span>${progress.toFixed(1)}%</span>
                                 </div>
+                            </div>
+                            <div class="debt-actions">
+                                <button class="debt-action-btn" onclick="archiveGoal(${goal.id}, false)">${t('Вернуть')}</button>
                             </div>
                         </div>
                     `;

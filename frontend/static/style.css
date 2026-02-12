@@ -75,6 +75,11 @@
   --transition-fast: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   --transition-normal: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   --transition-slow: 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Viewport / Keyboard */
+  --app-height: 100vh;
+  --app-offset-top: 0px;
+  --keyboard-height: 0px;
   
   /* Enhanced Shadows with glow */
   --shadow-subtle: 0 1px 3px rgba(0, 0, 0, 0.3);
@@ -519,6 +524,10 @@ body {
 .category-card:active {
   transform: scale(0.98);
   background: var(--ios-tertiary);
+}
+
+.category-card.archived {
+  opacity: 0.7;
 }
 
 .category-icon {
@@ -1201,18 +1210,12 @@ body {
   min-width: 0;
 }
 
-.goal-right {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 6px;
-  margin-left: auto;
-}
-
 .goal-amount {
   font-size: 16px;
   font-weight: 600;
   text-shadow: 0 0 10px currentColor;
+  margin-left: auto;
+  text-align: right;
 }
 
 .goal-name {
@@ -2435,10 +2438,10 @@ body {
 
 .modal-overlay {
   position: fixed;
-  top: 0;
+  top: var(--app-offset-top);
   left: 0;
   right: 0;
-  bottom: 0;
+  height: var(--app-height);
   background: rgba(0, 0, 0, 0.7);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
@@ -2465,11 +2468,22 @@ body {
   padding: var(--spacing-xl);
   width: 100%;
   max-width: 400px;
-  max-height: 90vh;
+  max-height: calc(var(--app-height) - (2 * var(--spacing-md)));
   overflow-y: auto;
   animation: slideUp 0.3s;
   border: 0.5px solid rgba(255, 255, 255, 0.1);
   box-shadow: var(--shadow-floating);
+  -webkit-overflow-scrolling: touch;
+  will-change: transform;
+}
+
+body.keyboard-open .modal-overlay {
+  align-items: flex-end;
+  padding-bottom: calc(var(--keyboard-height) + var(--spacing-md));
+}
+
+body.keyboard-open .modal-content {
+  animation: none;
 }
 
 @keyframes slideUp {
@@ -2825,35 +2839,6 @@ body {
   gap: 6px;
   margin-top: 6px;
   justify-content: flex-end;
-}
-
-.goal-actions {
-  display: flex;
-  gap: 6px;
-  margin-top: 6px;
-  justify-content: flex-end;
-  flex-wrap: nowrap;
-  white-space: nowrap;
-}
-
-.goal-card .goal-header .goal-actions {
-  margin-top: 0;
-  margin-left: 0;
-}
-
-.goal-action-btn {
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(0, 0, 0, 0.2);
-  color: var(--ios-text-primary);
-  font-size: 11px;
-  padding: 4px 6px;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all var(--transition-fast);
-}
-
-.goal-action-btn:hover {
-  background: rgba(255, 255, 255, 0.08);
 }
 
 .debt-action-btn {
