@@ -950,6 +950,18 @@ function toggleSettingsCard(forceState = null) {
     if (!card) return;
     const isExpanded = card.classList.contains('expanded');
     const shouldExpand = forceState !== null ? forceState : !isExpanded;
+    const items = card.querySelector('.settings-items');
+    if (items) {
+        const currentHeight = items.scrollHeight;
+        if (shouldExpand) {
+            items.style.maxHeight = `${currentHeight}px`;
+        } else {
+            items.style.maxHeight = `${currentHeight}px`;
+            requestAnimationFrame(() => {
+                items.style.maxHeight = '0px';
+            });
+        }
+    }
     card.classList.toggle('expanded', shouldExpand);
     card.classList.toggle('collapsed', !shouldExpand);
     const header = card.querySelector('.settings-header');
@@ -1392,7 +1404,12 @@ function updatePanelGoals() {
     if (!container) return;
     
     if (!goalsData || goalsData.length === 0) {
-        container.innerHTML = '';
+        container.innerHTML = `
+            <button class="add-category-btn" onclick="showAddGoalModal()">
+                <span>+</span>
+                <span>${t('Создать цель')}</span>
+            </button>
+        `;
         return;
     }
     
@@ -1424,6 +1441,13 @@ function updatePanelGoals() {
         `;
     });
     
+    html += `
+        <button class="add-category-btn" onclick="showAddGoalModal()">
+            <span>+</span>
+            <span>${t('Создать цель')}</span>
+        </button>
+    `;
+
     container.innerHTML = html;
 }
 
@@ -3721,7 +3745,7 @@ function addToGoal(goalId) {
     showAddTransactionModal();
 }
 
-async function addToGoalApi(goalId, amount) {
+async function addToGoalApi(goalId, amount, wallet) {
     if (!currentUser) return;
     
     try {
@@ -3731,12 +3755,18 @@ async function addToGoalApi(goalId, amount) {
             body: JSON.stringify({
                 user_id: currentUser.id,
                 goal_id: goalId,
-                amount: amount
+                amount: amount,
+                wallet: wallet
             })
         });
         
         const data = await response.json();
-        if (data.error) throw new Error(data.error);
+        if (data.error) {
+            if (data.error === 'insufficient_funds') {
+                throw new Error('insufficient_funds');
+            }
+            throw new Error(data.error);
+        }
         
         // Обновляем цели и связанные показатели
         await loadGoals();
@@ -4498,11 +4528,16 @@ async function submitTransaction(e) {
     if (currentTransactionType === 'savings') {
         if (!isEditing && currentSavingsDestination === 'goal' && selectedGoalId) {
             try {
-                await addToGoalApi(selectedGoalId, amount);
+                const walletForGoal = walletSelect ? walletSelect.value : defaultWallet;
+                await addToGoalApi(selectedGoalId, amount, walletForGoal);
                 goalAdded = true;
                 showNotification('Накопления добавлены в цель', 'success');
             } catch (error) {
                 console.error('❌ Ошибка добавления в цель:', error);
+                if (error && error.message === 'insufficient_funds') {
+                    showNotification('Недостаточно средств на выбранном кошельке', 'error');
+                    return;
+                }
                 showNotification('Ошибка добавления в цель', 'error');
                 return;
             }

@@ -1816,6 +1816,7 @@ def add_to_goal():
         user_id = data.get('user_id')
         goal_id = data.get('goal_id')
         amount = data.get('amount')
+        wallet = data.get('wallet')
         
         if not all([user_id, goal_id, amount]):
             return jsonify({'error': 'Missing fields'}), 400
@@ -1831,8 +1832,20 @@ def add_to_goal():
             # Обновляем прогресс цели
             success = db.update_goal_progress(goal_id, amount)
             if success:
-                # Также добавляем транзакцию накопления
-                transaction_id = db.add_transaction(user_id, 'expense', amount, 'Накопления', 'Копилка', f'Накопления в цель ID: {goal_id}')
+                # Также добавляем транзакцию накопления с выбранным кошельком
+                if not wallet:
+                    wallet = db.get_effective_default_wallet(user_id)
+                wallet_balance = db.get_wallet_balance(user_id, wallet)
+                if amount > wallet_balance:
+                    return jsonify({'error': 'insufficient_funds'}), 400
+                transaction_id = db.add_transaction(
+                    user_id,
+                    'expense',
+                    amount,
+                    'Накопления',
+                    wallet,
+                    f'Накопления в цель ID: {goal_id}'
+                )
                 
                 return jsonify({
                     'success': True,
