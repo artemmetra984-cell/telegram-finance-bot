@@ -652,7 +652,8 @@ def init_user():
                     'icon': goal['icon'],
                     'color': goal['color'],
                     'deadline': goal['deadline'],
-                    'progress': goal['progress']
+                    'progress': goal['progress'],
+                    'archived': bool(goal['archived']) if 'archived' in goal.keys() else False
                 })
             
             recent = db.get_recent_transactions(user_id, limit=10)
@@ -1800,12 +1801,132 @@ def add_goal():
             goal_id = db.add_goal(user_id, name, target_amount, icon, color, deadline)
             return jsonify({
                 'success': True,
-                'goal_id': goal_id
+                'goal_id': goal_id,
+                'goal': {
+                    'id': goal_id,
+                    'name': name,
+                    'target_amount': target_amount,
+                    'current_amount': 0,
+                    'icon': icon,
+                    'color': color,
+                    'deadline': deadline,
+                    'progress': 0,
+                    'archived': False
+                }
             })
         else:
             return jsonify({'error': 'Database error'}), 500
     except Exception as e:
         print(f"Add goal error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/goal/update', methods=['POST'])
+def update_goal():
+    try:
+        data = request.json or {}
+        user_id = data.get('user_id')
+        goal_id = data.get('goal_id')
+        name = data.get('name')
+        target_amount = data.get('target_amount')
+        icon = data.get('icon', '🎯')
+        color = data.get('color', '#FF9500')
+        deadline = data.get('deadline')
+
+        if not all([user_id, goal_id, name, target_amount]):
+            return jsonify({'error': 'Missing fields'}), 400
+
+        try:
+            target_amount = float(target_amount)
+            if target_amount <= 0:
+                return jsonify({'error': 'Amount must be positive'}), 400
+        except ValueError:
+            return jsonify({'error': 'Invalid amount'}), 400
+
+        if not db:
+            return jsonify({'error': 'Database error'}), 500
+
+        try:
+            goal_id = int(goal_id)
+        except (TypeError, ValueError):
+            return jsonify({'error': 'Invalid goal_id'}), 400
+
+        goal = db.get_goal_by_id(user_id, goal_id)
+        if not goal:
+            return jsonify({'error': 'Goal not found'}), 404
+
+        if not db.update_goal(user_id, goal_id, name, target_amount, icon, color, deadline):
+            return jsonify({'error': 'Goal not found'}), 404
+
+        updated = db.get_goal_by_id(user_id, goal_id)
+        progress = 0
+        if updated and updated['target_amount']:
+            progress = (float(updated['current_amount']) / float(updated['target_amount'])) * 100 if float(updated['target_amount']) else 0
+
+        return jsonify({
+            'success': True,
+            'goal': {
+                'id': updated['id'],
+                'name': updated['name'],
+                'target_amount': updated['target_amount'],
+                'current_amount': updated['current_amount'],
+                'icon': updated['icon'],
+                'color': updated['color'],
+                'deadline': updated['deadline'],
+                'progress': progress,
+                'archived': bool(updated['archived'])
+            }
+        })
+    except Exception as e:
+        print(f"Update goal error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/goal/archive', methods=['POST'])
+def archive_goal():
+    try:
+        data = request.json or {}
+        user_id = data.get('user_id')
+        goal_id = data.get('goal_id')
+        archived = data.get('archived', True)
+
+        if user_id is None or goal_id is None:
+            return jsonify({'error': 'Missing fields'}), 400
+
+        if not db:
+            return jsonify({'error': 'Database error'}), 500
+
+        try:
+            goal_id = int(goal_id)
+        except (TypeError, ValueError):
+            return jsonify({'error': 'Invalid goal_id'}), 400
+
+        goal = db.get_goal_by_id(user_id, goal_id)
+        if not goal:
+            return jsonify({'error': 'Goal not found'}), 404
+
+        if not db.set_goal_archived(user_id, goal_id, bool(archived)):
+            return jsonify({'error': 'Goal not found'}), 404
+
+        updated = db.get_goal_by_id(user_id, goal_id)
+        progress = 0
+        if updated and updated['target_amount']:
+            progress = (float(updated['current_amount']) / float(updated['target_amount'])) * 100 if float(updated['target_amount']) else 0
+
+        return jsonify({
+            'success': True,
+            'goal': {
+                'id': updated['id'],
+                'name': updated['name'],
+                'target_amount': updated['target_amount'],
+                'current_amount': updated['current_amount'],
+                'icon': updated['icon'],
+                'color': updated['color'],
+                'deadline': updated['deadline'],
+                'progress': progress,
+                'archived': bool(updated['archived'])
+            }
+        })
+    except Exception as e:
+        print(f"Archive goal error: {e}")
         return jsonify({'error': str(e)}), 500
 
 # НОВЫЙ ЭНДПОИНТ: Добавить накопления в цель
@@ -1829,6 +1950,15 @@ def add_to_goal():
             return jsonify({'error': 'Invalid amount'}), 400
         
         if db:
+            try:
+                goal_id = int(goal_id)
+            except (TypeError, ValueError):
+                return jsonify({'error': 'Invalid goal_id'}), 400
+            goal = db.get_goal_by_id(user_id, goal_id)
+            if not goal:
+                return jsonify({'error': 'Goal not found'}), 404
+            if goal['archived']:
+                return jsonify({'error': 'goal_archived'}), 400
             # Обновляем прогресс цели
             success = db.update_goal_progress(goal_id, amount)
             if success:
@@ -2074,7 +2204,8 @@ def get_goals():
                     'icon': goal['icon'],
                     'color': goal['color'],
                     'deadline': goal['deadline'],
-                    'progress': goal['progress']
+                    'progress': goal['progress'],
+                    'archived': bool(goal['archived']) if 'archived' in goal.keys() else False
                 })
             return jsonify(result)
         else:

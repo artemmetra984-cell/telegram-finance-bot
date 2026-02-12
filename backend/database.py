@@ -102,6 +102,7 @@ class Database:
                 icon TEXT DEFAULT '🎯',
                 color TEXT DEFAULT '#FF9500',
                 deadline TEXT,
+                archived INTEGER DEFAULT 0,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (user_id) REFERENCES users (id)
             )
@@ -272,6 +273,11 @@ class Database:
         # Миграция: поле archived для долгов
         try:
             cursor.execute("ALTER TABLE debts ADD COLUMN archived INTEGER DEFAULT 0")
+        except sqlite3.OperationalError:
+            pass
+        # Миграция: поле archived для целей
+        try:
+            cursor.execute("ALTER TABLE goals ADD COLUMN archived INTEGER DEFAULT 0")
         except sqlite3.OperationalError:
             pass
         # Миграция: долг (сумма и комментарий)
@@ -788,11 +794,17 @@ class Database:
         cursor = self.conn.cursor()
         owner_id = self._resolve_owner_id(user_id)
         cursor.execute('''
-            SELECT id, name, target_amount, current_amount, icon, color, deadline,
+            SELECT id, name, target_amount, current_amount, icon, color, deadline, archived,
                    (current_amount / target_amount * 100) as progress
-            FROM goals WHERE user_id = ? ORDER BY created_at DESC
+            FROM goals WHERE user_id = ? ORDER BY archived ASC, created_at DESC
         ''', (owner_id,))
         return cursor.fetchall()
+
+    def get_goal_by_id(self, user_id, goal_id):
+        cursor = self.conn.cursor()
+        owner_id = self._resolve_owner_id(user_id)
+        cursor.execute('SELECT * FROM goals WHERE id = ? AND user_id = ?', (goal_id, owner_id))
+        return cursor.fetchone()
     
     def add_goal(self, user_id, name, target_amount, icon, color, deadline=None):
         cursor = self.conn.cursor()
@@ -803,6 +815,24 @@ class Database:
         ''', (owner_id, name, target_amount, icon, color, deadline))
         self.conn.commit()
         return cursor.lastrowid
+
+    def update_goal(self, user_id, goal_id, name, target_amount, icon, color, deadline=None):
+        cursor = self.conn.cursor()
+        owner_id = self._resolve_owner_id(user_id)
+        cursor.execute('''
+            UPDATE goals
+            SET name = ?, target_amount = ?, icon = ?, color = ?, deadline = ?
+            WHERE id = ? AND user_id = ?
+        ''', (name, target_amount, icon, color, deadline, goal_id, owner_id))
+        self.conn.commit()
+        return cursor.rowcount > 0
+
+    def set_goal_archived(self, user_id, goal_id, archived):
+        cursor = self.conn.cursor()
+        owner_id = self._resolve_owner_id(user_id)
+        cursor.execute('UPDATE goals SET archived = ? WHERE id = ? AND user_id = ?', (1 if archived else 0, goal_id, owner_id))
+        self.conn.commit()
+        return cursor.rowcount > 0
     
     def update_goal_progress(self, goal_id, amount):
         cursor = self.conn.cursor()

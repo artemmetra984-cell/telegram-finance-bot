@@ -499,6 +499,14 @@
                         </button>
                     </div>
 
+                    <!-- Поддержка -->
+                    <div class="service-card">
+                        <button class="service-link service-link-compact" onclick="openSupportChat()">
+                            <span data-i18n="Поддержка">Поддержка</span>
+                            <span class="service-link-arrow">→</span>
+                        </button>
+                    </div>
+
                 </div>
             </div>
 
@@ -703,7 +711,10 @@
             <div class="modal-content subscription-modal">
                 <div class="article-modal-header">
                     <div class="article-modal-title" data-i18n="Подписка">Подписка</div>
-                    <button class="article-close" onclick="closeSubscriptionModal()">✕</button>
+                    <div class="article-modal-actions">
+                        <button class="support-icon" onclick="openSupportChat()" title="Поддержка">💬</button>
+                        <button class="article-close" onclick="closeSubscriptionModal()">✕</button>
+                    </div>
                 </div>
                 <div class="article-modal-body">
                     <div class="subscription-card">
@@ -949,7 +960,7 @@
     <div id="add-goal-modal" class="modal-overlay">
         <div class="modal-content">
             <div class="modal-header">
-                <div class="modal-title" data-i18n="Новая цель">Новая цель</div>
+                <div class="modal-title" id="goal-modal-title" data-i18n="Новая цель">Новая цель</div>
             </div>
             
             <form id="add-goal-form">
@@ -1002,7 +1013,7 @@
                         <span data-i18n="Отмена">Отмена</span>
                     </button>
                     <button type="submit" class="modal-btn primary">
-                        <span data-i18n="Создать цель">Создать цель</span>
+                        <span id="goal-submit-text" data-i18n="Создать цель">Создать цель</span>
                     </button>
                 </div>
             </form>

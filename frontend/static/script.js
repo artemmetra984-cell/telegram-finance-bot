@@ -28,6 +28,7 @@ let selectedGoalId = null;
 let editingTransactionId = null;
 let currentMonthTransactions = [];
 let isCreatingGoal = false;
+let editingGoalId = null;
 let debtsEnabled = false;
 let currentDebtId = null;
 let editingDebtId = null;
@@ -219,6 +220,11 @@ const translations = {
         'Дата окончания': 'End date',
         'Цвет прогресс-бара': 'Progress bar color',
         'Создать цель': 'Create goal',
+        'Изменить цель': 'Edit goal',
+        'Цель обновлена': 'Goal updated',
+        'Цель архивирована': 'Goal archived',
+        'Цель возвращена': 'Goal restored',
+        'Цель в архиве': 'Goal is archived',
         'Выберите месяц': 'Select month',
         'Например: Тинькофф': 'Example: Tinkoff',
         'Сделать кошельком по умолчанию': 'Set as default wallet',
@@ -245,6 +251,7 @@ const translations = {
         'Акции': 'Stocks',
         'Топ роста': 'Top gainers',
         'Топ падения': 'Top losers',
+        'Поддержка': 'Support',
         'Закрыть': 'Close',
         'Все категории': 'All categories',
         'Нет данных для отображения': 'No data to display',
@@ -1012,7 +1019,7 @@ function updateSectionTotals() {
     
     // Цели
     let goalsTotal = 0;
-    goalsData.forEach(goal => {
+    goalsData.filter(goal => !goal.archived).forEach(goal => {
         goalsTotal += parseFloat(goal.current_amount) || 0;
     });
     const goalsSummaryEl = document.getElementById('goals-summary');
@@ -1402,21 +1409,14 @@ async function setDebtsEnabled(enabled) {
 function updatePanelGoals() {
     const container = document.getElementById('panel-goals');
     if (!container) return;
-    
-    if (!goalsData || goalsData.length === 0) {
-        container.innerHTML = `
-            <button class="add-category-btn" onclick="showAddGoalModal()">
-                <span>+</span>
-                <span>${t('Создать цель')}</span>
-            </button>
-        `;
-        return;
-    }
-    
-    let html = '';
+
+    const activeGoals = (goalsData || []).filter(goal => !goal.archived);
+    const archivedGoals = (goalsData || []).filter(goal => goal.archived);
     const symbol = currencySymbols[currentCurrency] || '₽';
+
+    let html = '';
     
-    goalsData.forEach(goal => {
+    activeGoals.forEach(goal => {
         const currentAmount = parseFloat(goal.current_amount) || 0;
         const targetAmount = parseFloat(goal.target_amount) || 0;
         const progress = targetAmount > 0 ? Math.min((currentAmount / targetAmount) * 100, 100) : 0;
@@ -1436,6 +1436,10 @@ function updatePanelGoals() {
                 </div>
                 <div class="category-amount" style="color: ${color};">
                     ${progress.toFixed(0)}%
+                    <div class="goal-actions">
+                        <button class="goal-action-btn" onclick="event.stopPropagation(); showAddGoalModal(${goal.id})">✎</button>
+                        <button class="goal-action-btn" onclick="event.stopPropagation(); archiveGoal(${goal.id}, true)">${t('Архивировать')}</button>
+                    </div>
                 </div>
             </button>
         `;
@@ -1447,6 +1451,40 @@ function updatePanelGoals() {
             <span>${t('Создать цель')}</span>
         </button>
     `;
+
+    if (archivedGoals.length > 0) {
+        html += `
+            <div class="goal-archive-block">
+                <div class="goal-archive-title">${t('Архив')}</div>
+                ${archivedGoals.map(goal => {
+                    const currentAmount = parseFloat(goal.current_amount) || 0;
+                    const targetAmount = parseFloat(goal.target_amount) || 0;
+                    const progress = targetAmount > 0 ? Math.min((currentAmount / targetAmount) * 100, 100) : 0;
+                    const color = goal.color || '#FF9500';
+                    const icon = goal.icon || '🎯';
+                    return `
+                        <div class="category-card goal-card archived">
+                            <div class="category-icon" style="background: ${color}20; color: ${color}; box-shadow: 0 0 15px ${color}50;">
+                                ${icon}
+                            </div>
+                            <div class="category-info">
+                                <div class="category-name">
+                                    <span class="category-name-text">${goal.name}</span>
+                                </div>
+                                <div class="category-stats">${t('Цель')}: ${formatCurrency(currentAmount)} / ${formatCurrency(targetAmount)} ${symbol}</div>
+                            </div>
+                            <div class="category-amount" style="color: ${color};">
+                                ${progress.toFixed(0)}%
+                                <div class="goal-actions">
+                                    <button class="goal-action-btn" onclick="archiveGoal(${goal.id}, false)">${t('Вернуть')}</button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+        `;
+    }
 
     container.innerHTML = html;
 }
@@ -2006,6 +2044,17 @@ function openSubscriptionModal() {
     updateSubscriptionUI();
     refreshSubscriptionInfo();
     startSubscriptionPolling();
+}
+
+function openSupportChat() {
+    const url = 'https://t.me/finsupp';
+    if (window.Telegram && Telegram.WebApp && Telegram.WebApp.openTelegramLink) {
+        try {
+            Telegram.WebApp.openTelegramLink(url);
+            return;
+        } catch (e) {}
+    }
+    window.open(url, '_blank');
 }
 
 function getSubscriptionPrice(months) {
@@ -3673,6 +3722,9 @@ async function loadGoals() {
         const response = await fetch('/api/goals?user_id=' + currentUser.id);
         const goals = await response.json();
         goalsData = goals;
+        if (selectedGoalId && !goalsData.some(goal => goal.id === selectedGoalId && !goal.archived)) {
+            selectedGoalId = null;
+        }
         updateGoalsDisplay();
         updatePanelGoals();
     } catch (error) {
@@ -3683,22 +3735,56 @@ async function loadGoals() {
 function updateGoalsDisplay() {
     const container = document.getElementById('goals-list');
     if (!container) return;
-    
-    if (!goalsData || goalsData.length === 0) {
+
+    const activeGoals = (goalsData || []).filter(goal => !goal.archived);
+    const archivedGoals = (goalsData || []).filter(goal => goal.archived);
+    const symbol = currencySymbols[currentCurrency] || '₽';
+
+    if (activeGoals.length === 0) {
         container.innerHTML = `
             <button class="add-goal-btn" onclick="showAddGoalModal()">
                 <div style="font-size: 32px; margin-bottom: 8px;">🎯</div>
                 <div style="font-size: 16px; font-weight: 500; margin-bottom: 4px;">${t('Добавить первую цель')}</div>
                 <div style="font-size: 13px; color: var(--ios-text-tertiary);">${t('Нажмите чтобы начать')}</div>
             </button>
+            ${archivedGoals.length > 0 ? `<div class="goal-archive-block"><div class="goal-archive-title">${t('Архив')}</div>${archivedGoals.map(goal => {
+                const currentAmount = parseFloat(goal.current_amount) || 0;
+                const targetAmount = parseFloat(goal.target_amount) || 0;
+                const progress = targetAmount > 0 ? Math.min((currentAmount / targetAmount) * 100, 100) : 0;
+                const color = goal.color || '#FF9500';
+                const icon = goal.icon || '🎯';
+                return `
+                    <div class="goal-card archived">
+                        <div class="goal-header">
+                            <div class="goal-icon" style="background: ${color}20; color: ${color}; box-shadow: 0 0 25px ${color}80;">${icon}</div>
+                            <div class="goal-info">
+                                <div class="goal-name">${goal.name}</div>
+                                <div class="goal-date">${goal.deadline || t('Бессрочная')}</div>
+                            </div>
+                            <div style="font-size: 16px; font-weight: 600; text-shadow: 0 0 10px ${color}80;">${formatCurrency(currentAmount)} / ${formatCurrency(targetAmount)} ${symbol}</div>
+                            <div class="goal-actions">
+                                <button class="goal-action-btn" onclick="archiveGoal(${goal.id}, false)">${t('Вернуть')}</button>
+                            </div>
+                        </div>
+                        <div class="goal-progress">
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: ${progress}%; background: ${color}; box-shadow: 0 0 15px ${color}80;"></div>
+                            </div>
+                            <div class="progress-text">
+                                <span>${t('Прогресс')}</span>
+                                <span>${progress.toFixed(1)}%</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('')}</div>` : ''}
         `;
         return;
     }
     
     let html = '';
-    const symbol = currencySymbols[currentCurrency] || '₽';
     
-    goalsData.forEach(goal => {
+    activeGoals.forEach(goal => {
         const currentAmount = parseFloat(goal.current_amount) || 0;
         const targetAmount = parseFloat(goal.target_amount) || 0;
         const progress = targetAmount > 0 ? Math.min((currentAmount / targetAmount) * 100, 100) : 0;
@@ -3714,6 +3800,10 @@ function updateGoalsDisplay() {
                         <div class="goal-date">${goal.deadline || t('Бессрочная')}</div>
                     </div>
                     <div style="font-size: 16px; font-weight: 600; text-shadow: 0 0 10px ${color}80;">${formatCurrency(currentAmount)} / ${formatCurrency(targetAmount)} ${symbol}</div>
+                    <div class="goal-actions">
+                        <button class="goal-action-btn" onclick="event.stopPropagation(); showAddGoalModal(${goal.id})">✎</button>
+                        <button class="goal-action-btn" onclick="event.stopPropagation(); archiveGoal(${goal.id}, true)">${t('Архивировать')}</button>
+                    </div>
                 </div>
                 <div class="goal-progress">
                     <div class="progress-bar">
@@ -3734,15 +3824,91 @@ function updateGoalsDisplay() {
             <div style="font-size: 15px; font-weight: 500;">${t('Добавить цель')}</div>
         </button>
     `;
+
+    if (archivedGoals.length > 0) {
+        html += `
+            <div class="goal-archive-block">
+                <div class="goal-archive-title">${t('Архив')}</div>
+                ${archivedGoals.map(goal => {
+                    const currentAmount = parseFloat(goal.current_amount) || 0;
+                    const targetAmount = parseFloat(goal.target_amount) || 0;
+                    const progress = targetAmount > 0 ? Math.min((currentAmount / targetAmount) * 100, 100) : 0;
+                    const color = goal.color || '#FF9500';
+                    const icon = goal.icon || '🎯';
+                    return `
+                        <div class="goal-card archived">
+                            <div class="goal-header">
+                                <div class="goal-icon" style="background: ${color}20; color: ${color}; box-shadow: 0 0 25px ${color}80;">${icon}</div>
+                                <div class="goal-info">
+                                    <div class="goal-name">${goal.name}</div>
+                                    <div class="goal-date">${goal.deadline || t('Бессрочная')}</div>
+                                </div>
+                                <div style="font-size: 16px; font-weight: 600; text-shadow: 0 0 10px ${color}80;">${formatCurrency(currentAmount)} / ${formatCurrency(targetAmount)} ${symbol}</div>
+                                <div class="goal-actions">
+                                    <button class="goal-action-btn" onclick="archiveGoal(${goal.id}, false)">${t('Вернуть')}</button>
+                                </div>
+                            </div>
+                            <div class="goal-progress">
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: ${progress}%; background: ${color}; box-shadow: 0 0 15px ${color}80;"></div>
+                                </div>
+                                <div class="progress-text">
+                                    <span>${t('Прогресс')}</span>
+                                    <span>${progress.toFixed(1)}%</span>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+        `;
+    }
     
     container.innerHTML = html;
 }
 
 function addToGoal(goalId) {
+    const goal = goalsData.find(g => g.id === goalId);
+    if (goal && goal.archived) {
+        showNotification(t('Цель в архиве'), 'error');
+        return;
+    }
     selectedGoalId = goalId;
     currentTransactionType = 'savings';
     currentSavingsDestination = 'goal';
     showAddTransactionModal();
+}
+
+async function archiveGoal(goalId, archived) {
+    if (!currentUser) return;
+    try {
+        const response = await fetch('/api/goal/archive', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                user_id: currentUser.id,
+                goal_id: goalId,
+                archived: !!archived
+            })
+        });
+        const data = await response.json();
+        if (data.error) throw new Error(data.error);
+        if (data.goal) {
+            goalsData = goalsData.map(g => g.id === data.goal.id ? { ...g, ...data.goal } : g);
+        } else {
+            goalsData = goalsData.map(g => g.id === goalId ? { ...g, archived: !!archived } : g);
+        }
+        if (archived && selectedGoalId === goalId) {
+            selectedGoalId = null;
+        }
+        updateGoalsDisplay();
+        updatePanelGoals();
+        updateSectionTotals();
+        showNotification(archived ? t('Цель архивирована') : t('Цель возвращена'), 'success');
+    } catch (error) {
+        console.error('❌ Ошибка архивации цели:', error);
+        showNotification('Ошибка сохранения', 'error');
+    }
 }
 
 async function addToGoalApi(goalId, amount, wallet) {
@@ -3764,6 +3930,9 @@ async function addToGoalApi(goalId, amount, wallet) {
         if (data.error) {
             if (data.error === 'insufficient_funds') {
                 throw new Error('insufficient_funds');
+            }
+            if (data.error === 'goal_archived') {
+                throw new Error('goal_archived');
             }
             throw new Error(data.error);
         }
@@ -4300,7 +4469,8 @@ function setupSavingsDestination() {
         amountField.insertAdjacentHTML('afterend', destinationHTML);
         
         // Если есть цели, добавляем выбор цели
-        if (goalsData.length > 0 && currentSavingsDestination === 'goal') {
+        const activeGoals = goalsData.filter(goal => !goal.archived);
+        if (activeGoals.length > 0 && currentSavingsDestination === 'goal') {
             const goalSelectorHTML = `
                 <div class="form-group" id="goal-selector">
                     <label class="form-label">${t('Выберите цель')}</label>
@@ -4417,13 +4587,14 @@ function selectSavingsDestination(destination) {
     // Обновляем выбор цели
     const goalSelector = document.getElementById('goal-selector');
     if (goalSelector) {
-        if (destination === 'goal' && goalsData.length > 0) {
+        const activeGoals = goalsData.filter(goal => !goal.archived);
+        if (destination === 'goal' && activeGoals.length > 0) {
             goalSelector.style.display = 'block';
             document.getElementById('goal-options').innerHTML = generateGoalOptions();
         } else {
             goalSelector.style.display = 'none';
         }
-    } else if (destination === 'goal' && goalsData.length > 0) {
+    } else if (destination === 'goal' && goalsData.filter(goal => !goal.archived).length > 0) {
         // Создаем выбор цели если его нет
         const goalSelectorHTML = `
             <div class="form-group" id="goal-selector">
@@ -4442,8 +4613,8 @@ function selectSavingsDestination(destination) {
 
 function generateGoalOptions() {
     const symbol = currencySymbols[currentCurrency] || '₽';
-    
-    return goalsData.map(goal => {
+    const activeGoals = goalsData.filter(goal => !goal.archived);
+    return activeGoals.map(goal => {
         const currentAmount = parseFloat(goal.current_amount) || 0;
         const targetAmount = parseFloat(goal.target_amount) || 0;
         const progress = targetAmount > 0 ? Math.min((currentAmount / targetAmount) * 100, 100) : 0;
@@ -4536,6 +4707,10 @@ async function submitTransaction(e) {
                 console.error('❌ Ошибка добавления в цель:', error);
                 if (error && error.message === 'insufficient_funds') {
                     showNotification('Недостаточно средств на выбранном кошельке', 'error');
+                    return;
+                }
+                if (error && error.message === 'goal_archived') {
+                    showNotification(t('Цель в архиве'), 'error');
                     return;
                 }
                 showNotification('Ошибка добавления в цель', 'error');
@@ -4809,10 +4984,29 @@ async function addNewCategory() {
     }
 }
 
-function showAddGoalModal() {
+function showAddGoalModal(goalId = null) {
     const modal = document.getElementById('add-goal-modal');
     if (!modal) return;
-    
+    editingGoalId = goalId;
+
+    const titleEl = document.getElementById('goal-modal-title');
+    const submitText = document.getElementById('goal-submit-text');
+    const nameInput = document.getElementById('goal-name-input');
+    const amountInput = document.getElementById('goal-target-amount');
+    const deadlineSelect = document.getElementById('goal-deadline');
+    const customDateInput = document.getElementById('goal-custom-date');
+    const customDateContainer = document.getElementById('custom-date-container');
+
+    const goal = editingGoalId ? goalsData.find(g => g.id === editingGoalId) : null;
+    if (titleEl) titleEl.textContent = goal ? t('Изменить цель') : t('Новая цель');
+    if (submitText) submitText.textContent = goal ? t('Сохранить') : t('Создать цель');
+
+    if (nameInput) nameInput.value = goal?.name || '';
+    if (amountInput) amountInput.value = goal?.target_amount || '';
+    if (deadlineSelect) deadlineSelect.value = 'none';
+    if (customDateInput) customDateInput.value = '';
+    if (customDateContainer) customDateContainer.style.display = 'none';
+
     // Заполняем иконки
     const iconsGrid = document.getElementById('goal-icons-grid');
     if (iconsGrid) {
@@ -4834,7 +5028,15 @@ function showAddGoalModal() {
             
             iconsGrid.appendChild(button);
         });
-        if (iconsGrid.firstChild) iconsGrid.firstChild.classList.add('selected');
+        const selectedIcon = goal?.icon || iconsGrid.firstChild?.dataset.icon;
+        const selectedButton = selectedIcon
+            ? iconsGrid.querySelector(`.icon-option[data-icon="${selectedIcon}"]`)
+            : null;
+        if (selectedButton) {
+            selectedButton.classList.add('selected');
+        } else if (iconsGrid.firstChild) {
+            iconsGrid.firstChild.classList.add('selected');
+        }
     }
     
     // Заполняем цвета
@@ -4856,16 +5058,34 @@ function showAddGoalModal() {
             
             colorGrid.appendChild(div);
         });
-        if (colorGrid.firstChild) colorGrid.firstChild.classList.add('selected');
+        const selectedColor = goal?.color || colorGrid.firstChild?.dataset.color;
+        const selectedDiv = selectedColor
+            ? colorGrid.querySelector(`.color-option-small[data-color="${selectedColor}"]`)
+            : null;
+        if (selectedDiv) {
+            selectedDiv.classList.add('selected');
+        } else if (colorGrid.firstChild) {
+            colorGrid.firstChild.classList.add('selected');
+        }
     }
     
     // Обработчик выбора срока
-    const deadlineSelect = document.getElementById('goal-deadline');
-    const customDateContainer = document.getElementById('custom-date-container');
-    
-    deadlineSelect.onchange = function() {
-        customDateContainer.style.display = this.value === 'custom' ? 'block' : 'none';
-    };
+    if (deadlineSelect && customDateContainer) {
+        deadlineSelect.onchange = function() {
+            customDateContainer.style.display = this.value === 'custom' ? 'block' : 'none';
+        };
+    }
+
+    if (goal && deadlineSelect) {
+        const optionMatch = Array.from(deadlineSelect.options).find(option => option.text === goal.deadline);
+        if (optionMatch) {
+            deadlineSelect.value = optionMatch.value;
+        } else if (goal.deadline) {
+            deadlineSelect.value = 'custom';
+            if (customDateInput) customDateInput.value = goal.deadline;
+            if (customDateContainer) customDateContainer.style.display = 'block';
+        }
+    }
     
     modal.classList.add('active');
     
@@ -4921,33 +5141,48 @@ async function addNewGoal(e) {
             isCreatingGoal = false;
             return;
         }
-        const response = await fetch('/api/add_goal', {
+        const isEditing = !!editingGoalId;
+        const endpoint = isEditing ? '/api/goal/update' : '/api/add_goal';
+        const payload = {
+            user_id: currentUser.id,
+            name: name,
+            target_amount: amount,
+            icon: icon,
+            color: color,
+            deadline: deadline
+        };
+        if (isEditing) payload.goal_id = editingGoalId;
+
+        const response = await fetch(endpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                user_id: currentUser.id,
-                name: name,
-                target_amount: amount,
-                icon: icon,
-                color: color,
-                deadline: deadline
-            })
+            body: JSON.stringify(payload)
         });
         
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         const data = await response.json();
         if (data.error) throw new Error(data.error);
         
-        // Добавляем цель в данные
-        goalsData.push({
-            id: data.goal_id,
-            name: name,
-            target_amount: amount,
-            current_amount: 0,
-            icon: icon,
-            color: color,
-            deadline: deadline
-        });
+        if (data.goal) {
+            const goalData = data.goal;
+            const existingIndex = goalsData.findIndex(g => g.id === goalData.id);
+            if (existingIndex >= 0) {
+                goalsData[existingIndex] = { ...goalsData[existingIndex], ...goalData };
+            } else {
+                goalsData.unshift(goalData);
+            }
+        } else if (data.goal_id) {
+            goalsData.push({
+                id: data.goal_id,
+                name: name,
+                target_amount: amount,
+                current_amount: 0,
+                icon: icon,
+                color: color,
+                deadline: deadline,
+                archived: false
+            });
+        }
         
         // Обновляем интерфейс
         updateGoalsDisplay();
@@ -4958,7 +5193,8 @@ async function addNewGoal(e) {
         nameInput.value = '';
         amountInput.value = '';
         
-        showNotification(`${t('Цель создана')}: ${name}`, 'success');
+        showNotification(isEditing ? t('Цель обновлена') : `${t('Цель создана')}: ${name}`, 'success');
+        editingGoalId = null;
         isCreatingGoal = false;
         
     } catch (error) {
@@ -5438,6 +5674,9 @@ function closeModal(modalId) {
     if (modalId === 'add-transaction-modal') {
         resetTransactionEditing();
     }
+    if (modalId === 'add-goal-modal') {
+        editingGoalId = null;
+    }
 }
 
 function exportData() {
@@ -5681,12 +5920,14 @@ window.closeCompoundCalculator = closeCompoundCalculator;
 window.openInvestAll = openInvestAll;
 window.closeMarketModal = closeMarketModal;
 window.openSubscriptionModal = openSubscriptionModal;
+window.openSupportChat = openSupportChat;
 window.closeSubscriptionModal = closeSubscriptionModal;
 window.openDebtModal = openDebtModal;
 window.closeDebtModal = closeDebtModal;
 window.openDebtPayment = openDebtPayment;
 window.deleteDebt = deleteDebt;
 window.archiveDebt = archiveDebt;
+window.archiveGoal = archiveGoal;
 window.copySubscriptionAddress = copySubscriptionAddress;
 window.createCryptoPayPayment = createCryptoPayPayment;
 window.checkSubscriptionStatus = checkSubscriptionStatus;

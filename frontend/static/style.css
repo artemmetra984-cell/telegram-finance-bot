@@ -1182,6 +1182,7 @@ body {
   align-items: center;
   gap: var(--spacing-md);
   margin-bottom: var(--spacing-md);
+  flex-wrap: wrap;
 }
 
 .goal-icon {
@@ -1883,6 +1884,33 @@ body {
   justify-content: space-between;
   gap: var(--spacing-md);
   margin-bottom: var(--spacing-md);
+}
+
+.article-modal-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.support-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 18px;
+  border: 1px solid var(--ios-tertiary);
+  background: var(--ios-elevated);
+  color: var(--ios-accent);
+  cursor: pointer;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 10px var(--ios-accent-glow);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.support-icon:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 0 14px var(--ios-accent-glow);
 }
 
 .article-modal-title {
@@ -2785,6 +2813,34 @@ body {
   justify-content: flex-end;
 }
 
+.goal-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.goal-card .goal-header .goal-actions {
+  margin-top: 0;
+  margin-left: auto;
+}
+
+.goal-action-btn {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.2);
+  color: var(--ios-text-primary);
+  font-size: 11px;
+  padding: 4px 6px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.goal-action-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
 .debt-action-btn {
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(0, 0, 0, 0.2);
@@ -2803,6 +2859,24 @@ body {
 .debt-archive-block {
   padding: var(--spacing-md);
   border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.goal-archive-block {
+  margin-top: var(--spacing-md);
+  padding-top: var(--spacing-md);
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.goal-archive-title {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ios-text-tertiary);
+  margin-bottom: var(--spacing-sm);
+}
+
+.goal-card.archived {
+  opacity: 0.7;
 }
 
 .debt-archive-title {
