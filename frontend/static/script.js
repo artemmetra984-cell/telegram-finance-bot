@@ -28,7 +28,8 @@ let editingTransactionId = null;
 let currentMonthTransactions = [];
 let isCreatingGoal = false;
 let debtsEnabled = false;
-const debtTargetAmount = 30000;
+let debtTargetAmount = 0;
+let debtNote = '';
 let compoundListenersInitialized = false;
 const compoundStorageKey = 'finance_compound_calc';
 let marketState = { crypto: 'gainers', stocks: 'gainers' };
@@ -339,6 +340,12 @@ const translations = {
         'Добавить долг': 'Add debt',
         'Долг добавлен': 'Debt added',
         'Погашено': 'Paid',
+        'Создать долг': 'Create debt',
+        'Сумма долга': 'Debt amount',
+        'Комментарий (необязательно)': 'Comment (optional)',
+        'Долг создан': 'Debt created',
+        'Сначала создайте долг': 'Create a debt first',
+        'Например: Рассрочка': 'Example: Installment',
         'Зарплата': 'Salary',
         'Фриланс': 'Freelance',
         'Инвестиции': 'Investments',
@@ -859,6 +866,8 @@ async function initUser() {
         categoryStats = data.category_stats || { income: {}, expense: {}, wallets: {} };
         allTransactions = data.recent_transactions || [];
         debtsEnabled = !!data.debts_enabled;
+        debtTargetAmount = Number(data.debt_target_amount) || 0;
+        debtNote = data.debt_note || '';
         subscriptionActive = !!data.subscription_active;
         subscriptionStart = data.subscription_start || null;
         subscriptionEnd = data.subscription_end || null;
@@ -982,9 +991,13 @@ function updateSectionTotals() {
     // Долги
     const debtsTotalEl = document.getElementById('debts-total');
     if (debtsTotalEl) {
-        const debtExpense = categoryStats.expense?.['Долги'] || 0;
-        const remaining = Math.max(debtTargetAmount - debtExpense, 0);
-        debtsTotalEl.textContent = `${formatCurrency(remaining)} ${symbol}`;
+        if (debtTargetAmount > 0) {
+            const debtExpense = categoryStats.expense?.['Долги'] || 0;
+            const remaining = Math.max(debtTargetAmount - debtExpense, 0);
+            debtsTotalEl.textContent = `${formatCurrency(remaining)} ${symbol}`;
+        } else {
+            debtsTotalEl.textContent = `0 ${symbol}`;
+        }
     }
 }
 
@@ -1026,6 +1039,12 @@ async function loadPanelData() {
         allTransactions = data.recent_transactions || allTransactions;
         if (typeof data.debts_enabled !== 'undefined') {
             debtsEnabled = !!data.debts_enabled;
+        }
+        if (typeof data.debt_target_amount !== 'undefined') {
+            debtTargetAmount = Number(data.debt_target_amount) || 0;
+        }
+        if (typeof data.debt_note !== 'undefined') {
+            debtNote = data.debt_note || '';
         }
         
         // Обновляем отображение
@@ -1183,6 +1202,16 @@ function updateDebtsDisplay() {
     }
     
     section.style.display = 'block';
+
+    if (debtTargetAmount <= 0) {
+        container.innerHTML = `
+            <button class="add-category-btn" onclick="openDebtModal()">
+                <span>+</span>
+                <span>${t('Создать долг')}</span>
+            </button>
+        `;
+        return;
+    }
     
     const debtExpense = categoryStats.expense?.['Долги'] || 0;
     const symbol = currencySymbols[currentCurrency] || '₽';
@@ -1218,7 +1247,8 @@ function updateDebtsUI(syncToggle = true) {
     const section = document.getElementById('debts-section');
     const tab = document.querySelector('.modal-tab.debt');
     const toggle = document.getElementById('debts-toggle');
-    const shouldShowTab = debtsEnabled || currentTransactionType === 'debt';
+    const hasDebt = debtTargetAmount > 0;
+    const shouldShowTab = (debtsEnabled && hasDebt) || currentTransactionType === 'debt';
     
     if (section) section.style.display = debtsEnabled ? 'block' : 'none';
     if (tab) tab.style.display = shouldShowTab ? 'inline-flex' : 'none';
@@ -1502,6 +1532,10 @@ async function deleteTransactionById(id) {
 }
 
 function showAddTransactionForCategory(type, category) {
+    if (type === 'debt' && debtTargetAmount <= 0) {
+        openDebtModal();
+        return;
+    }
     currentTransactionType = type;
     showAddTransactionModal(category);
 }
@@ -3625,7 +3659,7 @@ function updateCurrencyDisplay() {
     const symbol = currencySymbols[currentCurrency] || '₽';
     
     // Обновляем символ валюты в интерфейсе
-    const currencySymbolElements = document.querySelectorAll('#modal-currency-symbol, #goal-currency-symbol');
+    const currencySymbolElements = document.querySelectorAll('#modal-currency-symbol, #goal-currency-symbol, #debt-currency-symbol');
     currencySymbolElements.forEach(el => {
         el.textContent = symbol;
     });
@@ -3926,6 +3960,59 @@ function populateWallets() {
     });
 }
 
+function openDebtModal() {
+    const modal = document.getElementById('add-debt-modal');
+    if (!modal) return;
+    const amountInput = document.getElementById('debt-amount-input');
+    const noteInput = document.getElementById('debt-note-input');
+    if (amountInput) amountInput.value = debtTargetAmount > 0 ? debtTargetAmount : '';
+    if (noteInput) noteInput.value = debtNote || '';
+    modal.classList.add('active');
+    setTimeout(() => amountInput?.focus(), 100);
+}
+
+function closeDebtModal() {
+    const modal = document.getElementById('add-debt-modal');
+    if (modal) modal.classList.remove('active');
+}
+
+async function saveDebt(e) {
+    if (e) e.preventDefault();
+    const amountInput = document.getElementById('debt-amount-input');
+    const noteInput = document.getElementById('debt-note-input');
+    if (!amountInput || !currentUser) return;
+    const amount = parseFloat(amountInput.value);
+    const note = noteInput ? noteInput.value.trim() : '';
+    if (!amount || amount <= 0) {
+        showNotification('Введите корректную сумму', 'error');
+        return;
+    }
+    try {
+        const response = await fetch('/api/debt', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                user_id: currentUser.id,
+                amount: amount,
+                note: note
+            })
+        });
+        const data = await response.json();
+        if (data.error) throw new Error(data.error);
+        debtTargetAmount = Number(data.debt_target_amount) || amount;
+        debtNote = data.debt_note || note;
+        debtsEnabled = !!data.debts_enabled;
+        updateDebtsUI(true);
+        updateDebtsDisplay();
+        updateSectionTotals();
+        closeDebtModal();
+        showNotification(t('Долг создан'), 'success');
+    } catch (error) {
+        console.error('❌ Ошибка сохранения долга:', error);
+        showNotification('Ошибка сохранения', 'error');
+    }
+}
+
 function updateTransactionCategoryVisibility() {
     const group = document.getElementById('transaction-category-group');
     const select = document.getElementById('transaction-category');
@@ -4095,6 +4182,11 @@ async function submitTransaction(e) {
     }
 
     if (currentTransactionType === 'debt') {
+        if (debtTargetAmount <= 0) {
+            showNotification(t('Сначала создайте долг'), 'error');
+            openDebtModal();
+            return;
+        }
         category = 'Долги';
     }
     
@@ -4642,6 +4734,11 @@ function initEventListeners() {
     const transactionForm = document.getElementById('add-transaction-form');
     if (transactionForm) {
         transactionForm.onsubmit = submitTransaction;
+    }
+
+    const debtForm = document.getElementById('add-debt-form');
+    if (debtForm) {
+        debtForm.onsubmit = saveDebt;
     }
     
     // Выбор категории
@@ -5249,6 +5346,8 @@ window.openInvestAll = openInvestAll;
 window.closeMarketModal = closeMarketModal;
 window.openSubscriptionModal = openSubscriptionModal;
 window.closeSubscriptionModal = closeSubscriptionModal;
+window.openDebtModal = openDebtModal;
+window.closeDebtModal = closeDebtModal;
 window.copySubscriptionAddress = copySubscriptionAddress;
 window.createCryptoPayPayment = createCryptoPayPayment;
 window.checkSubscriptionStatus = checkSubscriptionStatus;

@@ -618,6 +618,9 @@ def init_user():
             subscription_info = db.get_subscription_info(user_id)
             subscription_active = subscription_info['active']
             debts_enabled = db.get_debts_enabled(user_id)
+            debt_settings = db.get_debt_settings(user_id)
+            debt_target_amount = debt_settings['target_amount']
+            debt_note = debt_settings['note']
             
             categories = {'income': [], 'expense': [], 'savings': []}
             all_categories = db.get_categories(user_id)
@@ -690,6 +693,8 @@ def init_user():
             subscription_active = False
             subscription_info = {'activated_at': None, 'expires_at': None}
             debts_enabled = False
+            debt_target_amount = 0
+            debt_note = ''
         
         return jsonify({
             'user_id': user_id,
@@ -711,7 +716,9 @@ def init_user():
             'subscription_active': subscription_active,
             'subscription_start': subscription_info['activated_at'],
             'subscription_end': subscription_info['expires_at'],
-            'debts_enabled': debts_enabled
+            'debts_enabled': debts_enabled,
+            'debt_target_amount': debt_target_amount,
+            'debt_note': debt_note
         })
     except Exception as e:
         print(f"Init error: {e}")
@@ -731,6 +738,34 @@ def update_debts_setting():
         return jsonify({'success': True, 'debts_enabled': bool(enabled)})
     except Exception as e:
         print(f"Debts setting error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/debt', methods=['POST'])
+def update_debt():
+    try:
+        data = request.json or {}
+        user_id = data.get('user_id')
+        amount = data.get('amount')
+        note = data.get('note') or ''
+        if user_id is None or amount is None:
+            return jsonify({'error': 'Missing fields'}), 400
+        if not db:
+            return jsonify({'error': 'Database error'}), 500
+        try:
+            amount_value = float(amount)
+        except (TypeError, ValueError):
+            return jsonify({'error': 'Invalid amount'}), 400
+        if amount_value <= 0:
+            return jsonify({'error': 'Invalid amount'}), 400
+        db.set_debt_settings(user_id, amount_value, note)
+        return jsonify({
+            'success': True,
+            'debts_enabled': True,
+            'debt_target_amount': amount_value,
+            'debt_note': note
+        })
+    except Exception as e:
+        print(f"Debt update error: {e}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/shared_wallet/status')

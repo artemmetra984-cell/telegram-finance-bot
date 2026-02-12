@@ -26,6 +26,8 @@ class Database:
                 session_token TEXT UNIQUE,
                 default_wallet TEXT DEFAULT 'Карта',
                 debts_enabled INTEGER DEFAULT 0,
+                debt_target_amount REAL DEFAULT 0,
+                debt_note TEXT DEFAULT '',
                 last_login TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
@@ -245,6 +247,15 @@ class Database:
             cursor.execute("ALTER TABLE users ADD COLUMN debts_enabled INTEGER DEFAULT 0")
         except sqlite3.OperationalError:
             pass
+        # Миграция: долг (сумма и комментарий)
+        try:
+            cursor.execute("ALTER TABLE users ADD COLUMN debt_target_amount REAL DEFAULT 0")
+        except sqlite3.OperationalError:
+            pass
+        try:
+            cursor.execute("ALTER TABLE users ADD COLUMN debt_note TEXT DEFAULT ''")
+        except sqlite3.OperationalError:
+            pass
         
         self.conn.commit()
         print("✅ Tables ready")
@@ -313,7 +324,7 @@ class Database:
     def get_user_by_session(self, session_token):
         cursor = self.conn.cursor()
         cursor.execute('''
-            SELECT id, telegram_id, username, first_name, currency, default_wallet, debts_enabled
+            SELECT id, telegram_id, username, first_name, currency, default_wallet, debts_enabled, debt_target_amount, debt_note
             FROM users WHERE session_token = ?
         ''', (session_token,))
         return cursor.fetchone()
@@ -325,10 +336,33 @@ class Database:
         row = cursor.fetchone()
         return bool(row['debts_enabled']) if row and row['debts_enabled'] is not None else False
 
+    def get_debt_settings(self, user_id):
+        cursor = self.conn.cursor()
+        owner_id = self._resolve_owner_id(user_id)
+        cursor.execute('SELECT debt_target_amount, debt_note FROM users WHERE id = ?', (owner_id,))
+        row = cursor.fetchone()
+        if not row:
+            return {'target_amount': 0, 'note': ''}
+        return {
+            'target_amount': row['debt_target_amount'] or 0,
+            'note': row['debt_note'] or ''
+        }
+
     def set_debts_enabled(self, user_id, enabled):
         cursor = self.conn.cursor()
         owner_id = self._resolve_owner_id(user_id)
         cursor.execute('UPDATE users SET debts_enabled = ? WHERE id = ?', (1 if enabled else 0, owner_id))
+        self.conn.commit()
+        return True
+
+    def set_debt_settings(self, user_id, amount, note=''):
+        cursor = self.conn.cursor()
+        owner_id = self._resolve_owner_id(user_id)
+        cursor.execute('''
+            UPDATE users
+            SET debt_target_amount = ?, debt_note = ?, debts_enabled = 1
+            WHERE id = ?
+        ''', (amount, note or '', owner_id))
         self.conn.commit()
         return True
 

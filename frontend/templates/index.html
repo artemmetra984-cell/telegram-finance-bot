@@ -1024,6 +1024,39 @@
         </div>
     </div>
 
+    <!-- Модальное окно создания долга -->
+    <div id="add-debt-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title" data-i18n="Создать долг">Создать долг</div>
+            </div>
+
+            <form id="add-debt-form">
+                <div class="form-group">
+                    <label class="form-label" data-i18n="Сумма долга">Сумма долга</label>
+                    <div style="position: relative;">
+                        <span style="position: absolute; left: 16px; top: 50%; transform: translateY(-50%); font-size: 17px; color: var(--ios-text-secondary);" id="debt-currency-symbol">₽</span>
+                        <input type="number" class="form-input" id="debt-amount-input" placeholder="0" min="1" step="1" required style="padding-left: 50px;">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" data-i18n="Комментарий (необязательно)">Комментарий (необязательно)</label>
+                    <input type="text" class="form-input" id="debt-note-input" placeholder="Например: Рассрочка" data-i18n-placeholder="Например: Рассрочка" maxlength="60">
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="modal-btn secondary" onclick="closeDebtModal()">
+                        <span data-i18n="Отмена">Отмена</span>
+                    </button>
+                    <button type="submit" class="modal-btn primary">
+                        <span data-i18n="Создать долг">Создать долг</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Модальное окно всех транзакций -->
     <div id="all-transactions-modal" class="modal-overlay">
         <div class="modal-content">
