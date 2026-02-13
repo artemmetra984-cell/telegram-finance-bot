@@ -1285,9 +1285,23 @@ body.modal-open #main-content {
   text-shadow: 0 0 5px currentColor;
 }
 
+.overview-balance-wrap {
+  text-align: center;
+  padding: 22px 12px 18px;
+  min-height: 180px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
 .overview-value--balance {
-  font-size: 88px;
-  line-height: 1;
+  font-size: clamp(56px, 14vw, 112px);
+  line-height: 0.95;
+  letter-spacing: -0.02em;
+  font-weight: 800;
+  white-space: nowrap;
+  margin-bottom: 8px;
 }
 
 .overview-value.income {
@@ -2622,7 +2636,7 @@ body.modal-open #main-content {
   animation: fadeIn 0.3s;
   overscroll-behavior: contain;
   touch-action: pan-y;
-  transition: top 0.24s ease, height 0.24s ease, padding 0.24s ease;
+  transition: opacity 0.2s ease, padding 0.2s ease;
 }
 
 @keyframes fadeIn {
@@ -2649,17 +2663,16 @@ body.modal-open #main-content {
   will-change: transform;
   touch-action: pan-y;
   overscroll-behavior: contain;
-  transform: translateY(0);
-  transition: transform 0.24s ease, max-height 0.24s ease;
+  transition: max-height 0.2s ease;
 }
 
 body.keyboard-open .modal-overlay {
-  align-items: center;
-  padding-bottom: var(--spacing-md);
+  align-items: flex-end;
+  padding-bottom: 0;
 }
 
 body.keyboard-open .modal-content {
-  transform: translateY(calc(var(--keyboard-height) * -0.18));
+  transform: none;
 }
 
 @keyframes slideUp {
@@ -3324,6 +3337,11 @@ body.keyboard-open .modal-content {
   
   .overview-value {
     font-size: 20px;
+  }
+
+  .overview-value--balance {
+    font-size: clamp(54px, 16vw, 88px);
+    margin-bottom: 6px;
   }
   
   .chart-container {

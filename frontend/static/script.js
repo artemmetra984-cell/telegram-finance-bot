@@ -860,6 +860,11 @@ const segmentIconsPlugin = {
         const total = rawData.reduce((a, b) => a + b, 0);
         if (!total) return;
         const ctx = chart.ctx;
+        const area = chart.chartArea || { left: 0, top: 0, right: chart.width, bottom: chart.height };
+        const clamp = (value, min, max) => {
+            if (min > max) return value;
+            return Math.max(min, Math.min(max, value));
+        };
         ctx.save();
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
@@ -870,16 +875,19 @@ const segmentIconsPlugin = {
             if (!icon) return;
             const color = Array.isArray(colors) ? colors[i] : colors;
             const thickness = arc.outerRadius - arc.innerRadius;
-            const badgeRadius = Math.min(16, Math.max(10, thickness * 0.45));
+            const maxBadgeRadius = Math.max(4, (thickness * 0.5) - 1.5);
+            const badgeRadius = Math.min(15, maxBadgeRadius, Math.max(6, thickness * 0.36));
             // Place icon badge on the segment edge (legacy visual style).
             const angle = arc.endAngle;
             const radius = arc.innerRadius + thickness * 0.5;
-            const x = arc.x + Math.cos(angle) * radius;
-            const y = arc.y + Math.sin(angle) * radius;
+            const rawX = arc.x + Math.cos(angle) * radius;
+            const rawY = arc.y + Math.sin(angle) * radius;
+            const x = clamp(rawX, area.left + badgeRadius + 2, area.right - badgeRadius - 2);
+            const y = clamp(rawY, area.top + badgeRadius + 2, area.bottom - badgeRadius - 2);
             ctx.save();
             ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
-            ctx.shadowBlur = 10;
-            ctx.shadowOffsetY = 4;
+            ctx.shadowBlur = 8;
+            ctx.shadowOffsetY = 3;
             ctx.fillStyle = mixWithWhite(color, 0.15);
             ctx.beginPath();
             ctx.arc(x, y, badgeRadius, 0, Math.PI * 2);
