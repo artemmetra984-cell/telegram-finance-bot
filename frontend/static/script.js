@@ -808,9 +808,9 @@ const segmentPopupPlugin = {
         const iconList = chart?.options?.plugins?.segmentIcons?.icons || [];
         const categoryIcon = iconList[idx] || '';
 
-        const thickness = arc.outerRadius - arc.innerRadius;
         const anchorAngle = arc.endAngle;
-        const anchorRadius = arc.innerRadius + thickness * 0.5;
+        // Якорь в крайней точке у внутренней кромки сегмента
+        const anchorRadius = arc.innerRadius + 1;
         const anchorX = arc.x + Math.cos(anchorAngle) * anchorRadius;
         const anchorY = arc.y + Math.sin(anchorAngle) * anchorRadius;
 
@@ -822,29 +822,37 @@ const segmentPopupPlugin = {
 
         const ctx = chart.ctx;
         ctx.save();
-        ctx.font = '600 13px -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif';
-        const width0 = ctx.measureText(lines[0]).width;
-        ctx.font = '600 16px -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif';
-        const width1 = ctx.measureText(lines[1]).width;
-        ctx.font = '500 13px -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif';
-        const width2 = ctx.measureText(lines[2]).width;
-        const textWidth = Math.max(width0, width1, width2);
-        const paddingX = 12;
-        const paddingY = 10;
-        const lineHeights = [15, 18, 14];
-        const lineGap = 3;
-        const contentHeight = lineHeights.reduce((a, b) => a + b, 0) + lineGap * 2;
-        const boxWidth = textWidth + paddingX * 2;
-        const boxHeight = paddingY * 2 + contentHeight;
-
-        let boxX = anchorX - boxWidth / 2;
-        let boxY = anchorY - boxHeight - 18;
 
         const area = chart.chartArea || { left: 0, top: 0, right: chart.width, bottom: chart.height };
         const clamp = (val, min, max) => Math.max(min, Math.min(max, val));
-        if (boxY < area.top + 6) {
-            boxY = anchorY + 18;
-        }
+
+        ctx.font = '600 12px -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif';
+        const width0 = ctx.measureText(lines[0]).width;
+        ctx.font = '600 15px -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif';
+        const width1 = ctx.measureText(lines[1]).width;
+        ctx.font = '500 12px -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif';
+        const width2 = ctx.measureText(lines[2]).width;
+        const textWidth = Math.max(width0, width1, width2);
+
+        const paddingX = 10;
+        const paddingY = 8;
+        const lineHeights = [14, 16, 13];
+        const lineGap = 2;
+        const contentHeight = lineHeights.reduce((a, b) => a + b, 0) + lineGap * 2;
+
+        const maxPopupWidth = Math.min(area.right - area.left - 12, Math.max(124, arc.innerRadius * 1.6));
+        const boxWidth = Math.min(textWidth + paddingX * 2, maxPopupWidth);
+        const boxHeight = paddingY * 2 + contentHeight;
+
+        // Держим окно внутри внутреннего круга графика
+        const halfDiag = Math.hypot(boxWidth / 2, boxHeight / 2);
+        const maxInsideOffset = Math.max(0, arc.innerRadius - halfDiag - 6);
+        const insideOffset = Math.min(maxInsideOffset, arc.innerRadius * 0.22);
+        const targetCenterX = arc.x + Math.cos(anchorAngle) * insideOffset;
+        const targetCenterY = arc.y + Math.sin(anchorAngle) * insideOffset;
+
+        let boxX = targetCenterX - boxWidth / 2;
+        let boxY = targetCenterY - boxHeight / 2;
         boxX = clamp(boxX, area.left + 6, area.right - boxWidth - 6);
         boxY = clamp(boxY, area.top + 6, area.bottom - boxHeight - 6);
 
@@ -861,9 +869,6 @@ const segmentPopupPlugin = {
         const scale = Math.min(scaleX, scaleY);
         const edgeX = boxCenterX + dirX * scale;
         const edgeY = boxCenterY + dirY * scale;
-        const pointerHalf = 5;
-        const normalX = -dirY * pointerHalf;
-        const normalY = dirX * pointerHalf;
 
         // Bubble
         ctx.beginPath();
@@ -886,28 +891,44 @@ const segmentPopupPlugin = {
         ctx.shadowBlur = 0;
         ctx.stroke();
 
-        // Pointer
+        // Мягкий коннектор к якорю (вместо острого треугольника)
+        const midX = (edgeX + anchorX) / 2;
+        const midY = (edgeY + anchorY) / 2;
+        const toCenterX = arc.x - midX;
+        const toCenterY = arc.y - midY;
+        const toCenterLen = Math.hypot(toCenterX, toCenterY) || 1;
+        const controlX = midX + (toCenterX / toCenterLen) * 8;
+        const controlY = midY + (toCenterY / toCenterLen) * 8;
+
         ctx.beginPath();
-        ctx.moveTo(edgeX + normalX, edgeY + normalY);
-        ctx.lineTo(edgeX - normalX, edgeY - normalY);
-        ctx.lineTo(anchorX, anchorY);
-        ctx.closePath();
-        ctx.fillStyle = 'rgba(28, 28, 30, 0.95)';
-        ctx.fill();
+        ctx.moveTo(edgeX, edgeY);
+        ctx.quadraticCurveTo(controlX, controlY, anchorX, anchorY);
+        ctx.strokeStyle = 'rgba(28, 28, 30, 0.92)';
+        ctx.lineWidth = 10;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(edgeX, edgeY);
+        ctx.quadraticCurveTo(controlX, controlY, anchorX, anchorY);
+        ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+        ctx.lineWidth = 1.2;
+        ctx.stroke();
 
         // Text
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         let textY = boxY + paddingY + lineHeights[0] * 0.5;
-        ctx.font = '600 13px -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif';
+        ctx.font = '600 12px -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif';
         ctx.fillStyle = 'rgba(255,255,255,0.9)';
         ctx.fillText(lines[0], boxCenterX, textY);
         textY += lineHeights[0] + lineGap + lineHeights[1] * 0.5;
-        ctx.font = '600 16px -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif';
+        ctx.font = '600 15px -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif';
         ctx.fillStyle = '#ffffff';
         ctx.fillText(lines[1], boxCenterX, textY);
         textY += lineHeights[1] * 0.5 + lineGap + lineHeights[2] * 0.5;
-        ctx.font = '500 13px -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif';
+        ctx.font = '500 12px -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif';
         ctx.fillStyle = 'rgba(255,255,255,0.75)';
         ctx.fillText(lines[2], boxCenterX, textY);
 
@@ -1733,6 +1754,29 @@ function updateWalletsDisplay() {
     container.innerHTML = html;
 }
 
+const LONG_TRANSACTION_DESCRIPTION_LENGTH = 52;
+
+function escapeHtml(value) {
+    return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function renderTransactionDescription(description) {
+    const rawText = typeof description === 'string' ? description.trim() : '';
+    const text = rawText || t('Без описания');
+    const safeText = escapeHtml(text);
+
+    if (text.length <= LONG_TRANSACTION_DESCRIPTION_LENGTH) {
+        return `<div class="transaction-title" title="${safeText}">${safeText}</div>`;
+    }
+
+    return `<button class="transaction-title transaction-title-btn transaction-title-btn--long" onclick="openTextModal(${JSON.stringify(text)})">${safeText}</button>`;
+}
+
 function updateRecentTransactions(transactions) {
     const container = document.getElementById('recent-transactions-list');
     if (!container) return;
@@ -1760,13 +1804,13 @@ function updateRecentTransactions(transactions) {
         const amountSign = isSavings ? '+' : (isIncome ? '+' : '−');
         const icon = isDebt ? '💸' : (isSavings ? '💰' : (isIncome ? '📈' : '📉'));
         const iconClass = isDebt ? 'debt' : (isSavings ? 'savings' : (isIncome ? 'income' : 'expense'));
-        const descriptionText = trans.description || t('Без описания');
+        const descriptionMarkup = renderTransactionDescription(trans.description);
         const categoryLabel = t(trans.category);
         html += `
             <div class="transaction-item">
                 <div class="transaction-icon ${iconClass}">${icon}</div>
                 <div class="transaction-info">
-                    <button class="transaction-title transaction-title-btn" onclick="openTextModal(${JSON.stringify(descriptionText)})">${descriptionText}</button>
+                    ${descriptionMarkup}
                     <div class="transaction-category-line">
                         <div class="transaction-category">${categoryLabel}</div>
                     </div>
@@ -1776,7 +1820,7 @@ function updateRecentTransactions(transactions) {
                         ${amountSign}${formatCurrency(trans.amount)} ${symbol}
                     </div>
                     <div class="transaction-actions">
-                        <button class="debt-action-btn" onclick="openEditTransactionById(${trans.id})">${t('Изменить')}</button>
+                        <button class="debt-action-btn panel-recent-edit-btn" onclick="openEditTransactionById(${trans.id})">${t('Изменить')}</button>
                     </div>
                 </div>
             </div>
@@ -1995,12 +2039,12 @@ function displayMonthTransactions(transactions) {
         });
         
         const categoryLabel = t(trans.category);
-        const titleText = trans.description || t('Без описания');
+        const descriptionMarkup = renderTransactionDescription(trans.description);
         html += `
             <div class="transaction-item">
                 <div class="transaction-icon ${iconClass}">${icon}</div>
                 <div class="transaction-info">
-                    <button class="transaction-title transaction-title-btn" onclick="openTextModal(${JSON.stringify(titleText)})">${titleText}</button>
+                    ${descriptionMarkup}
                     <div class="transaction-category-line">
                         <div class="transaction-category">${categoryLabel}</div>
                     </div>
@@ -2012,7 +2056,6 @@ function displayMonthTransactions(transactions) {
                     </div>
                     <div class="transaction-actions">
                         <button class="debt-action-btn" onclick="openEditTransactionById(${trans.id})">${t('Изменить')}</button>
-                        <button class="debt-action-btn danger" onclick="deleteTransactionById(${trans.id})">${t('Удалить')}</button>
                     </div>
                 </div>
             </div>
@@ -3796,6 +3839,7 @@ async function updateDistributionChart() {
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            layout: { padding: 32 },
             onClick: (evt, elements, chart) => {
                 const points = chart.getElementsAtEventForMode(evt, 'nearest', { intersect: true }, true);
                 if (!points.length) {
@@ -3819,8 +3863,8 @@ async function updateDistributionChart() {
                     enabled: false
                 }
             },
-            cutout: '65%',
-            radius: '85%',
+            cutout: '68%',
+            radius: '74%',
             animation: {
                 animateScale: true,
                 animateRotate: true,
@@ -5865,12 +5909,12 @@ function showAllTransactions() {
             });
             
             const categoryLabel = t(trans.category);
-            const titleText = trans.description || t('Без описания');
+            const descriptionMarkup = renderTransactionDescription(trans.description);
             html += `
                 <div class="transaction-item">
                     <div class="transaction-icon ${iconClass}">${icon}</div>
                     <div class="transaction-info">
-                        <button class="transaction-title transaction-title-btn" onclick="openTextModal(${JSON.stringify(titleText)})">${titleText}</button>
+                        ${descriptionMarkup}
                         <div class="transaction-category-line">
                             <div class="transaction-category">${categoryLabel}</div>
                         </div>
