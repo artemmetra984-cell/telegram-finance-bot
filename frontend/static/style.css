@@ -1112,9 +1112,10 @@ body.modal-open #main-content {
 
 .report-stats-period {
   flex: 1;
-  min-height: 36px;
-  padding: 8px 10px;
-  font-size: 14px;
+  min-height: 32px;
+  padding: 6px 9px;
+  font-size: 13px;
+  font-weight: 500;
   background: var(--ios-elevated);
 }
 
@@ -1122,10 +1123,11 @@ body.modal-open #main-content {
   display: grid;
   gap: 8px;
   text-align: left;
+  font-size: 15px;
 }
 
 .report-stats-empty {
-  font-size: 14px;
+  font-size: 15px;
   color: var(--ios-text-secondary);
   text-align: left;
   padding-top: 2px;
@@ -1140,6 +1142,7 @@ body.modal-open #main-content {
 
 .report-stats-row-label {
   color: var(--ios-text-secondary);
+  font-size: 15px;
 }
 
 .report-stats-list--income .report-stats-row-label {
@@ -1151,14 +1154,14 @@ body.modal-open #main-content {
 }
 
 .report-stats-subvalue {
-  font-size: 13px;
+  font-size: 15px;
   color: var(--ios-text-secondary);
 }
 
 .report-stats-top-title {
   margin-top: 10px;
   margin-bottom: 6px;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--pastel-red);
   text-align: left;
@@ -1167,6 +1170,7 @@ body.modal-open #main-content {
 .report-stats-top-list {
   display: grid;
   gap: 8px;
+  font-size: 15px;
 }
 
 .report-stats-top-item {
@@ -1174,10 +1178,17 @@ body.modal-open #main-content {
   justify-content: space-between;
   gap: 10px;
   text-align: left;
+  font-size: 15px;
 }
 
 .report-stats-top-name {
   color: var(--ios-text-primary);
+  font-size: 15px;
+}
+
+.report-stats-row strong,
+.report-stats-top-item strong {
+  font-size: 15px;
 }
 
 .legend-item {

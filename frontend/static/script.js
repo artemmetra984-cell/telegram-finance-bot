@@ -717,6 +717,98 @@ function pickDistinctColor(baseColor, index, usedColors) {
     return color;
 }
 
+function buildDisplayValuesWithMinimumPercent(values, minPercent = 10) {
+    const rawValues = (values || []).map((value) => {
+        const num = Number(value);
+        return Number.isFinite(num) && num > 0 ? num : 0;
+    });
+    const total = rawValues.reduce((sum, value) => sum + value, 0);
+    if (!total || minPercent <= 0) {
+        return { rawValues, displayValues: rawValues.slice() };
+    }
+
+    const positiveIndexes = rawValues
+        .map((value, index) => ({ value, index }))
+        .filter(item => item.value > 0)
+        .map(item => item.index);
+
+    if (positiveIndexes.length <= 1) {
+        return { rawValues, displayValues: rawValues.slice() };
+    }
+
+    const targetMinValue = total * (minPercent / 100);
+
+    const canFitMinValue = (minValue) => {
+        let deficit = 0;
+        let headroom = 0;
+        positiveIndexes.forEach((index) => {
+            const value = rawValues[index];
+            if (value < minValue) {
+                deficit += (minValue - value);
+            } else {
+                headroom += (value - minValue);
+            }
+        });
+        return deficit <= headroom + 1e-9;
+    };
+
+    let low = 0;
+    let high = targetMinValue;
+    for (let i = 0; i < 28; i += 1) {
+        const mid = (low + high) / 2;
+        if (canFitMinValue(mid)) {
+            low = mid;
+        } else {
+            high = mid;
+        }
+    }
+
+    const minValue = Math.min(targetMinValue, low);
+    if (minValue <= 0) {
+        return { rawValues, displayValues: rawValues.slice() };
+    }
+
+    const displayValues = rawValues.slice();
+    let deficit = 0;
+    let totalHeadroom = 0;
+    const donors = [];
+
+    positiveIndexes.forEach((index) => {
+        const value = rawValues[index];
+        if (value < minValue) {
+            displayValues[index] = minValue;
+            deficit += (minValue - value);
+            return;
+        }
+        if (value > minValue) {
+            const headroom = value - minValue;
+            donors.push({ index, headroom });
+            totalHeadroom += headroom;
+        }
+    });
+
+    if (deficit > 0 && totalHeadroom > 0) {
+        donors.forEach((donor) => {
+            const reduceBy = deficit * (donor.headroom / totalHeadroom);
+            displayValues[donor.index] = rawValues[donor.index] - reduceBy;
+        });
+    }
+
+    const displayTotal = displayValues.reduce((sum, value) => sum + value, 0);
+    const drift = total - displayTotal;
+    if (Math.abs(drift) > 1e-6) {
+        const fixIndex = positiveIndexes.reduce((bestIndex, currentIndex) => {
+            if (bestIndex === -1) return currentIndex;
+            return displayValues[currentIndex] > displayValues[bestIndex] ? currentIndex : bestIndex;
+        }, -1);
+        if (fixIndex !== -1) {
+            displayValues[fixIndex] += drift;
+        }
+    }
+
+    return { rawValues, displayValues };
+}
+
 const segmentIconsPlugin = {
     id: 'segmentIcons',
     afterDatasetDraw(chart, args, pluginOptions) {
@@ -727,15 +819,16 @@ const segmentIconsPlugin = {
         const minPercent = pluginOptions?.minPercent ?? 10;
         const colors = pluginOptions?.colors || chart.data.datasets[args.index]?.backgroundColor || [];
         const meta = chart.getDatasetMeta(args.index);
-        const data = chart.data.datasets[args.index]?.data || [];
-        const total = data.reduce((a, b) => a + b, 0);
+        const displayData = chart.data.datasets[args.index]?.data || [];
+        const rawData = chart.data.datasets[args.index]?.rawData || displayData;
+        const total = rawData.reduce((a, b) => a + b, 0);
         if (!total) return;
         const ctx = chart.ctx;
         ctx.save();
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         meta.data.forEach((arc, i) => {
-            const value = data[i] || 0;
+            const value = rawData[i] || 0;
             const percent = (value / total) * 100;
             if (percent < minPercent) return;
             const icon = icons[i] || '';
@@ -801,8 +894,9 @@ const segmentPercentagesPlugin = {
         if (type !== 'doughnut' && type !== 'pie') return;
         if (!pluginOptions) return;
         const meta = chart.getDatasetMeta(args.index);
-        const data = chart.data.datasets[args.index]?.data || [];
-        const total = data.reduce((a, b) => a + b, 0);
+        const displayData = chart.data.datasets[args.index]?.data || [];
+        const rawData = chart.data.datasets[args.index]?.rawData || displayData;
+        const total = rawData.reduce((a, b) => a + b, 0);
         if (!total) return;
         const ctx = chart.ctx;
         ctx.save();
@@ -813,7 +907,7 @@ const segmentPercentagesPlugin = {
         ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
         ctx.shadowBlur = 4;
         meta.data.forEach((arc, i) => {
-            const value = data[i] || 0;
+            const value = rawData[i] || 0;
             const percent = ((value / total) * 100);
             if (percent < 3) return;
             const angle = (arc.startAngle + arc.endAngle) / 2;
@@ -836,7 +930,8 @@ const segmentPopupPlugin = {
         const arc = meta?.data?.[idx];
         if (!arc) return;
         const dataset = chart.data.datasets[0];
-        const values = dataset.data || [];
+        const displayValues = dataset.data || [];
+        const values = dataset.rawData || displayValues;
         const total = values.reduce((a, b) => a + b, 0);
         const value = Number(values[idx] || 0);
         const percent = total > 0 ? (value / total * 100).toFixed(1) : '0.0';
@@ -1817,7 +1912,8 @@ function renderTransactionDescription(description) {
     const text = rawText || t('Без описания');
     const safeText = escapeHtml(text);
     const hintClass = text.length > LONG_TRANSACTION_HINT_LENGTH ? ' transaction-title-btn--long' : '';
-    return `<button class="transaction-title transaction-title-btn${hintClass}" title="${safeText}" onclick="openTextModal(${JSON.stringify(text)})">${safeText}</button>`;
+    const encodedText = encodeURIComponent(text).replace(/'/g, '%27');
+    return `<button class="transaction-title transaction-title-btn${hintClass}" title="${safeText}" onclick="openTextModalFromEncoded('${encodedText}')">${safeText}</button>`;
 }
 
 function updateRecentTransactions(transactions) {
@@ -3272,12 +3368,14 @@ function updateOverviewChart(totalIncome, totalExpense) {
     
     // Создаем новый график с улучшенным стилем
     const spacing = 0;
+    const overviewDisplayData = buildDisplayValuesWithMinimumPercent([totalIncome, totalExpense], 10);
     charts['overview-chart'] = new Chart(ctx, {
         type: 'doughnut',
         data: {
             labels: [t('Доходы'), t('Расходы')],
             datasets: [{
-                data: [totalIncome, totalExpense],
+                data: overviewDisplayData.displayValues,
+                rawData: overviewDisplayData.rawValues,
                 backgroundColor: [
                     '#30D158',
                     '#FF453A'
@@ -3411,12 +3509,14 @@ async function updateIncomeChart(transactions) {
     
     // Создаем новый график с улучшенным стилем
     const spacing = 0;
+    const incomeDisplayData = buildDisplayValuesWithMinimumPercent(amounts, 10);
     charts['income-chart'] = new Chart(ctx, {
         type: 'doughnut',
         data: {
             labels: displayLabels,
             datasets: [{
-                data: amounts,
+                data: incomeDisplayData.displayValues,
+                rawData: incomeDisplayData.rawValues,
                 backgroundColor: backgroundColors,
                 borderColor: borderColors,
                 borderWidth: 0,
@@ -3543,12 +3643,14 @@ async function updateExpenseChart(transactions) {
     
     // Создаем новый график с улучшенным стилем
     const spacing = 0;
+    const expenseDisplayData = buildDisplayValuesWithMinimumPercent(amounts, 10);
     charts['expense-chart'] = new Chart(ctx, {
         type: 'doughnut',
         data: {
             labels: displayLabels,
             datasets: [{
-                data: amounts,
+                data: expenseDisplayData.displayValues,
+                rawData: expenseDisplayData.rawValues,
                 backgroundColor: backgroundColors,
                 borderColor: borderColors,
                 borderWidth: 0,
@@ -4010,12 +4112,15 @@ async function updateDistributionChart() {
         legendContainer.innerHTML = html;
     }
     
+    const distributionDisplayData = buildDisplayValuesWithMinimumPercent(amounts, 10);
+
     charts['distribution-chart'] = new Chart(ctx, {
         type: 'pie',
         data: {
             labels: labels,
             datasets: [{
-                data: amounts,
+                data: distributionDisplayData.displayValues,
+                rawData: distributionDisplayData.rawValues,
                 backgroundColor: colors,
                 borderColor: borderColors,
                 borderWidth: 2,
@@ -6541,6 +6646,18 @@ function openTextModal(text) {
     body.textContent = text || '';
     modal.classList.add('active');
     updateBodyModalState();
+}
+
+function openTextModalFromEncoded(encodedText) {
+    if (!encodedText) {
+        openTextModal('');
+        return;
+    }
+    try {
+        openTextModal(decodeURIComponent(encodedText));
+    } catch {
+        openTextModal(encodedText);
+    }
 }
 
 function closeTextModal() {
