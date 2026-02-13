@@ -1754,7 +1754,6 @@ function updateRecentTransactions(transactions) {
                     </div>
                     <div class="transaction-actions">
                         <button class="debt-action-btn" onclick="openEditTransactionById(${trans.id})">${t('Изменить')}</button>
-                        <button class="debt-action-btn danger" onclick="deleteTransactionById(${trans.id})">${t('Удалить')}</button>
                     </div>
                 </div>
             </div>
@@ -1811,13 +1810,13 @@ function resetTransactionEditing() {
 }
 
 async function deleteTransactionById(id) {
-    if (!currentUser) return;
+    if (!currentUser) return false;
     const transaction = findTransactionById(id);
     if (!transaction) {
         showNotification('Операция не найдена', 'error');
-        return;
+        return false;
     }
-    if (!confirm(t('Удалить операцию?'))) return;
+    if (!confirm(t('Удалить операцию?'))) return false;
     try {
         const response = await fetch('/api/transaction/delete', {
             method: 'POST',
@@ -1853,9 +1852,19 @@ async function deleteTransactionById(id) {
         }
 
         showNotification('Операция удалена', 'success');
+        return true;
     } catch (error) {
         console.error('❌ Ошибка удаления транзакции:', error);
         showNotification('Ошибка удаления', 'error');
+        return false;
+    }
+}
+
+async function deleteEditingTransaction() {
+    if (!editingTransactionId) return;
+    const deleted = await deleteTransactionById(editingTransactionId);
+    if (deleted) {
+        closeModal('add-transaction-modal');
     }
 }
 
@@ -4480,6 +4489,11 @@ function showAddTransactionModal(prefilledCategory = null) {
         'debt': t('Добавить долг')
     };
     document.getElementById('transaction-modal-title').textContent = titleMap[currentTransactionType] || t('Добавить операцию');
+
+    const deleteBtn = document.getElementById('transaction-delete-btn');
+    if (deleteBtn) {
+        deleteBtn.style.display = editingTransactionId ? 'inline-flex' : 'none';
+    }
     
     // Заполняем категории
     populateTransactionCategories();
@@ -6296,6 +6310,7 @@ window.showAddTransactionForCategory = showAddTransactionForCategory;
 window.showWalletTransactions = showWalletTransactions;
 window.openEditTransactionById = openEditTransactionById;
 window.deleteTransactionById = deleteTransactionById;
+window.deleteEditingTransaction = deleteEditingTransaction;
 window.selectDefaultWallet = selectDefaultWallet;
 window.toggleWalletDropdown = toggleWalletDropdown;
 window.showAllTransactions = showAllTransactions;
