@@ -3560,6 +3560,11 @@ async function updateDistributionChart() {
     const symbol = currencySymbols[currentCurrency] || '₽';
     let totalBalance = 0;
     walletsData.forEach(wallet => totalBalance += wallet.balance || 0);
+    const savingsTotal = getSavingsAmount();
+    const includeSavings = savingsTotal > 0;
+    if (includeSavings) {
+        totalBalance += savingsTotal;
+    }
     
     if (totalBalance === 0) {
         ctx.innerHTML = `
@@ -3576,6 +3581,15 @@ async function updateDistributionChart() {
     const colors = walletsData.map((w, i) => colorPalette[i % colorPalette.length]);
     const borderColors = colors.map(color => color + 'FF');
     const hoverColors = colors.map(color => color + 'CC');
+
+    if (includeSavings) {
+        const savingsColor = '#FFD166';
+        labels.push(t('Накопления'));
+        amounts.push(savingsTotal);
+        colors.push(savingsColor);
+        borderColors.push(savingsColor + 'FF');
+        hoverColors.push(savingsColor + 'CC');
+    }
     
     if (charts['distribution-chart']) {
         charts['distribution-chart'].destroy();
@@ -3595,6 +3609,17 @@ async function updateDistributionChart() {
                 </div>
             `;
         });
+        if (includeSavings) {
+            const percentage = totalBalance > 0 ? (savingsTotal / totalBalance * 100).toFixed(1) : '0';
+            const color = colors[colors.length - 1];
+            html += `
+                <div class="legend-item">
+                    <div class="legend-color" style="background: ${color}; box-shadow: 0 0 15px ${color}80;"></div>
+                    <div class="legend-name">${t('Накопления')}</div>
+                    <div class="legend-percentage">${percentage}%</div>
+                </div>
+            `;
+        }
         legendContainer.innerHTML = html;
     }
     
