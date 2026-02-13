@@ -69,25 +69,55 @@ let subscriptionPoller = null;
 let subscriptionAsset = 'USDT';
 const marketCacheKey = (market, kind) => `market_cache_${market}_${kind}`;
 const marketChartCacheKey = (market, id, range) => `market_chart_${market}_${id}_${range}`;
+const PANEL_RECENT_LIMIT = 3;
 let baseViewportHeight = window.innerHeight;
+let keyboardOpen = false;
+let viewportRaf = null;
+let lastViewportHeight = null;
+let lastViewportOffsetTop = null;
+let lastKeyboardHeight = null;
 
 function updateViewportVars() {
-    const vv = window.visualViewport;
-    const height = vv ? vv.height : window.innerHeight;
-    const rawOffsetTop = vv ? vv.offsetTop : 0;
-    if (height > baseViewportHeight) {
-        baseViewportHeight = height;
-    }
-    let keyboardHeight = Math.max(0, baseViewportHeight - height);
-    if (keyboardHeight < 20) {
-        baseViewportHeight = height;
-        keyboardHeight = 0;
-    }
-    const offsetTop = keyboardHeight > 0 ? 0 : rawOffsetTop;
-    document.documentElement.style.setProperty('--app-height', `${height}px`);
-    document.documentElement.style.setProperty('--app-offset-top', `${offsetTop}px`);
-    document.documentElement.style.setProperty('--keyboard-height', `${keyboardHeight}px`);
-    document.body.classList.toggle('keyboard-open', keyboardHeight > 80);
+    if (viewportRaf) cancelAnimationFrame(viewportRaf);
+    viewportRaf = requestAnimationFrame(() => {
+        viewportRaf = null;
+        const vv = window.visualViewport;
+        const rawHeight = vv ? vv.height : window.innerHeight;
+        const rawOffsetTop = vv ? vv.offsetTop : 0;
+        const height = Math.max(0, Math.round(rawHeight));
+        if (height > baseViewportHeight) {
+            baseViewportHeight = height;
+        }
+        let keyboardHeight = Math.max(0, baseViewportHeight - height);
+        if (keyboardHeight < 20) {
+            baseViewportHeight = height;
+            keyboardHeight = 0;
+        }
+        keyboardHeight = Math.round(keyboardHeight);
+        const offsetTop = keyboardHeight > 0 ? 0 : Math.round(rawOffsetTop);
+
+        const openThreshold = 90;
+        const closeThreshold = 40;
+        if (!keyboardOpen && keyboardHeight > openThreshold) {
+            keyboardOpen = true;
+        } else if (keyboardOpen && keyboardHeight < closeThreshold) {
+            keyboardOpen = false;
+        }
+
+        if (lastViewportHeight !== height) {
+            document.documentElement.style.setProperty('--app-height', `${height}px`);
+            lastViewportHeight = height;
+        }
+        if (lastViewportOffsetTop !== offsetTop) {
+            document.documentElement.style.setProperty('--app-offset-top', `${offsetTop}px`);
+            lastViewportOffsetTop = offsetTop;
+        }
+        if (lastKeyboardHeight !== keyboardHeight) {
+            document.documentElement.style.setProperty('--keyboard-height', `${keyboardHeight}px`);
+            lastKeyboardHeight = keyboardHeight;
+        }
+        document.body.classList.toggle('keyboard-open', keyboardOpen);
+    });
 }
 
 function initViewportVars() {
@@ -252,6 +282,7 @@ const translations = {
         'Примечание (необязательно)': 'Note (optional)',
         'Например: Зарплата за февраль': 'Example: Salary for February',
         'Например: Кафе': 'Example: Cafe',
+        'Например: Копилка': 'Example: Piggy bank',
         'Иконка': 'Icon',
         'Цвет': 'Color',
         'Сохранить': 'Save',
@@ -862,6 +893,49 @@ const segmentIconsPlugin = {
     }
 };
 
+const segmentJoinCapsPlugin = {
+    id: 'segmentJoinCaps',
+    afterDatasetDraw(chart, args, pluginOptions) {
+        if (!pluginOptions || pluginOptions.enabled === false) return;
+        const type = chart?.config?.type;
+        if (type !== 'doughnut') return;
+
+        const dataset = chart.data.datasets[args.index];
+        if (!dataset) return;
+        const values = dataset.rawData || dataset.data || [];
+        const positiveCount = values.filter(value => Number(value) > 0).length;
+        if (positiveCount <= 1) return;
+
+        const colors = pluginOptions.colors || dataset.backgroundColor || [];
+        const overdraw = Number.isFinite(pluginOptions.overdraw) ? pluginOptions.overdraw : 0.6;
+        const meta = chart.getDatasetMeta(args.index);
+        const ctx = chart.ctx;
+
+        ctx.save();
+        meta.data.forEach((arc, i) => {
+            const value = Number(values[i] || 0);
+            if (value <= 0) return;
+
+            const color = Array.isArray(colors) ? colors[i] : colors;
+            if (!color) return;
+
+            const thickness = arc.outerRadius - arc.innerRadius;
+            // Half-ring cap + tiny overdraw removes seam dents and creates interlock effect.
+            const capRadius = (thickness * 0.5) + overdraw;
+            const angle = arc.endAngle;
+            const radius = arc.innerRadius + thickness * 0.5;
+            const x = arc.x + Math.cos(angle) * radius;
+            const y = arc.y + Math.sin(angle) * radius;
+
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.arc(x, y, capRadius, 0, Math.PI * 2);
+            ctx.fill();
+        });
+        ctx.restore();
+    }
+};
+
 const segmentPercentagesPlugin = {
     id: 'segmentPercentages',
     afterDatasetDraw(chart, args, pluginOptions) {
@@ -1054,7 +1128,7 @@ const segmentPopupPlugin = {
 };
 
 if (window.Chart && Chart.register) {
-    Chart.register(chartShadowPlugin, segmentIconsPlugin, segmentPercentagesPlugin, segmentPopupPlugin);
+    Chart.register(chartShadowPlugin, segmentJoinCapsPlugin, segmentIconsPlugin, segmentPercentagesPlugin, segmentPopupPlugin);
 }
 
 // ==================== //
@@ -1414,7 +1488,7 @@ async function loadPanelData() {
         updateSavingsDisplay();
         updateDebtsDisplay();
         updatePanelGoals();
-        updateRecentTransactions(allTransactions.slice(0, 5));
+        updateRecentTransactions(allTransactions);
         updateBalanceDisplay(data.summary);
         updateSectionTotals();
         updateDebtsUI(false);
@@ -1894,8 +1968,9 @@ function renderTransactionDescription(description) {
 function updateRecentTransactions(transactions) {
     const container = document.getElementById('recent-transactions-list');
     if (!container) return;
+    const panelTransactions = Array.isArray(transactions) ? transactions.slice(0, PANEL_RECENT_LIMIT) : [];
     
-    if (!transactions || transactions.length === 0) {
+    if (panelTransactions.length === 0) {
         container.innerHTML = `
             <div class="transaction-item" style="justify-content: center; padding: 30px;">
                 <div style="text-align: center; color: var(--ios-text-secondary);">
@@ -1910,7 +1985,7 @@ function updateRecentTransactions(transactions) {
     let html = '';
     const symbol = currencySymbols[currentCurrency] || '₽';
     
-    transactions.forEach(trans => {
+    panelTransactions.forEach(trans => {
         const isSavings = isSavingsCategoryName(trans.category);
         const isDebt = trans.category === 'Долги';
         const isIncome = isSavings ? true : trans.type === 'income';
@@ -2019,7 +2094,7 @@ async function deleteTransactionById(id) {
         }
         if (data.recent_transactions) {
             allTransactions = data.recent_transactions;
-            updateRecentTransactions(allTransactions.slice(0, 5));
+            updateRecentTransactions(allTransactions);
         }
         updateBalanceDisplay(data.summary);
         updateSectionTotals();
@@ -3311,43 +3386,56 @@ async function updateOverviewTab() {
         const response = await fetch(`/api/transactions/${currentUser.id}?limit=1000`);
         const transactions = await response.json();
         
-        // Фильтруем доходы и расходы
         const incomeTransactions = transactions.filter(t => t.type === 'income');
         const expenseTransactions = transactions.filter(t => t.type === 'expense');
-        
-        // Считаем суммы
+
         const totalIncome = incomeTransactions.reduce((sum, t) => sum + t.amount, 0);
-        const totalExpense = expenseTransactions.reduce((sum, t) => sum + t.amount, 0);
-        
-        // Обновляем цифры
+        const savingsTransactions = expenseTransactions.filter(t => isSavingsCategoryName(t.category));
+        const debtTransactions = expenseTransactions.filter(t => t.category === 'Долги');
+        const regularExpenseTransactions = expenseTransactions.filter(
+            t => !isSavingsCategoryName(t.category) && t.category !== 'Долги'
+        );
+
+        const totalSavings = savingsTransactions.reduce((sum, t) => sum + t.amount, 0);
+        const totalDebts = debtTransactions.reduce((sum, t) => sum + t.amount, 0);
+        const totalRegularExpense = regularExpenseTransactions.reduce((sum, t) => sum + t.amount, 0);
+        const totalOutflow = totalRegularExpense + totalSavings + totalDebts;
+
         const symbol = currencySymbols[currentCurrency] || '₽';
         document.getElementById('overview-income').textContent = formatCurrency(totalIncome) + ' ' + symbol;
-        document.getElementById('overview-expense').textContent = formatCurrency(totalExpense) + ' ' + symbol;
-        document.getElementById('overview-balance').textContent = formatCurrency(totalIncome - totalExpense) + ' ' + symbol;
-        
-        // Обновляем накопления
-        const savingsTransactions = expenseTransactions.filter(t => isSavingsCategoryName(t.category));
-        const totalSavings = savingsTransactions.reduce((sum, t) => sum + t.amount, 0);
-        document.getElementById('overview-savings').textContent = formatCurrency(totalSavings) + ' ' + symbol;
-        
-        // Создаем или обновляем график
-        updateOverviewChart(totalIncome, totalExpense);
+        document.getElementById('overview-expense').textContent = formatCurrency(totalRegularExpense) + ' ' + symbol;
+        document.getElementById('overview-balance').textContent = formatCurrency(totalIncome - totalOutflow) + ' ' + symbol;
+
+        const overviewSegments = [];
+        if (totalIncome > 0) {
+            overviewSegments.push({ label: t('Доходы'), value: totalIncome, color: '#30D158', icon: '💰' });
+        }
+        if (totalRegularExpense > 0) {
+            overviewSegments.push({ label: t('Расходы'), value: totalRegularExpense, color: '#FF453A', icon: '📉' });
+        }
+        if (totalSavings > 0) {
+            overviewSegments.push({ label: t('Накопления'), value: totalSavings, color: '#FFD166', icon: '🐷' });
+        }
+        if (totalDebts > 0) {
+            overviewSegments.push({ label: t('Долги'), value: totalDebts, color: '#AF52DE', icon: '💸' });
+        }
+
+        updateOverviewChart(overviewSegments);
         
     } catch (error) {
         console.error('❌ Ошибка обновления обзора:', error);
     }
 }
 
-function updateOverviewChart(totalIncome, totalExpense) {
+function updateOverviewChart(segments) {
     const ctx = document.getElementById('overview-chart');
     if (!ctx) return;
     
-    // Удаляем старый график если есть
     if (charts['overview-chart']) {
         charts['overview-chart'].destroy();
     }
     
-    if (totalIncome === 0 && totalExpense === 0) {
+    if (!Array.isArray(segments) || segments.length === 0) {
         ctx.innerHTML = `
             <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--ios-text-tertiary);">
                 <div style="font-size: 48px; margin-bottom: 16px;">📊</div>
@@ -3356,34 +3444,28 @@ function updateOverviewChart(totalIncome, totalExpense) {
         `;
         return;
     }
-    
-    // Создаем новый график с улучшенным стилем
+
+    const labels = segments.map(segment => segment.label);
+    const values = segments.map(segment => segment.value);
+    const colors = segments.map(segment => segment.color);
+    const icons = segments.map(segment => segment.icon);
     const spacing = 0;
-    const overviewDisplayData = buildDisplayValuesWithMinimumPercent([totalIncome, totalExpense], 10);
+    const overviewDisplayData = buildDisplayValuesWithMinimumPercent(values, 10);
     charts['overview-chart'] = new Chart(ctx, {
         type: 'doughnut',
         data: {
-            labels: [t('Доходы'), t('Расходы')],
+            labels: labels,
             datasets: [{
                 data: overviewDisplayData.displayValues,
                 rawData: overviewDisplayData.rawValues,
-                backgroundColor: [
-                    '#30D158',
-                    '#FF453A'
-                ],
-                borderColor: [
-                    '#30D158',
-                    '#FF453A'
-                ],
+                backgroundColor: colors,
+                borderColor: colors,
                 borderWidth: 0,
                 borderRadius: 0,
                 spacing: spacing,
                 borderAlign: 'inner',
                 borderJoinStyle: 'round',
-                hoverBackgroundColor: [
-                    '#30D158',
-                    '#FF453A'
-                ],
+                hoverBackgroundColor: colors,
                 hoverBorderColor: 'rgba(255, 255, 255, 0.2)',
                 hoverBorderWidth: 0,
                 hoverOffset: 0
@@ -3414,9 +3496,14 @@ function updateOverviewChart(totalIncome, totalExpense) {
                     shadowBlur: 40,
                     shadowOffsetY: 16
                 },
+                segmentJoinCaps: {
+                    enabled: true,
+                    colors: colors,
+                    overdraw: 0.6
+                },
                 segmentIcons: {
-                    icons: ['💰', '📉'],
-                    colors: ['#30D158', '#FF453A']
+                    icons: icons,
+                    colors: colors
                 },
                 segmentPercentages: true,
                 segmentPopup: { enabled: true },
@@ -3537,6 +3624,11 @@ async function updateIncomeChart(transactions) {
                     shadowColor: 'rgba(0, 0, 0, 0.7)',
                     shadowBlur: 38,
                     shadowOffsetY: 14
+                },
+                segmentJoinCaps: {
+                    enabled: true,
+                    colors: backgroundColors,
+                    overdraw: 0.6
                 },
                 segmentIcons: {
                     icons,
@@ -3667,6 +3759,11 @@ async function updateExpenseChart(transactions) {
                     shadowColor: 'rgba(0, 0, 0, 0.7)',
                     shadowBlur: 38,
                     shadowOffsetY: 14
+                },
+                segmentJoinCaps: {
+                    enabled: true,
+                    colors: backgroundColors,
+                    overdraw: 0.6
                 },
                 segmentIcons: {
                     icons,
@@ -5507,7 +5604,7 @@ async function submitTransaction(e) {
         
         if (data.recent_transactions) {
             allTransactions = data.recent_transactions;
-            updateRecentTransactions(allTransactions.slice(0, 5));
+            updateRecentTransactions(allTransactions);
         }
         
         if (currentPage === 'panel') {
@@ -5559,6 +5656,18 @@ function showAddCategoryModal(type) {
     
     title.textContent = titleMap[type] || t('Добавить категорию');
     modal.dataset.categoryType = type;
+
+    const nameInput = document.getElementById('category-name-input');
+    if (nameInput) {
+        const placeholderByType = {
+            income: 'Например: Зарплата за февраль',
+            expense: 'Например: Кафе',
+            savings: 'Например: Копилка'
+        };
+        const placeholderKey = placeholderByType[type] || 'Например: Кафе';
+        nameInput.setAttribute('data-i18n-placeholder', placeholderKey);
+        nameInput.setAttribute('placeholder', t(placeholderKey));
+    }
     
     fillIconsGrid();
     setupColorPicker();
@@ -6168,19 +6277,29 @@ function showAllTransactions() {
     const list = document.getElementById('all-transactions-list');
     
     if (!modal || !list) return;
-    
-    if (allTransactions.length === 0) {
-        list.innerHTML = `
-            <div style="text-align: center; padding: 40px 20px; color: var(--ios-text-tertiary);">
-                <div style="font-size: 48px; margin-bottom: 16px;">📭</div>
-                <div style="font-size: 15px;">${t('Нет операций')}</div>
-            </div>
-        `;
-    } else {
-        let html = '';
+
+    modal.classList.add('active');
+    updateBodyModalState();
+    list.innerHTML = `
+        <div style="text-align: center; padding: 26px 20px; color: var(--ios-text-secondary);">
+            ${t('Загрузка...')}
+        </div>
+    `;
+
+    const renderTransactions = (transactions) => {
+        if (!transactions.length) {
+            list.innerHTML = `
+                <div style="text-align: center; padding: 40px 20px; color: var(--ios-text-tertiary);">
+                    <div style="font-size: 48px; margin-bottom: 16px;">📭</div>
+                    <div style="font-size: 15px;">${t('Нет операций')}</div>
+                </div>
+            `;
+            return;
+        }
+
         const symbol = currencySymbols[currentCurrency] || '₽';
-        
-        allTransactions.forEach(trans => {
+        let html = '';
+        transactions.forEach(trans => {
             const isSavings = isSavingsCategoryName(trans.category);
             const isDebt = trans.category === 'Долги';
             const isIncome = isSavings ? true : trans.type === 'income';
@@ -6194,7 +6313,6 @@ function showAllTransactions() {
                 hour: '2-digit',
                 minute: '2-digit'
             });
-            
             const categoryLabel = t(trans.category);
             const descriptionMarkup = renderTransactionDescription(trans.description);
             html += `
@@ -6207,18 +6325,50 @@ function showAllTransactions() {
                         </div>
                         <div class="transaction-details">${date} • ${t(trans.wallet)}</div>
                     </div>
-                    <div class="transaction-amount ${amountClass}">
-                        ${amountSign}${formatCurrency(trans.amount)} ${symbol}
+                    <div class="transaction-right">
+                        <div class="transaction-amount ${amountClass}">
+                            ${amountSign}${formatCurrency(trans.amount)} ${symbol}
+                        </div>
+                        <div class="transaction-actions">
+                            <button class="debt-action-btn panel-recent-edit-btn" onclick="openEditTransactionFromAll(${trans.id})">${t('Изменить')}</button>
+                        </div>
                     </div>
                 </div>
             `;
         });
-        
         list.innerHTML = html;
+    };
+
+    const sortByDateDesc = (items) => {
+        return [...items].sort((a, b) => {
+            const tsA = new Date(a?.date || 0).getTime();
+            const tsB = new Date(b?.date || 0).getTime();
+            if (Number.isFinite(tsA) && Number.isFinite(tsB)) return tsB - tsA;
+            return Number(b?.id || 0) - Number(a?.id || 0);
+        });
+    };
+
+    if (currentUser) {
+        fetch(`/api/transactions/${currentUser.id}?limit=1000`)
+            .then(res => res.json())
+            .then(data => {
+                if (Array.isArray(data)) {
+                    allTransactions = sortByDateDesc(data);
+                }
+            })
+            .catch(() => {})
+            .finally(() => {
+                renderTransactions(sortByDateDesc(Array.isArray(allTransactions) ? allTransactions : []));
+            });
+        return;
     }
-    
-    modal.classList.add('active');
-    updateBodyModalState();
+
+    renderTransactions(sortByDateDesc(Array.isArray(allTransactions) ? allTransactions : []));
+}
+
+function openEditTransactionFromAll(id) {
+    closeModal('all-transactions-modal');
+    openEditTransactionById(id);
 }
 
 function showAddWalletModal() {
@@ -6675,6 +6825,7 @@ window.showCalendar = showCalendar;
 window.showAddTransactionForCategory = showAddTransactionForCategory;
 window.showWalletTransactions = showWalletTransactions;
 window.openEditTransactionById = openEditTransactionById;
+window.openEditTransactionFromAll = openEditTransactionFromAll;
 window.deleteTransactionById = deleteTransactionById;
 window.deleteEditingTransaction = deleteEditingTransaction;
 window.selectDefaultWallet = selectDefaultWallet;

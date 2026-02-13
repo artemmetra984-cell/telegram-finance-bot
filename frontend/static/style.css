@@ -1285,6 +1285,11 @@ body.modal-open #main-content {
   text-shadow: 0 0 5px currentColor;
 }
 
+.overview-value--balance {
+  font-size: 88px;
+  line-height: 1;
+}
+
 .overview-value.income {
   color: var(--pastel-green);
 }
@@ -2617,6 +2622,7 @@ body.modal-open #main-content {
   animation: fadeIn 0.3s;
   overscroll-behavior: contain;
   touch-action: pan-y;
+  transition: top 0.24s ease, height 0.24s ease, padding 0.24s ease;
 }
 
 @keyframes fadeIn {
@@ -2643,15 +2649,17 @@ body.modal-open #main-content {
   will-change: transform;
   touch-action: pan-y;
   overscroll-behavior: contain;
+  transform: translateY(0);
+  transition: transform 0.24s ease, max-height 0.24s ease;
 }
 
 body.keyboard-open .modal-overlay {
-  align-items: flex-end;
+  align-items: center;
   padding-bottom: var(--spacing-md);
 }
 
 body.keyboard-open .modal-content {
-  animation: none;
+  transform: translateY(calc(var(--keyboard-height) * -0.18));
 }
 
 @keyframes slideUp {
@@ -2962,6 +2970,11 @@ body.keyboard-open .modal-content {
 
 .modal-btn {
   flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  line-height: 1.1;
   padding: var(--spacing-md);
   border-radius: var(--border-radius);
   font-size: 15px;
@@ -2969,6 +2982,11 @@ body.keyboard-open .modal-content {
   cursor: pointer;
   transition: all var(--transition-fast);
   border: none;
+}
+
+#transaction-delete-btn span {
+  width: 100%;
+  text-align: center;
 }
 
 .modal-btn.secondary {
