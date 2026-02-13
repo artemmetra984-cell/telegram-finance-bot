@@ -88,6 +88,7 @@ function updateViewportVars() {
         if (height > baseViewportHeight) {
             baseViewportHeight = height;
         }
+        document.documentElement.style.setProperty('--app-base-height', `${baseViewportHeight}px`);
         let keyboardHeight = Math.max(0, baseViewportHeight - height);
         if (keyboardHeight < 20) {
             baseViewportHeight = height;
@@ -915,9 +916,13 @@ const segmentJoinCapsPlugin = {
         if (positiveCount <= 1) return;
 
         const colors = pluginOptions.colors || dataset.backgroundColor || [];
-        const overdraw = Number.isFinite(pluginOptions.overdraw) ? pluginOptions.overdraw : 0.6;
         const meta = chart.getDatasetMeta(args.index);
         const ctx = chart.ctx;
+        const area = chart.chartArea || { left: 0, top: 0, right: chart.width, bottom: chart.height };
+        const clamp = (value, min, max) => {
+            if (min > max) return value;
+            return Math.max(min, Math.min(max, value));
+        };
 
         ctx.save();
         meta.data.forEach((arc, i) => {
@@ -928,12 +933,14 @@ const segmentJoinCapsPlugin = {
             if (!color) return;
 
             const thickness = arc.outerRadius - arc.innerRadius;
-            // Half-ring cap + tiny overdraw removes seam dents and creates interlock effect.
-            const capRadius = (thickness * 0.5) + overdraw;
+            // Keep join cap fully inside ring width so it never protrudes outside chart edge.
+            const capRadius = Math.max(2, (thickness * 0.5) - 0.4);
             const angle = arc.endAngle;
             const radius = arc.innerRadius + thickness * 0.5;
-            const x = arc.x + Math.cos(angle) * radius;
-            const y = arc.y + Math.sin(angle) * radius;
+            const rawX = arc.x + Math.cos(angle) * radius;
+            const rawY = arc.y + Math.sin(angle) * radius;
+            const x = clamp(rawX, area.left + capRadius + 1, area.right - capRadius - 1);
+            const y = clamp(rawY, area.top + capRadius + 1, area.bottom - capRadius - 1);
 
             ctx.fillStyle = color;
             ctx.beginPath();
@@ -1046,7 +1053,7 @@ const segmentPopupPlugin = {
         // Держим окно внутри внутреннего круга графика
         const halfDiag = Math.hypot(boxWidth / 2, boxHeight / 2);
         const maxInsideOffset = Math.max(0, arc.innerRadius - halfDiag - 6);
-        const insideOffset = Math.min(maxInsideOffset, arc.innerRadius * 0.22);
+        const insideOffset = Math.min(maxInsideOffset, arc.innerRadius * 0.34);
         const targetCenterX = arc.x + Math.cos(anchorAngle) * insideOffset;
         const targetCenterY = arc.y + Math.sin(anchorAngle) * insideOffset;
 
@@ -1055,9 +1062,24 @@ const segmentPopupPlugin = {
         boxX = clamp(boxX, area.left + 6, area.right - boxWidth - 6);
         boxY = clamp(boxY, area.top + 6, area.bottom - boxHeight - 6);
 
+        // Дополнительно удерживаем попап внутри внутреннего отверстия пончика.
+        let boxCenterX = boxX + boxWidth / 2;
+        let boxCenterY = boxY + boxHeight / 2;
+        const maxCenterDistance = Math.max(0, arc.innerRadius - halfDiag - 5);
+        const centerDx = boxCenterX - arc.x;
+        const centerDy = boxCenterY - arc.y;
+        const centerDist = Math.hypot(centerDx, centerDy);
+        if (maxCenterDistance > 0 && centerDist > maxCenterDistance) {
+            const scale = maxCenterDistance / centerDist;
+            boxCenterX = arc.x + centerDx * scale;
+            boxCenterY = arc.y + centerDy * scale;
+            boxX = boxCenterX - boxWidth / 2;
+            boxY = boxCenterY - boxHeight / 2;
+        }
+
         const radius = 14;
-        const boxCenterX = boxX + boxWidth / 2;
-        const boxCenterY = boxY + boxHeight / 2;
+        boxCenterX = boxX + boxWidth / 2;
+        boxCenterY = boxY + boxHeight / 2;
         const angle = Math.atan2(anchorY - boxCenterY, anchorX - boxCenterX);
         const dirX = Math.cos(angle);
         const dirY = Math.sin(angle);
@@ -1069,7 +1091,58 @@ const segmentPopupPlugin = {
         const edgeX = boxCenterX + dirX * scale;
         const edgeY = boxCenterY + dirY * scale;
 
-        // Bubble
+        // Tail: цельная форма, которая плавно входит в окно.
+        const edgeToAnchorX = anchorX - edgeX;
+        const edgeToAnchorY = anchorY - edgeY;
+        const tailLen = Math.max(1, Math.hypot(edgeToAnchorX, edgeToAnchorY));
+        const tailUx = edgeToAnchorX / tailLen;
+        const tailUy = edgeToAnchorY / tailLen;
+        const tailNx = -tailUy;
+        const tailNy = tailUx;
+        const rootHalf = Math.min(9, Math.max(5, Math.min(boxWidth, boxHeight) * 0.08));
+        const tipHalf = Math.max(2.6, rootHalf * 0.44);
+        const pull = Math.min(22, tailLen * 0.38);
+        const approach = Math.min(12, tailLen * 0.28);
+
+        const rootLeftX = edgeX + tailNx * rootHalf;
+        const rootLeftY = edgeY + tailNy * rootHalf;
+        const rootRightX = edgeX - tailNx * rootHalf;
+        const rootRightY = edgeY - tailNy * rootHalf;
+        const tipLeftX = anchorX + tailNx * tipHalf;
+        const tipLeftY = anchorY + tailNy * tipHalf;
+        const tipRightX = anchorX - tailNx * tipHalf;
+        const tipRightY = anchorY - tailNy * tipHalf;
+
+        ctx.beginPath();
+        ctx.moveTo(rootLeftX, rootLeftY);
+        ctx.bezierCurveTo(
+            rootLeftX + tailUx * pull + tailNx * rootHalf * 0.35,
+            rootLeftY + tailUy * pull + tailNy * rootHalf * 0.35,
+            tipLeftX - tailUx * approach + tailNx * tipHalf * 0.25,
+            tipLeftY - tailUy * approach + tailNy * tipHalf * 0.25,
+            tipLeftX,
+            tipLeftY
+        );
+        ctx.quadraticCurveTo(anchorX, anchorY, tipRightX, tipRightY);
+        ctx.bezierCurveTo(
+            tipRightX - tailUx * approach - tailNx * tipHalf * 0.25,
+            tipRightY - tailUy * approach - tailNy * tipHalf * 0.25,
+            rootRightX + tailUx * pull - tailNx * rootHalf * 0.35,
+            rootRightY + tailUy * pull - tailNy * rootHalf * 0.35,
+            rootRightX,
+            rootRightY
+        );
+        ctx.closePath();
+        ctx.fillStyle = connectorColor;
+        ctx.strokeStyle = connectorStrokeColor;
+        ctx.lineWidth = 1.1;
+        ctx.shadowColor = 'rgba(0,0,0,0.35)';
+        ctx.shadowBlur = 10;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.stroke();
+
+        // Bubble: рисуем после хвоста, чтобы стык выглядел цельным и аккуратным.
         ctx.beginPath();
         ctx.moveTo(boxX + radius, boxY);
         ctx.lineTo(boxX + boxWidth - radius, boxY);
@@ -1088,31 +1161,6 @@ const segmentPopupPlugin = {
         ctx.shadowBlur = 20;
         ctx.fill();
         ctx.shadowBlur = 0;
-        ctx.stroke();
-
-        // Мягкий коннектор к якорю (вместо острого треугольника)
-        const midX = (edgeX + anchorX) / 2;
-        const midY = (edgeY + anchorY) / 2;
-        const toCenterX = arc.x - midX;
-        const toCenterY = arc.y - midY;
-        const toCenterLen = Math.hypot(toCenterX, toCenterY) || 1;
-        const controlX = midX + (toCenterX / toCenterLen) * 8;
-        const controlY = midY + (toCenterY / toCenterLen) * 8;
-
-        ctx.beginPath();
-        ctx.moveTo(edgeX, edgeY);
-        ctx.quadraticCurveTo(controlX, controlY, anchorX, anchorY);
-        ctx.strokeStyle = connectorColor;
-        ctx.lineWidth = 10;
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
-        ctx.stroke();
-
-        ctx.beginPath();
-        ctx.moveTo(edgeX, edgeY);
-        ctx.quadraticCurveTo(controlX, controlY, anchorX, anchorY);
-        ctx.strokeStyle = connectorStrokeColor;
-        ctx.lineWidth = 1.2;
         ctx.stroke();
 
         // Text

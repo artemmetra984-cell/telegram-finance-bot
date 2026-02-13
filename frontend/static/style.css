@@ -78,6 +78,7 @@
 
   /* Viewport / Keyboard */
   --app-height: 100vh;
+  --app-base-height: 100vh;
   --app-offset-top: 0px;
   --keyboard-height: 0px;
 
@@ -1287,8 +1288,8 @@ body.modal-open #main-content {
 
 .overview-balance-wrap {
   text-align: center;
-  padding: 22px 12px 18px;
-  min-height: 180px;
+  padding: 10px 12px 12px;
+  min-height: 156px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1296,12 +1297,12 @@ body.modal-open #main-content {
 }
 
 .overview-value--balance {
-  font-size: clamp(56px, 14vw, 112px);
+  font-size: clamp(42px, 10vw, 76px);
   line-height: 0.95;
   letter-spacing: -0.02em;
   font-weight: 800;
   white-space: nowrap;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
 
 .overview-value.income {
@@ -2624,7 +2625,7 @@ body.modal-open #main-content {
   top: var(--app-offset-top);
   left: 0;
   right: 0;
-  height: var(--app-height);
+  height: var(--app-base-height);
   background: rgba(0, 0, 0, 0.7);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
@@ -2654,7 +2655,7 @@ body.modal-open #main-content {
   padding: var(--spacing-xl);
   width: 100%;
   max-width: 400px;
-  max-height: calc(var(--app-height) - (2 * var(--spacing-md)));
+  max-height: calc(var(--app-base-height) - (2 * var(--spacing-md)));
   overflow-y: auto;
   animation: slideUp 0.3s;
   border: 0.5px solid rgba(255, 255, 255, 0.1);
@@ -2667,12 +2668,13 @@ body.modal-open #main-content {
 }
 
 body.keyboard-open .modal-overlay {
-  align-items: flex-end;
-  padding-bottom: 0;
+  align-items: center;
+  padding: var(--spacing-md);
 }
 
 body.keyboard-open .modal-content {
   transform: none;
+  max-height: calc(var(--app-base-height) - (2 * var(--spacing-md)));
 }
 
 @keyframes slideUp {
@@ -3340,8 +3342,8 @@ body.keyboard-open .modal-content {
   }
 
   .overview-value--balance {
-    font-size: clamp(54px, 16vw, 88px);
-    margin-bottom: 6px;
+    font-size: clamp(36px, 11vw, 62px);
+    margin-bottom: 4px;
   }
   
   .chart-container {
