@@ -8,6 +8,11 @@
 /* ==================== */
 
 // Глобальные переменные
+function getCurrentMonthPeriodValue() {
+    const now = new Date();
+    return `month:${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+}
+
 let currentUser = null;
 let currentTransactionType = 'income';
 let currentPage = 'panel';
@@ -19,8 +24,8 @@ let debtsData = [];
 let categoryStats = { income: {}, expense: {}, wallets: {} };
 let currentHistoryMonth = new Date();
 let currentFilter = 'all';
-let incomeStatsPeriod = 'all';
-let expenseStatsPeriod = 'all';
+let incomeStatsPeriod = getCurrentMonthPeriodValue();
+let expenseStatsPeriod = getCurrentMonthPeriodValue();
 let sessionToken = null;
 let defaultWallet = 'Карта';
 let charts = {};
@@ -290,6 +295,7 @@ const translations = {
         'Текущий остаток': 'Current balance',
         'Доходы по категориям': 'Income by category',
         'Статистика доходов': 'Income stats',
+        'Статистика расходов': 'Expense stats',
         'Период': 'Period',
         'За год': 'Year',
         'За всё время': 'All time',
@@ -834,8 +840,8 @@ const segmentIconsPlugin = {
             const color = Array.isArray(colors) ? colors[i] : colors;
             const thickness = arc.outerRadius - arc.innerRadius;
             const badgeRadius = Math.min(16, Math.max(10, thickness * 0.45));
-            // Draw icon badges in the segment center so joins stay visually smooth.
-            const angle = (arc.startAngle + arc.endAngle) / 2;
+            // Place icon badge on the segment edge (legacy visual style).
+            const angle = arc.endAngle;
             const radius = arc.innerRadius + thickness * 0.5;
             const x = arc.x + Math.cos(angle) * radius;
             const y = arc.y + Math.sin(angle) * radius;
@@ -2477,6 +2483,31 @@ function updateSubscriptionPeriod() {
     }
 }
 
+function activateSubscriptionState(data = {}, closeModalOnSuccess = false) {
+    subscriptionActive = true;
+    subscriptionStart = data.subscription_start || subscriptionStart;
+    subscriptionEnd = data.subscription_end || subscriptionEnd;
+    subscriptionPayment = {
+        invoiceId: null,
+        status: '',
+        asset: 'USDT',
+        amount: '',
+        currency: '',
+        invoiceUrl: '',
+        miniAppUrl: '',
+        webAppUrl: '',
+        botUrl: '',
+        months: subscriptionDuration
+    };
+    try { localStorage.removeItem('subscription_payment'); } catch {}
+    stopSubscriptionPolling();
+    updateSubscriptionUI();
+    if (closeModalOnSuccess) {
+        closeSubscriptionModal();
+    }
+    refreshSubscriptionInfo();
+}
+
 async function refreshSubscriptionInfo() {
     if (!currentUser) return;
     try {
@@ -2596,6 +2627,7 @@ function updateSubscriptionUI() {
         if (checkBtn) checkBtn.style.display = 'none';
         if (adminBlock) adminBlock.style.display = isAdminUser() ? 'block' : 'none';
         if (durationSelect) durationSelect.disabled = true;
+        updateSubscriptionPeriod();
         return;
     }
     if (statusEl) statusEl.textContent = formatSubscriptionStatus(subscriptionPayment.status) || t('Создайте оплату');
@@ -2641,13 +2673,9 @@ async function redeemPromoCode() {
         });
         const data = await res.json();
         if (data.error) throw new Error(data.error);
-        subscriptionActive = true;
-        subscriptionStart = data.subscription_start || subscriptionStart;
-        subscriptionEnd = data.subscription_end || subscriptionEnd;
         if (input) input.value = '';
         showNotification(`${t('Промокод активирован на')} ${data.months} ${t('мес.')}`, 'success');
-        updateSubscriptionUI();
-        refreshSubscriptionInfo();
+        activateSubscriptionState(data, true);
     } catch (e) {
         showNotification(e.message || 'Не удалось активировать промокод', 'error');
     }
@@ -2690,8 +2718,7 @@ async function createCryptoPayPayment() {
         const data = await res.json();
         if (data.error) throw new Error(data.error);
         if (data.active) {
-            subscriptionActive = true;
-            updateSubscriptionUI();
+            activateSubscriptionState(data, true);
             return;
         }
         subscriptionPayment = {
@@ -2724,13 +2751,8 @@ async function checkSubscriptionStatus() {
         if (data.error) throw new Error(data.error);
         subscriptionPayment.status = data.status || subscriptionPayment.status;
         if (data.active) {
-            subscriptionActive = true;
-            subscriptionStart = data.subscription_start || subscriptionStart;
-            subscriptionEnd = data.subscription_end || subscriptionEnd;
-            subscriptionPayment = { invoiceId: null, status: '', asset: 'USDT', amount: '', currency: '', invoiceUrl: '', miniAppUrl: '', webAppUrl: '', botUrl: '', months: subscriptionDuration };
-            saveSubscriptionState();
             showNotification('Подписка активирована', 'success');
-            updateSubscriptionUI();
+            activateSubscriptionState(data, true);
             return;
         }
         saveSubscriptionState();
@@ -3675,8 +3697,9 @@ function updateIncomeStats(transactions) {
 
     const incomeTransactions = transactions.filter(t => t.type === 'income');
     const periodOptions = getReportStatsPeriodOptions(incomeTransactions);
+    const defaultPeriod = getCurrentMonthPeriodValue();
     if (!periodOptions.some(option => option.value === incomeStatsPeriod)) {
-        incomeStatsPeriod = 'all';
+        incomeStatsPeriod = periodOptions.some(option => option.value === defaultPeriod) ? defaultPeriod : 'all';
     }
     const filteredTransactions = filterTransactionsByPeriod(incomeTransactions, incomeStatsPeriod);
 
@@ -3733,7 +3756,7 @@ function updateIncomeStats(transactions) {
     const periodSelect = document.getElementById('income-stats-period');
     if (periodSelect) {
         periodSelect.onchange = function() {
-            incomeStatsPeriod = this.value || 'all';
+            incomeStatsPeriod = this.value || defaultPeriod;
             updateIncomeStats(transactions);
         };
     }
@@ -3745,8 +3768,9 @@ function updateExpenseTop(transactions) {
 
     const expenseTransactions = transactions.filter(t => t.type === 'expense');
     const periodOptions = getReportStatsPeriodOptions(expenseTransactions);
+    const defaultPeriod = getCurrentMonthPeriodValue();
     if (!periodOptions.some(option => option.value === expenseStatsPeriod)) {
-        expenseStatsPeriod = 'all';
+        expenseStatsPeriod = periodOptions.some(option => option.value === defaultPeriod) ? defaultPeriod : 'all';
     }
     const filteredTransactions = filterTransactionsByPeriod(expenseTransactions, expenseStatsPeriod);
     const symbol = currencySymbols[currentCurrency] || '₽';
@@ -3804,16 +3828,20 @@ function updateExpenseTop(transactions) {
     const periodSelect = document.getElementById('expense-stats-period');
     if (periodSelect) {
         periodSelect.onchange = function() {
-            expenseStatsPeriod = this.value || 'all';
+            expenseStatsPeriod = this.value || defaultPeriod;
             updateExpenseTop(transactions);
         };
     }
 }
 
 function getReportStatsPeriodOptions(items) {
+    const now = new Date();
+    const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const currentMonthValue = `month:${currentMonthKey}`;
     const options = [
-        { value: 'all', label: t('За всё время') },
-        { value: 'year', label: t('За год') }
+        { value: currentMonthValue, label: `${getMonthName(now.getMonth())} ${now.getFullYear()}` },
+        { value: 'year', label: t('За год') },
+        { value: 'all', label: t('За всё время') }
     ];
 
     if (!items.length) return options;
@@ -3833,6 +3861,7 @@ function getReportStatsPeriodOptions(items) {
     const lastMonth = lastDataMonth > currentMonth ? lastDataMonth : currentMonth;
     const monthKeys = [];
     const cursor = new Date(firstMonth);
+    const addedMonthValues = new Set([currentMonthValue]);
 
     while (cursor <= lastMonth) {
         const key = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}`;
@@ -3841,12 +3870,15 @@ function getReportStatsPeriodOptions(items) {
     }
 
     monthKeys.reverse().forEach((key) => {
+        const monthValue = `month:${key}`;
+        if (addedMonthValues.has(monthValue)) return;
         const [year, month] = key.split('-');
         const monthIndex = Number(month) - 1;
         options.push({
-            value: `month:${key}`,
+            value: monthValue,
             label: `${getMonthName(monthIndex)} ${year}`
         });
+        addedMonthValues.add(monthValue);
     });
 
     return options;
