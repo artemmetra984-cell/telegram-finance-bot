@@ -1167,6 +1167,10 @@ body.modal-open #main-content {
   text-align: left;
 }
 
+.report-stats-top-title--income {
+  color: var(--pastel-green);
+}
+
 .report-stats-top-list {
   display: grid;
   gap: 8px;
@@ -1184,11 +1188,17 @@ body.modal-open #main-content {
 .report-stats-top-name {
   color: var(--ios-text-primary);
   font-size: 15px;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .report-stats-row strong,
 .report-stats-top-item strong {
   font-size: 15px;
+  flex-shrink: 0;
 }
 
 .legend-item {

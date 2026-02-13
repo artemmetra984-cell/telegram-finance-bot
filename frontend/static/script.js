@@ -816,7 +816,6 @@ const segmentIconsPlugin = {
         if (type !== 'doughnut' && type !== 'pie') return;
         const icons = pluginOptions?.icons || [];
         if (!icons.length) return;
-        const minPercent = pluginOptions?.minPercent ?? 10;
         const colors = pluginOptions?.colors || chart.data.datasets[args.index]?.backgroundColor || [];
         const meta = chart.getDatasetMeta(args.index);
         const displayData = chart.data.datasets[args.index]?.data || [];
@@ -829,14 +828,14 @@ const segmentIconsPlugin = {
         ctx.textBaseline = 'middle';
         meta.data.forEach((arc, i) => {
             const value = rawData[i] || 0;
-            const percent = (value / total) * 100;
-            if (percent < minPercent) return;
+            if (value <= 0) return;
             const icon = icons[i] || '';
             if (!icon) return;
             const color = Array.isArray(colors) ? colors[i] : colors;
             const thickness = arc.outerRadius - arc.innerRadius;
             const badgeRadius = Math.min(16, Math.max(10, thickness * 0.45));
-            const angle = arc.endAngle;
+            // Draw icon badges in the segment center so joins stay visually smooth.
+            const angle = (arc.startAngle + arc.endAngle) / 2;
             const radius = arc.innerRadius + thickness * 0.5;
             const x = arc.x + Math.cos(angle) * radius;
             const y = arc.y + Math.sin(angle) * radius;
@@ -857,36 +856,6 @@ const segmentIconsPlugin = {
     }
 };
 
-const segmentCapsPlugin = {
-    id: 'segmentCaps',
-    afterDatasetDraw(chart, args, pluginOptions) {
-        const type = chart?.config?.type;
-        if (type !== 'doughnut' && type !== 'pie') return;
-        const colors = pluginOptions?.colors || chart.data.datasets[args.index]?.backgroundColor || [];
-        const meta = chart.getDatasetMeta(args.index);
-        const ctx = chart.ctx;
-        ctx.save();
-        meta.data.forEach((arc, i) => {
-            const color = Array.isArray(colors) ? colors[i] : colors;
-            const thickness = arc.outerRadius - arc.innerRadius;
-            const capRadius = Math.min(18, Math.max(10, thickness * 0.5));
-            const angle = arc.endAngle;
-            const radius = arc.innerRadius + thickness * 0.5;
-            const x = arc.x + Math.cos(angle) * radius;
-            const y = arc.y + Math.sin(angle) * radius;
-            ctx.save();
-            ctx.fillStyle = color;
-            ctx.shadowColor = 'rgba(0, 0, 0, 0.55)';
-            ctx.shadowBlur = 12;
-            ctx.shadowOffsetY = 4;
-            ctx.beginPath();
-            ctx.arc(x, y, capRadius, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.restore();
-        });
-        ctx.restore();
-    }
-};
 const segmentPercentagesPlugin = {
     id: 'segmentPercentages',
     afterDatasetDraw(chart, args, pluginOptions) {
@@ -1079,7 +1048,7 @@ const segmentPopupPlugin = {
 };
 
 if (window.Chart && Chart.register) {
-    Chart.register(chartShadowPlugin, segmentCapsPlugin, segmentIconsPlugin, segmentPercentagesPlugin, segmentPopupPlugin);
+    Chart.register(chartShadowPlugin, segmentIconsPlugin, segmentPercentagesPlugin, segmentPopupPlugin);
 }
 
 // ==================== //
@@ -3423,13 +3392,9 @@ function updateOverviewChart(totalIncome, totalExpense) {
                     shadowBlur: 40,
                     shadowOffsetY: 16
                 },
-                segmentCaps: {
-                    colors: ['#30D158', '#FF453A']
-                },
                 segmentIcons: {
                     icons: ['💰', '📉'],
-                    colors: ['#30D158', '#FF453A'],
-                    minPercent: 10
+                    colors: ['#30D158', '#FF453A']
                 },
                 segmentPercentages: true,
                 segmentPopup: { enabled: true },
@@ -3551,13 +3516,9 @@ async function updateIncomeChart(transactions) {
                     shadowBlur: 38,
                     shadowOffsetY: 14
                 },
-                segmentCaps: {
-                    colors: backgroundColors
-                },
                 segmentIcons: {
                     icons,
-                    colors: backgroundColors,
-                    minPercent: 10
+                    colors: backgroundColors
                 },
                 segmentPercentages: true,
                 segmentPopup: { enabled: true },
@@ -3685,13 +3646,9 @@ async function updateExpenseChart(transactions) {
                     shadowBlur: 38,
                     shadowOffsetY: 14
                 },
-                segmentCaps: {
-                    colors: backgroundColors
-                },
                 segmentIcons: {
                     icons,
-                    colors: backgroundColors,
-                    minPercent: 10
+                    colors: backgroundColors
                 },
                 segmentPercentages: true,
                 segmentPopup: { enabled: true },
@@ -3736,22 +3693,27 @@ function updateIncomeStats(transactions) {
         filteredTransactions.forEach(t => {
             byCategory[t.category] = (byCategory[t.category] || 0) + t.amount;
         });
-        const top = Object.entries(byCategory).sort((a, b) => b[1] - a[1])[0];
+        const top = Object.entries(byCategory)
+            .sort((a, b) => b[1] - a[1]);
         statsHtml = `
             <div class="report-stats-list report-stats-list--income">
                 <div class="report-stats-row">
-                    <span class="report-stats-row-label">${t('Всего')}:</span>
+                    <span class="report-stats-row-label">${t('Всего доходов')}:</span>
                     <strong>${formatCurrency(total)} ${symbol}</strong>
                 </div>
                 <div class="report-stats-row">
                     <span class="report-stats-row-label">${t('Средний доход')}:</span>
                     <strong>${formatCurrency(avg)} ${symbol}</strong>
                 </div>
-                <div class="report-stats-row">
-                    <span class="report-stats-row-label">${t('Топ категория')}:</span>
-                    <strong>${t(top[0])}</strong>
-                </div>
-                <div class="report-stats-subvalue">${formatCurrency(top[1])} ${symbol}</div>
+            </div>
+            <div class="report-stats-top-title report-stats-top-title--income">${t('Топ категорий')}</div>
+            <div class="report-stats-top-list">
+                ${top.map(([name, amount]) => `
+                    <div class="report-stats-top-item">
+                        <span class="report-stats-top-name">${t(name)}</span>
+                        <strong>${formatCurrency(amount)} ${symbol}</strong>
+                    </div>
+                `).join('')}
             </div>
         `;
     }
@@ -4149,8 +4111,7 @@ async function updateDistributionChart() {
                 legend: { display: false },
                 segmentIcons: {
                     icons,
-                    colors,
-                    minPercent: 8
+                    colors
                 },
                 segmentPopup: { enabled: true },
                 tooltip: {
