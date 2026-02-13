@@ -3705,25 +3705,42 @@ function updateDynamicsChart(data, period) {
     });
     
     const balances = data.map(item => item.balance);
+    const savingsSeries = data.map(item => item.savings ?? 0);
     
     charts['dynamics-chart'] = new Chart(ctx, {
         type: 'line',
         data: {
             labels: labels,
-            datasets: [{
-                label: t('Баланс'),
-                data: balances,
-                backgroundColor: 'rgba(10, 132, 255, 0.1)',
-                borderColor: 'rgba(10, 132, 255, 1)',
-                borderWidth: 3,
-                fill: true,
-                tension: 0.4,
-                pointBackgroundColor: 'rgba(10, 132, 255, 1)',
-                pointBorderColor: 'rgba(255, 255, 255, 1)',
-                pointBorderWidth: 2,
-                pointRadius: 5,
-                pointHoverRadius: 7
-            }]
+            datasets: [
+                {
+                    label: t('Баланс'),
+                    data: balances,
+                    backgroundColor: 'rgba(10, 132, 255, 0.1)',
+                    borderColor: 'rgba(10, 132, 255, 1)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.4,
+                    pointBackgroundColor: 'rgba(10, 132, 255, 1)',
+                    pointBorderColor: 'rgba(255, 255, 255, 1)',
+                    pointBorderWidth: 2,
+                    pointRadius: 5,
+                    pointHoverRadius: 7
+                },
+                {
+                    label: t('Накопления'),
+                    data: savingsSeries,
+                    backgroundColor: 'rgba(255, 209, 102, 0.12)',
+                    borderColor: 'rgba(255, 209, 102, 0.9)',
+                    borderWidth: 2,
+                    fill: false,
+                    tension: 0.4,
+                    pointBackgroundColor: 'rgba(255, 209, 102, 0.9)',
+                    pointBorderColor: 'rgba(0, 0, 0, 0.2)',
+                    pointBorderWidth: 1,
+                    pointRadius: 4,
+                    pointHoverRadius: 6
+                }
+            ]
         },
         options: {
             responsive: true,
@@ -3731,10 +3748,12 @@ function updateDynamicsChart(data, period) {
             plugins: {
                 legend: { display: false },
                 tooltip: {
+                    mode: 'index',
+                    intersect: false,
                     callbacks: {
                         label: (context) => {
                             const symbol = currencySymbols[currentCurrency] || '₽';
-                            return `${t('Баланс')}: ${formatCurrency(context.raw)} ${symbol}`;
+                            return `${context.dataset.label}: ${formatCurrency(context.raw)} ${symbol}`;
                         }
                     }
                 }
@@ -3762,6 +3781,10 @@ function updateDynamicsChart(data, period) {
                         }
                     }
                 }
+            },
+            interaction: {
+                mode: 'index',
+                intersect: false
             }
         }
     });

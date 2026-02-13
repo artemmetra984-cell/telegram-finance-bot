@@ -1338,7 +1338,8 @@ class Database:
             SELECT 
                 strftime(?, date) as period,
                 SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END) as income,
-                SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) as expense
+                SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) as expense,
+                SUM(CASE WHEN type = 'expense' AND category IN ('Накопления','Цели') THEN amount ELSE 0 END) as savings
             FROM transactions 
             WHERE user_id = ? AND date >= ?
             GROUP BY strftime(?, date)
@@ -1347,18 +1348,22 @@ class Database:
         
         dynamics = []
         cumulative_balance = 0
+        cumulative_savings = 0
         
         for row in cursor.fetchall():
             income = float(row['income'] or 0)
             expense = float(row['expense'] or 0)
+            savings = float(row['savings'] or 0)
             balance_change = income - expense
             cumulative_balance += balance_change
+            cumulative_savings += savings
             
             dynamics.append({
                 'period': row['period'],
                 'income': income,
                 'expense': expense,
-                'balance': cumulative_balance
+                'balance': cumulative_balance,
+                'savings': cumulative_savings
             })
         
         return dynamics
