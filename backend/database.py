@@ -5,7 +5,10 @@ from datetime import datetime, timedelta
 
 class Database:
     def __init__(self):
-        db_path = 'finance.db'
+        db_path = os.getenv('DB_PATH', 'finance.db')
+        db_dir = os.path.dirname(db_path)
+        if db_dir:
+            os.makedirs(db_dir, exist_ok=True)
         print(f"📊 Database: {os.path.abspath(db_path)}")
         
         self.conn = sqlite3.connect(db_path, check_same_thread=False)

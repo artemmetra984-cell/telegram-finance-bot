@@ -80,6 +80,9 @@
   --app-height: 100vh;
   --app-offset-top: 0px;
   --keyboard-height: 0px;
+
+  /* Report charts */
+  --report-chart-height: 330px;
   
   /* Enhanced Shadows with glow */
   --shadow-subtle: 0 1px 3px rgba(0, 0, 0, 0.3);
@@ -747,14 +750,9 @@ body.modal-open #main-content {
 .transaction-info {
   flex: 1;
   min-width: 0;
-}
-
-.transaction-title-row {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .transaction-title {
@@ -764,7 +762,24 @@ body.modal-open #main-content {
   text-overflow: ellipsis;
   white-space: nowrap;
   min-width: 0;
-  flex: 1 1 auto;
+  display: block;
+}
+
+.transaction-title-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+  width: 100%;
+}
+
+.transaction-category-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .transaction-category {
@@ -806,17 +821,17 @@ body.modal-open #main-content {
 
 .transaction-actions {
   display: flex;
-  gap: 6px;
+  gap: 8px;
 }
 
 .transaction-action-btn {
-  width: 26px;
-  height: 26px;
-  border-radius: 8px;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(255, 255, 255, 0.04);
   color: var(--ios-text-secondary);
-  font-size: 12px;
+  font-size: 14px;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -1032,7 +1047,7 @@ body.modal-open #main-content {
 
 .chart-wrapper {
   position: relative;
-  height: 345px;
+  height: var(--report-chart-height);
   margin: var(--spacing-md) 0;
   display: flex;
   align-items: center;
@@ -1062,7 +1077,7 @@ body.modal-open #main-content {
 .chart-row .chart-wrapper {
   flex: 1 1 390px;
   max-width: 480px;
-  height: 330px;
+  height: var(--report-chart-height);
   margin: 0;
 }
 
@@ -1966,6 +1981,18 @@ body.modal-open #main-content {
   line-height: 1.6;
 }
 
+.text-modal {
+  max-width: 520px;
+}
+
+.text-modal-body {
+  font-size: 15px;
+  color: var(--ios-text-primary);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .article-modal-body h1 {
   font-size: 18px;
   margin-bottom: var(--spacing-md);
@@ -2850,24 +2877,37 @@ body.keyboard-open .modal-content {
 
 .debt-actions {
   display: flex;
-  gap: 6px;
+  gap: 10px;
   margin-top: 6px;
   justify-content: flex-end;
+  flex-wrap: wrap;
 }
 
 .debt-action-btn {
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(0, 0, 0, 0.2);
   color: var(--ios-text-primary);
-  font-size: 11px;
-  padding: 4px 6px;
-  border-radius: 8px;
+  font-size: 13px;
+  padding: 8px 12px;
+  min-height: 36px;
+  min-width: 110px;
+  border-radius: 10px;
   cursor: pointer;
   transition: all var(--transition-fast);
 }
 
 .debt-action-btn:hover {
   background: rgba(255, 255, 255, 0.08);
+}
+
+.debt-action-btn.danger {
+  color: #ff6b6b;
+  border-color: rgba(255, 107, 107, 0.35);
+}
+
+.debt-action-btn.danger:hover {
+  color: #ffffff;
+  background: rgba(255, 107, 107, 0.15);
 }
 
 .debt-archive-block {

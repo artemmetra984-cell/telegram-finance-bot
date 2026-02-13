@@ -268,6 +268,7 @@ const translations = {
         'Цель архивирована': 'Goal archived',
         'Цель возвращена': 'Goal restored',
         'Цель в архиве': 'Goal is archived',
+        'Описание': 'Description',
         'Удалить цель': 'Delete goal',
         'Удалить цель?': 'Delete goal?',
         'Цель удалена': 'Goal deleted',
@@ -786,8 +787,113 @@ const segmentPercentagesPlugin = {
     }
 };
 
+const segmentPopupPlugin = {
+    id: 'segmentPopup',
+    afterDatasetsDraw(chart, args, pluginOptions) {
+        if (!pluginOptions || pluginOptions.enabled === false) return;
+        const idx = chart.$segmentPopupIndex;
+        if (idx === null || idx === undefined) return;
+        const meta = chart.getDatasetMeta(0);
+        const arc = meta?.data?.[idx];
+        if (!arc) return;
+        const dataset = chart.data.datasets[0];
+        const values = dataset.data || [];
+        const total = values.reduce((a, b) => a + b, 0);
+        const value = Number(values[idx] || 0);
+        const percent = total > 0 ? (value / total * 100).toFixed(1) : '0.0';
+        const symbol = currencySymbols[currentCurrency] || '₽';
+
+        const midAngle = (arc.startAngle + arc.endAngle) / 2;
+        const iconRadius = arc.innerRadius + (arc.outerRadius - arc.innerRadius) * 0.68;
+        const iconX = arc.x + Math.cos(midAngle) * iconRadius;
+        const iconY = arc.y + Math.sin(midAngle) * iconRadius;
+
+        const lines = [
+            `${formatCurrency(value)} ${symbol}`,
+            `${percent}%`
+        ];
+
+        const ctx = chart.ctx;
+        ctx.save();
+        ctx.font = '600 16px -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif';
+        const width1 = ctx.measureText(lines[0]).width;
+        ctx.font = '500 13px -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif';
+        const width2 = ctx.measureText(lines[1]).width;
+        const textWidth = Math.max(width1, width2);
+        const paddingX = 12;
+        const paddingY = 10;
+        const lineHeight = 16;
+        const boxWidth = textWidth + paddingX * 2;
+        const boxHeight = paddingY * 2 + lineHeight * 2;
+
+        const centerX = arc.x + Math.cos(midAngle) * (arc.innerRadius * 0.1);
+        const centerY = arc.y + Math.sin(midAngle) * (arc.innerRadius * 0.1);
+        let boxX = centerX - boxWidth / 2;
+        let boxY = centerY - boxHeight / 2;
+
+        const area = chart.chartArea || { left: 0, top: 0, right: chart.width, bottom: chart.height };
+        const clamp = (val, min, max) => Math.max(min, Math.min(max, val));
+        boxX = clamp(boxX, area.left + 6, area.right - boxWidth - 6);
+        boxY = clamp(boxY, area.top + 6, area.bottom - boxHeight - 6);
+
+        const radius = 14;
+        const boxCenterX = boxX + boxWidth / 2;
+        const boxCenterY = boxY + boxHeight / 2;
+        const angle = Math.atan2(iconY - boxCenterY, iconX - boxCenterX);
+        const pointerLen = 10;
+        const edgeX = boxCenterX + Math.cos(angle) * (boxWidth / 2);
+        const edgeY = boxCenterY + Math.sin(angle) * (boxHeight / 2);
+        const tipX = edgeX + Math.cos(angle) * pointerLen;
+        const tipY = edgeY + Math.sin(angle) * pointerLen;
+        const normalX = Math.cos(angle + Math.PI / 2) * 6;
+        const normalY = Math.sin(angle + Math.PI / 2) * 6;
+
+        // Bubble
+        ctx.beginPath();
+        ctx.moveTo(boxX + radius, boxY);
+        ctx.lineTo(boxX + boxWidth - radius, boxY);
+        ctx.quadraticCurveTo(boxX + boxWidth, boxY, boxX + boxWidth, boxY + radius);
+        ctx.lineTo(boxX + boxWidth, boxY + boxHeight - radius);
+        ctx.quadraticCurveTo(boxX + boxWidth, boxY + boxHeight, boxX + boxWidth - radius, boxY + boxHeight);
+        ctx.lineTo(boxX + radius, boxY + boxHeight);
+        ctx.quadraticCurveTo(boxX, boxY + boxHeight, boxX, boxY + boxHeight - radius);
+        ctx.lineTo(boxX, boxY + radius);
+        ctx.quadraticCurveTo(boxX, boxY, boxX + radius, boxY);
+        ctx.closePath();
+        ctx.fillStyle = 'rgba(28, 28, 30, 0.95)';
+        ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+        ctx.lineWidth = 1;
+        ctx.shadowColor = 'rgba(0,0,0,0.6)';
+        ctx.shadowBlur = 20;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.stroke();
+
+        // Pointer
+        ctx.beginPath();
+        ctx.moveTo(edgeX + normalX, edgeY + normalY);
+        ctx.lineTo(edgeX - normalX, edgeY - normalY);
+        ctx.lineTo(tipX, tipY);
+        ctx.closePath();
+        ctx.fillStyle = 'rgba(28, 28, 30, 0.95)';
+        ctx.fill();
+
+        // Text
+        ctx.fillStyle = '#ffffff';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.font = '600 16px -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif';
+        ctx.fillText(lines[0], boxCenterX, boxY + paddingY + lineHeight * 0.6);
+        ctx.font = '500 13px -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif';
+        ctx.fillStyle = 'rgba(255,255,255,0.75)';
+        ctx.fillText(lines[1], boxCenterX, boxY + paddingY + lineHeight * 1.6);
+
+        ctx.restore();
+    }
+};
+
 if (window.Chart && Chart.register) {
-    Chart.register(chartShadowPlugin, segmentCapsPlugin, segmentIconsPlugin, segmentPercentagesPlugin);
+    Chart.register(chartShadowPlugin, segmentCapsPlugin, segmentIconsPlugin, segmentPercentagesPlugin, segmentPopupPlugin);
 }
 
 // ==================== //
@@ -1330,7 +1436,7 @@ function updateDebtsDisplay() {
                         <div class="debt-progress-fill" style="width: ${progress}%; background: ${color};"></div>
                     </div>
                     <div class="debt-actions">
-                        <button class="debt-action-btn" onclick="event.stopPropagation(); openDebtModal(${debt.id})">✎</button>
+                        <button class="debt-action-btn" onclick="event.stopPropagation(); openDebtModal(${debt.id})">${t('Изменить')}</button>
                         ${canArchive ? `<button class="debt-action-btn" onclick="event.stopPropagation(); archiveDebt(${debt.id}, true)">${t('Архивировать')}</button>` : ''}
                     </div>
                 </div>
@@ -1486,7 +1592,7 @@ function updatePanelGoals() {
                         <div class="debt-progress-fill" style="width: ${progress}%; background: ${color};"></div>
                     </div>
                     <div class="debt-actions">
-                        <button class="debt-action-btn" onclick="event.stopPropagation(); showAddGoalModal(${goal.id})">✎</button>
+                        <button class="debt-action-btn" onclick="event.stopPropagation(); showAddGoalModal(${goal.id})">${t('Изменить')}</button>
                         <button class="debt-action-btn" onclick="event.stopPropagation(); archiveGoal(${goal.id}, true)">${t('Архивировать')}</button>
                     </div>
                 </div>
@@ -1631,13 +1737,15 @@ function updateRecentTransactions(transactions) {
         const amountSign = isSavings ? '+' : (isIncome ? '+' : '−');
         const icon = isDebt ? '💸' : (isSavings ? '💰' : (isIncome ? '📈' : '📉'));
         const iconClass = isDebt ? 'debt' : (isSavings ? 'savings' : (isIncome ? 'income' : 'expense'));
+        const descriptionText = trans.description || t('Без описания');
+        const categoryLabel = t(trans.category);
         html += `
             <div class="transaction-item">
                 <div class="transaction-icon ${iconClass}">${icon}</div>
                 <div class="transaction-info">
-                    <div class="transaction-title-row">
-                        <div class="transaction-title">${trans.description || t('Без описания')}</div>
-                        <div class="transaction-category">${t(trans.category)}</div>
+                    <button class="transaction-title transaction-title-btn" onclick="openTextModal(${JSON.stringify(descriptionText)})">${descriptionText}</button>
+                    <div class="transaction-category-line">
+                        <div class="transaction-category">${categoryLabel}</div>
                     </div>
                 </div>
                 <div class="transaction-right">
@@ -1645,8 +1753,8 @@ function updateRecentTransactions(transactions) {
                         ${amountSign}${formatCurrency(trans.amount)} ${symbol}
                     </div>
                     <div class="transaction-actions">
-                        <button class="transaction-action-btn" onclick="openEditTransactionById(${trans.id})" title="${t('Изменить')}">✎</button>
-                        <button class="transaction-action-btn danger" onclick="deleteTransactionById(${trans.id})" title="${t('Удалить')}">🗑</button>
+                        <button class="debt-action-btn" onclick="openEditTransactionById(${trans.id})">${t('Изменить')}</button>
+                        <button class="debt-action-btn danger" onclick="deleteTransactionById(${trans.id})">${t('Удалить')}</button>
                     </div>
                 </div>
             </div>
@@ -1855,21 +1963,24 @@ function displayMonthTransactions(transactions) {
         });
         
         const categoryLabel = t(trans.category);
-        const titleText = trans.description || categoryLabel;
+        const titleText = trans.description || t('Без описания');
         html += `
             <div class="transaction-item">
                 <div class="transaction-icon ${iconClass}">${icon}</div>
                 <div class="transaction-info">
-                    <div class="transaction-title">${titleText}</div>
-                    <div class="transaction-details">${categoryLabel} • ${date} • ${t(trans.wallet)}</div>
+                    <button class="transaction-title transaction-title-btn" onclick="openTextModal(${JSON.stringify(titleText)})">${titleText}</button>
+                    <div class="transaction-category-line">
+                        <div class="transaction-category">${categoryLabel}</div>
+                    </div>
+                    <div class="transaction-details">${date} • ${t(trans.wallet)}</div>
                 </div>
                 <div class="transaction-right">
                     <div class="transaction-amount ${amountClass}">
                         ${amountSign}${formatCurrency(trans.amount)} ${symbol}
                     </div>
                     <div class="transaction-actions">
-                        <button class="transaction-action-btn" onclick="openEditTransactionById(${trans.id})" title="${t('Изменить')}">✎</button>
-                        <button class="transaction-action-btn danger" onclick="deleteTransactionById(${trans.id})" title="${t('Удалить')}">🗑</button>
+                        <button class="debt-action-btn" onclick="openEditTransactionById(${trans.id})">${t('Изменить')}</button>
+                        <button class="debt-action-btn danger" onclick="deleteTransactionById(${trans.id})">${t('Удалить')}</button>
                     </div>
                 </div>
             </div>
@@ -3078,6 +3189,17 @@ function updateOverviewChart(totalIncome, totalExpense) {
             cutout: '72%',
             radius: '92%',
             rotation: -90,
+            onClick: (evt, elements, chart) => {
+                const points = chart.getElementsAtEventForMode(evt, 'nearest', { intersect: true }, true);
+                if (!points.length) {
+                    chart.$segmentPopupIndex = null;
+                    chart.update();
+                    return;
+                }
+                const nextIndex = points[0].index;
+                chart.$segmentPopupIndex = chart.$segmentPopupIndex === nextIndex ? null : nextIndex;
+                chart.update();
+            },
             plugins: {
                 legend: { display: false },
                 chartShadow: {
@@ -3094,20 +3216,9 @@ function updateOverviewChart(totalIncome, totalExpense) {
                     minPercent: 10
                 },
                 segmentPercentages: true,
+                segmentPopup: { enabled: true },
                 tooltip: {
-                    callbacks: {
-                        label: (context) => {
-                            const symbol = currencySymbols[currentCurrency] || '₽';
-                            const total = totalIncome + totalExpense;
-                            const percentage = total > 0 ? ((context.raw / total) * 100).toFixed(1) : '0';
-                            return `${context.label}: ${formatCurrency(context.raw)} ${symbol} (${percentage}%)`;
-                        }
-                    },
-                    backgroundColor: 'rgba(28, 28, 30, 0.9)',
-                    titleColor: '#ffffff',
-                    bodyColor: '#ffffff',
-                    borderColor: 'rgba(255, 255, 255, 0.1)',
-                    borderWidth: 1
+                    enabled: false
                 }
             },
             animation: {
@@ -3204,6 +3315,17 @@ async function updateIncomeChart(transactions) {
             responsive: true,
             maintainAspectRatio: false,
             layout: { padding: 28 },
+            onClick: (evt, elements, chart) => {
+                const points = chart.getElementsAtEventForMode(evt, 'nearest', { intersect: true }, true);
+                if (!points.length) {
+                    chart.$segmentPopupIndex = null;
+                    chart.update();
+                    return;
+                }
+                const nextIndex = points[0].index;
+                chart.$segmentPopupIndex = chart.$segmentPopupIndex === nextIndex ? null : nextIndex;
+                chart.update();
+            },
             plugins: {
                 legend: { display: false },
                 chartShadow: {
@@ -3220,15 +3342,9 @@ async function updateIncomeChart(transactions) {
                     minPercent: 10
                 },
                 segmentPercentages: true,
+                segmentPopup: { enabled: true },
                 tooltip: {
-                    callbacks: {
-                        label: (context) => {
-                            const symbol = currencySymbols[currentCurrency] || '₽';
-                            const total = amounts.reduce((a, b) => a + b, 0);
-                            const percentage = total > 0 ? ((context.raw / total) * 100).toFixed(1) : '0.0';
-                            return `${context.label}: ${formatCurrency(context.raw)} ${symbol} (${percentage}%)`;
-                        }
-                    }
+                    enabled: false
                 }
             },
             cutout: '72%',
@@ -3331,6 +3447,17 @@ async function updateExpenseChart(transactions) {
             responsive: true,
             maintainAspectRatio: false,
             layout: { padding: 28 },
+            onClick: (evt, elements, chart) => {
+                const points = chart.getElementsAtEventForMode(evt, 'nearest', { intersect: true }, true);
+                if (!points.length) {
+                    chart.$segmentPopupIndex = null;
+                    chart.update();
+                    return;
+                }
+                const nextIndex = points[0].index;
+                chart.$segmentPopupIndex = chart.$segmentPopupIndex === nextIndex ? null : nextIndex;
+                chart.update();
+            },
             plugins: {
                 legend: { display: false },
                 chartShadow: {
@@ -3347,15 +3474,9 @@ async function updateExpenseChart(transactions) {
                     minPercent: 10
                 },
                 segmentPercentages: true,
+                segmentPopup: { enabled: true },
                 tooltip: {
-                    callbacks: {
-                        label: (context) => {
-                            const symbol = currencySymbols[currentCurrency] || '₽';
-                            const total = amounts.reduce((a, b) => a + b, 0);
-                            const percentage = total > 0 ? ((context.raw / total) * 100).toFixed(1) : '0.0';
-                            return `${context.label}: ${formatCurrency(context.raw)} ${symbol} (${percentage}%)`;
-                        }
-                    }
+                    enabled: false
                 }
             },
             cutout: '72%',
@@ -3579,6 +3700,7 @@ async function updateDistributionChart() {
     const labels = walletsData.map(w => t(w.name));
     const amounts = walletsData.map(w => w.balance || 0);
     const colors = walletsData.map((w, i) => colorPalette[i % colorPalette.length]);
+    const icons = walletsData.map(w => w.icon || '💳');
     const borderColors = colors.map(color => color + 'FF');
     const hoverColors = colors.map(color => color + 'CC');
 
@@ -3587,6 +3709,7 @@ async function updateDistributionChart() {
         labels.push(t('Накопления'));
         amounts.push(savingsTotal);
         colors.push(savingsColor);
+        icons.push('💰');
         borderColors.push(savingsColor + 'FF');
         hoverColors.push(savingsColor + 'CC');
     }
@@ -3641,16 +3764,27 @@ async function updateDistributionChart() {
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            onClick: (evt, elements, chart) => {
+                const points = chart.getElementsAtEventForMode(evt, 'nearest', { intersect: true }, true);
+                if (!points.length) {
+                    chart.$segmentPopupIndex = null;
+                    chart.update();
+                    return;
+                }
+                const nextIndex = points[0].index;
+                chart.$segmentPopupIndex = chart.$segmentPopupIndex === nextIndex ? null : nextIndex;
+                chart.update();
+            },
             plugins: {
                 legend: { display: false },
+                segmentIcons: {
+                    icons,
+                    colors,
+                    minPercent: 8
+                },
+                segmentPopup: { enabled: true },
                 tooltip: {
-                    callbacks: {
-                        label: (context) => {
-                            const percentage = totalBalance > 0 ? ((context.raw / totalBalance) * 100).toFixed(1) : '0.0';
-                            const symbol = currencySymbols[currentCurrency] || '₽';
-                            return `${context.label}: ${formatCurrency(context.raw)} ${symbol} (${percentage}%)`;
-                        }
-                    }
+                    enabled: false
                 }
             },
             cutout: '65%',
@@ -3942,7 +4076,7 @@ function updateGoalsDisplay() {
                     </div>
                 </div>
                 <div class="debt-actions">
-                    <button class="debt-action-btn" onclick="event.stopPropagation(); showAddGoalModal(${goal.id})">✎</button>
+                    <button class="debt-action-btn" onclick="event.stopPropagation(); showAddGoalModal(${goal.id})">${t('Изменить')}</button>
                     <button class="debt-action-btn" onclick="event.stopPropagation(); archiveGoal(${goal.id}, true)">${t('Архивировать')}</button>
                 </div>
             </div>
@@ -5693,12 +5827,17 @@ function showAllTransactions() {
                 minute: '2-digit'
             });
             
+            const categoryLabel = t(trans.category);
+            const titleText = trans.description || t('Без описания');
             html += `
                 <div class="transaction-item">
                     <div class="transaction-icon ${iconClass}">${icon}</div>
                     <div class="transaction-info">
-                        <div class="transaction-title">${trans.description || t(trans.category)}</div>
-                        <div class="transaction-details">${t(trans.category)} • ${date} • ${t(trans.wallet)}</div>
+                        <button class="transaction-title transaction-title-btn" onclick="openTextModal(${JSON.stringify(titleText)})">${titleText}</button>
+                        <div class="transaction-category-line">
+                            <div class="transaction-category">${categoryLabel}</div>
+                        </div>
+                        <div class="transaction-details">${date} • ${t(trans.wallet)}</div>
                     </div>
                     <div class="transaction-amount ${amountClass}">
                         ${amountSign}${formatCurrency(trans.amount)} ${symbol}
@@ -6125,6 +6264,21 @@ function closeArticle() {
     updateBodyModalState();
 }
 
+function openTextModal(text) {
+    const modal = document.getElementById('text-modal');
+    const body = document.getElementById('text-modal-body');
+    if (!modal || !body) return;
+    body.textContent = text || '';
+    modal.classList.add('active');
+    updateBodyModalState();
+}
+
+function closeTextModal() {
+    const modal = document.getElementById('text-modal');
+    if (modal) modal.classList.remove('active');
+    updateBodyModalState();
+}
+
 // Глобальные функции
 window.selectCurrency = selectCurrency;
 window.addNewCategory = addNewCategory;
@@ -6155,6 +6309,8 @@ window.toggleCollapsibleSection = toggleCollapsibleSection;
 window.openArticlesLibrary = openArticlesLibrary;
 window.openArticle = openArticle;
 window.closeArticle = closeArticle;
+window.openTextModal = openTextModal;
+window.closeTextModal = closeTextModal;
 window.openCompoundCalculator = openCompoundCalculator;
 window.calculateCompound = calculateCompound;
 window.closeCompoundCalculator = closeCompoundCalculator;
