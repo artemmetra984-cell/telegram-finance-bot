@@ -1011,8 +1011,6 @@ const segmentPopupPlugin = {
             : (categoryColorList || '#5D9CEC');
         const popupFillColor = colorWithAlpha(categoryColor, 0.24);
         const popupStrokeColor = colorWithAlpha(categoryColor, 0.62);
-        const connectorColor = colorWithAlpha(categoryColor, 0.34);
-        const connectorStrokeColor = colorWithAlpha(categoryColor, 0.78);
 
         const anchorAngle = arc.endAngle;
         // Якорь в крайней точке у внутренней кромки сегмента
@@ -1091,7 +1089,28 @@ const segmentPopupPlugin = {
         const edgeX = boxCenterX + dirX * scale;
         const edgeY = boxCenterY + dirY * scale;
 
-        // Tail: цельная форма, которая плавно входит в окно.
+        // Bubble body.
+        ctx.beginPath();
+        ctx.moveTo(boxX + radius, boxY);
+        ctx.lineTo(boxX + boxWidth - radius, boxY);
+        ctx.quadraticCurveTo(boxX + boxWidth, boxY, boxX + boxWidth, boxY + radius);
+        ctx.lineTo(boxX + boxWidth, boxY + boxHeight - radius);
+        ctx.quadraticCurveTo(boxX + boxWidth, boxY + boxHeight, boxX + boxWidth - radius, boxY + boxHeight);
+        ctx.lineTo(boxX + radius, boxY + boxHeight);
+        ctx.quadraticCurveTo(boxX, boxY + boxHeight, boxX, boxY + boxHeight - radius);
+        ctx.lineTo(boxX, boxY + radius);
+        ctx.quadraticCurveTo(boxX, boxY, boxX + radius, boxY);
+        ctx.closePath();
+        ctx.fillStyle = popupFillColor;
+        ctx.strokeStyle = popupStrokeColor;
+        ctx.lineWidth = 1;
+        ctx.shadowColor = 'rgba(0,0,0,0.6)';
+        ctx.shadowBlur = 20;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.stroke();
+
+        // Tail that visually merges into the bubble.
         const edgeToAnchorX = anchorX - edgeX;
         const edgeToAnchorY = anchorY - edgeY;
         const tailLen = Math.max(1, Math.hypot(edgeToAnchorX, edgeToAnchorY));
@@ -1133,35 +1152,41 @@ const segmentPopupPlugin = {
             rootRightY
         );
         ctx.closePath();
-        ctx.fillStyle = connectorColor;
-        ctx.strokeStyle = connectorStrokeColor;
-        ctx.lineWidth = 1.1;
+        ctx.fillStyle = popupFillColor;
+        ctx.strokeStyle = popupStrokeColor;
+        ctx.lineWidth = 1;
         ctx.shadowColor = 'rgba(0,0,0,0.35)';
         ctx.shadowBlur = 10;
         ctx.fill();
         ctx.shadowBlur = 0;
+
+        // Outline sides/tip only (skip root segment to avoid a visible seam).
+        ctx.beginPath();
+        ctx.moveTo(rootLeftX, rootLeftY);
+        ctx.bezierCurveTo(
+            rootLeftX + tailUx * pull + tailNx * rootHalf * 0.35,
+            rootLeftY + tailUy * pull + tailNy * rootHalf * 0.35,
+            tipLeftX - tailUx * approach + tailNx * tipHalf * 0.25,
+            tipLeftY - tailUy * approach + tailNy * tipHalf * 0.25,
+            tipLeftX,
+            tipLeftY
+        );
+        ctx.quadraticCurveTo(anchorX, anchorY, tipRightX, tipRightY);
+        ctx.bezierCurveTo(
+            tipRightX - tailUx * approach - tailNx * tipHalf * 0.25,
+            tipRightY - tailUy * approach - tailNy * tipHalf * 0.25,
+            rootRightX + tailUx * pull - tailNx * rootHalf * 0.35,
+            rootRightY + tailUy * pull - tailNy * rootHalf * 0.35,
+            rootRightX,
+            rootRightY
+        );
         ctx.stroke();
 
-        // Bubble: рисуем после хвоста, чтобы стык выглядел цельным и аккуратным.
+        // Blend cap over the root so the join reads as a single organic shape.
         ctx.beginPath();
-        ctx.moveTo(boxX + radius, boxY);
-        ctx.lineTo(boxX + boxWidth - radius, boxY);
-        ctx.quadraticCurveTo(boxX + boxWidth, boxY, boxX + boxWidth, boxY + radius);
-        ctx.lineTo(boxX + boxWidth, boxY + boxHeight - radius);
-        ctx.quadraticCurveTo(boxX + boxWidth, boxY + boxHeight, boxX + boxWidth - radius, boxY + boxHeight);
-        ctx.lineTo(boxX + radius, boxY + boxHeight);
-        ctx.quadraticCurveTo(boxX, boxY + boxHeight, boxX, boxY + boxHeight - radius);
-        ctx.lineTo(boxX, boxY + radius);
-        ctx.quadraticCurveTo(boxX, boxY, boxX + radius, boxY);
-        ctx.closePath();
+        ctx.arc(edgeX, edgeY, Math.max(2.2, rootHalf * 0.62), 0, Math.PI * 2);
         ctx.fillStyle = popupFillColor;
-        ctx.strokeStyle = popupStrokeColor;
-        ctx.lineWidth = 1;
-        ctx.shadowColor = 'rgba(0,0,0,0.6)';
-        ctx.shadowBlur = 20;
         ctx.fill();
-        ctx.shadowBlur = 0;
-        ctx.stroke();
 
         // Text
         ctx.textAlign = 'center';
@@ -1726,9 +1751,9 @@ function updateDebtsDisplay() {
                     <div class="debt-progress">
                         <div class="debt-progress-fill" style="width: ${progress}%; background: ${color};"></div>
                     </div>
-                    <div class="debt-actions">
-                        <button class="debt-action-btn" onclick="event.stopPropagation(); openDebtModal(${debt.id})">${t('Изменить')}</button>
-                        ${canArchive ? `<button class="debt-action-btn" onclick="event.stopPropagation(); archiveDebt(${debt.id}, true)">${t('Архивировать')}</button>` : ''}
+                    <div class="debt-actions goal-actions">
+                        <button class="debt-action-btn goal-action-btn" onclick="event.stopPropagation(); openDebtModal(${debt.id})">${t('Изменить')}</button>
+                        ${canArchive ? `<button class="debt-action-btn goal-action-btn goal-action-btn--archive" onclick="event.stopPropagation(); archiveDebt(${debt.id}, true)">${t('Архивировать')}</button>` : ''}
                     </div>
                 </div>
                 <div class="category-amount" style="color: ${color};">
@@ -1770,8 +1795,8 @@ function updateDebtsDisplay() {
                             <div class="debt-progress">
                                 <div class="debt-progress-fill" style="width: ${progress}%; background: ${color};"></div>
                             </div>
-                            <div class="debt-actions">
-                                <button class="debt-action-btn" onclick="archiveDebt(${debt.id}, false)">${t('Вернуть')}</button>
+                            <div class="debt-actions goal-actions">
+                                <button class="debt-action-btn goal-action-btn" onclick="archiveDebt(${debt.id}, false)">${t('Вернуть')}</button>
                             </div>
                         </div>
                         <div class="category-amount" style="color: ${color};">

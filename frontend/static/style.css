@@ -1305,6 +1305,25 @@ body.modal-open #main-content {
   margin-bottom: 4px;
 }
 
+.overview-balance-card .chart-title {
+  margin-bottom: calc(var(--spacing-lg) / 4);
+}
+
+.overview-balance-card .overview-balance-wrap {
+  min-height: 120px;
+  padding: 4px 12px;
+  gap: 6px;
+}
+
+.overview-balance-card .overview-value--balance {
+  font-size: clamp(36px, 8.5vw, 65px);
+  margin-bottom: 0;
+}
+
+.overview-balance-card .overview-label {
+  margin-bottom: 0;
+}
+
 .overview-value.income {
   color: var(--pastel-green);
 }
@@ -3048,25 +3067,36 @@ body.keyboard-open .modal-content {
   margin-left: 8px;
 }
 
-.panel-goals-block .goal-actions {
-  flex-wrap: nowrap;
+.panel-goals-block .goal-actions,
+.debt-card .goal-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
   margin-top: 8px;
+  width: 100%;
+  align-items: center;
 }
 
-.panel-goals-block .goal-action-btn {
-  flex: 1 1 0;
+.panel-goals-block .goal-action-btn,
+.debt-card .goal-action-btn {
+  display: inline-flex;
+  align-items: center;
+  width: 100%;
   min-width: 0;
+  min-height: 34px;
   padding: 8px 10px;
   font-size: 12px;
   line-height: 1.2;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  justify-content: center;
+  text-align: center;
 }
 
-.panel-goals-block .goal-action-btn--archive {
-  flex: 1.2 1 0;
+.panel-goals-block .goal-actions .goal-action-btn:only-child,
+.debt-card .goal-actions .goal-action-btn:only-child {
+  grid-column: 1 / -1;
 }
 
 .debt-action-btn {
@@ -3345,6 +3375,17 @@ body.keyboard-open .modal-content {
     font-size: clamp(36px, 11vw, 62px);
     margin-bottom: 4px;
   }
+
+  .overview-balance-card .overview-value--balance {
+    font-size: clamp(31px, 9.35vw, 53px);
+    margin-bottom: 0;
+  }
+
+  .overview-balance-card .overview-balance-wrap {
+    min-height: 104px;
+    padding: 2px 10px;
+    gap: 4px;
+  }
   
   .chart-container {
     padding: var(--spacing-md);
@@ -3389,7 +3430,8 @@ body.keyboard-open .modal-content {
 }
 
 @media (max-width: 380px) {
-  .panel-goals-block .goal-action-btn {
+  .panel-goals-block .goal-action-btn,
+  .debt-card .goal-action-btn {
     font-size: 11px;
     padding: 8px;
   }
