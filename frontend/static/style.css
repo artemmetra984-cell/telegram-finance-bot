@@ -1096,6 +1096,90 @@ body.modal-open #main-content {
   padding-right: 4px;
 }
 
+.report-stats-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  text-align: left;
+}
+
+.report-stats-label {
+  font-size: 13px;
+  color: var(--ios-text-secondary);
+  flex-shrink: 0;
+}
+
+.report-stats-period {
+  flex: 1;
+  min-height: 36px;
+  padding: 8px 10px;
+  font-size: 14px;
+  background: var(--ios-elevated);
+}
+
+.report-stats-list {
+  display: grid;
+  gap: 8px;
+  text-align: left;
+}
+
+.report-stats-empty {
+  font-size: 14px;
+  color: var(--ios-text-secondary);
+  text-align: left;
+  padding-top: 2px;
+}
+
+.report-stats-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.report-stats-row-label {
+  color: var(--ios-text-secondary);
+}
+
+.report-stats-list--income .report-stats-row-label {
+  color: var(--pastel-green);
+}
+
+.report-stats-list--expense .report-stats-row-label {
+  color: var(--pastel-red);
+}
+
+.report-stats-subvalue {
+  font-size: 13px;
+  color: var(--ios-text-secondary);
+}
+
+.report-stats-top-title {
+  margin-top: 10px;
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--pastel-red);
+  text-align: left;
+}
+
+.report-stats-top-list {
+  display: grid;
+  gap: 8px;
+}
+
+.report-stats-top-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  text-align: left;
+}
+
+.report-stats-top-name {
+  color: var(--ios-text-primary);
+}
+
 .legend-item {
   display: flex;
   align-items: center;

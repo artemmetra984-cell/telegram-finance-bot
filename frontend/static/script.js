@@ -19,6 +19,8 @@ let debtsData = [];
 let categoryStats = { income: {}, expense: {}, wallets: {} };
 let currentHistoryMonth = new Date();
 let currentFilter = 'all';
+let incomeStatsPeriod = 'all';
+let expenseStatsPeriod = 'all';
 let sessionToken = null;
 let defaultWallet = 'Карта';
 let charts = {};
@@ -288,6 +290,9 @@ const translations = {
         'Текущий остаток': 'Current balance',
         'Доходы по категориям': 'Income by category',
         'Статистика доходов': 'Income stats',
+        'Период': 'Period',
+        'За год': 'Year',
+        'За всё время': 'All time',
         'Данные загружаются...': 'Loading data...',
         'Расходы по категориям': 'Expenses by category',
         'Топ расходов': 'Top expenses',
@@ -308,6 +313,11 @@ const translations = {
         'Нет накоплений за период': 'No savings for this period',
         'Нет данных о распределении': 'No distribution data',
         'Нет данных за выбранный период': 'No data for the selected period',
+        'Нет доходов за выбранный период': 'No income for the selected period',
+        'Нет расходов за выбранный период': 'No expenses for the selected period',
+        'Всего расходов': 'Total expenses',
+        'Средний расход': 'Average expense',
+        'Топ категорий': 'Top categories',
         'Всего': 'Total',
         'Средний доход': 'Average income',
         'Топ категория': 'Top category',
@@ -3603,61 +3613,207 @@ async function updateExpenseChart(transactions) {
 function updateIncomeStats(transactions) {
     const container = document.getElementById('income-stats');
     if (!container) return;
-    
+
     const incomeTransactions = transactions.filter(t => t.type === 'income');
-    if (incomeTransactions.length === 0) {
-        container.textContent = t('Нет доходов за период');
-        return;
+    const periodOptions = getReportStatsPeriodOptions(incomeTransactions);
+    if (!periodOptions.some(option => option.value === incomeStatsPeriod)) {
+        incomeStatsPeriod = 'all';
     }
-    
+    const filteredTransactions = filterTransactionsByPeriod(incomeTransactions, incomeStatsPeriod);
+
     const symbol = currencySymbols[currentCurrency] || '₽';
-    const total = incomeTransactions.reduce((sum, t) => sum + t.amount, 0);
-    const avg = total / incomeTransactions.length;
-    const byCategory = {};
-    incomeTransactions.forEach(t => {
-        byCategory[t.category] = (byCategory[t.category] || 0) + t.amount;
-    });
-    const top = Object.entries(byCategory).sort((a, b) => b[1] - a[1])[0];
-    
-    container.innerHTML = `
-        <div style="display: grid; gap: 8px; text-align: left;">
-            <div>${t('Всего')}: <strong>${formatCurrency(total)} ${symbol}</strong></div>
-            <div>${t('Средний доход')}: <strong>${formatCurrency(avg)} ${symbol}</strong></div>
-            <div>${t('Топ категория')}: <strong>${t(top[0])}</strong> (${formatCurrency(top[1])} ${symbol})</div>
-        </div>
+
+    let statsHtml = `
+        <div class="report-stats-empty">${t('Нет доходов за выбранный период')}</div>
     `;
+
+    if (filteredTransactions.length > 0) {
+        const total = filteredTransactions.reduce((sum, t) => sum + t.amount, 0);
+        const avg = total / filteredTransactions.length;
+        const byCategory = {};
+        filteredTransactions.forEach(t => {
+            byCategory[t.category] = (byCategory[t.category] || 0) + t.amount;
+        });
+        const top = Object.entries(byCategory).sort((a, b) => b[1] - a[1])[0];
+        statsHtml = `
+            <div class="report-stats-list report-stats-list--income">
+                <div class="report-stats-row">
+                    <span class="report-stats-row-label">${t('Всего')}:</span>
+                    <strong>${formatCurrency(total)} ${symbol}</strong>
+                </div>
+                <div class="report-stats-row">
+                    <span class="report-stats-row-label">${t('Средний доход')}:</span>
+                    <strong>${formatCurrency(avg)} ${symbol}</strong>
+                </div>
+                <div class="report-stats-row">
+                    <span class="report-stats-row-label">${t('Топ категория')}:</span>
+                    <strong>${t(top[0])}</strong>
+                </div>
+                <div class="report-stats-subvalue">${formatCurrency(top[1])} ${symbol}</div>
+            </div>
+        `;
+    }
+
+    container.innerHTML = `
+        <div class="report-stats-controls">
+            <label class="report-stats-label" for="income-stats-period">${t('Период')}</label>
+            <select id="income-stats-period" class="form-select report-stats-period">
+                ${periodOptions.map(option => `
+                    <option value="${option.value}" ${option.value === incomeStatsPeriod ? 'selected' : ''}>${option.label}</option>
+                `).join('')}
+            </select>
+        </div>
+        ${statsHtml}
+    `;
+
+    const periodSelect = document.getElementById('income-stats-period');
+    if (periodSelect) {
+        periodSelect.onchange = function() {
+            incomeStatsPeriod = this.value || 'all';
+            updateIncomeStats(transactions);
+        };
+    }
 }
 
 function updateExpenseTop(transactions) {
     const container = document.getElementById('expense-top');
     if (!container) return;
-    
+
     const expenseTransactions = transactions.filter(t => t.type === 'expense');
-    if (expenseTransactions.length === 0) {
-        container.textContent = t('Нет расходов за период');
-        return;
+    const periodOptions = getReportStatsPeriodOptions(expenseTransactions);
+    if (!periodOptions.some(option => option.value === expenseStatsPeriod)) {
+        expenseStatsPeriod = 'all';
     }
-    
+    const filteredTransactions = filterTransactionsByPeriod(expenseTransactions, expenseStatsPeriod);
     const symbol = currencySymbols[currentCurrency] || '₽';
-    const byCategory = {};
-    expenseTransactions.forEach(t => {
-        byCategory[t.category] = (byCategory[t.category] || 0) + t.amount;
-    });
-    
-    const top = Object.entries(byCategory)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 5);
-    
-    container.innerHTML = `
-        <div style="display: grid; gap: 8px; text-align: left;">
-            ${top.map(([name, amount]) => `
-                <div style="display: flex; justify-content: space-between; gap: 12px;">
-                    <span>${t(name)}</span>
-                    <strong>${formatCurrency(amount)} ${symbol}</strong>
-                </div>
-            `).join('')}
-        </div>
+
+    let statsHtml = `
+        <div class="report-stats-empty">${t('Нет расходов за выбранный период')}</div>
     `;
+
+    if (filteredTransactions.length > 0) {
+        const total = filteredTransactions.reduce((sum, t) => sum + t.amount, 0);
+        const avg = total / filteredTransactions.length;
+        const byCategory = {};
+        filteredTransactions.forEach(t => {
+            byCategory[t.category] = (byCategory[t.category] || 0) + t.amount;
+        });
+        const top = Object.entries(byCategory)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 5);
+
+        statsHtml = `
+            <div class="report-stats-list report-stats-list--expense">
+                <div class="report-stats-row">
+                    <span class="report-stats-row-label">${t('Всего расходов')}:</span>
+                    <strong>${formatCurrency(total)} ${symbol}</strong>
+                </div>
+                <div class="report-stats-row">
+                    <span class="report-stats-row-label">${t('Средний расход')}:</span>
+                    <strong>${formatCurrency(avg)} ${symbol}</strong>
+                </div>
+            </div>
+            <div class="report-stats-top-title">${t('Топ категорий')}</div>
+            <div class="report-stats-top-list">
+                ${top.map(([name, amount]) => `
+                    <div class="report-stats-top-item">
+                        <span class="report-stats-top-name">${t(name)}</span>
+                        <strong>${formatCurrency(amount)} ${symbol}</strong>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }
+
+    container.innerHTML = `
+        <div class="report-stats-controls">
+            <label class="report-stats-label" for="expense-stats-period">${t('Период')}</label>
+            <select id="expense-stats-period" class="form-select report-stats-period">
+                ${periodOptions.map(option => `
+                    <option value="${option.value}" ${option.value === expenseStatsPeriod ? 'selected' : ''}>${option.label}</option>
+                `).join('')}
+            </select>
+        </div>
+        ${statsHtml}
+    `;
+
+    const periodSelect = document.getElementById('expense-stats-period');
+    if (periodSelect) {
+        periodSelect.onchange = function() {
+            expenseStatsPeriod = this.value || 'all';
+            updateExpenseTop(transactions);
+        };
+    }
+}
+
+function getReportStatsPeriodOptions(items) {
+    const options = [
+        { value: 'all', label: t('За всё время') },
+        { value: 'year', label: t('За год') }
+    ];
+
+    if (!items.length) return options;
+
+    const validDates = items
+        .map(transaction => new Date(transaction.date))
+        .filter(date => !Number.isNaN(date.getTime()))
+        .sort((a, b) => a - b);
+
+    if (!validDates.length) return options;
+
+    const firstMonth = new Date(validDates[0].getFullYear(), validDates[0].getMonth(), 1);
+    const lastDataMonth = new Date(validDates[validDates.length - 1].getFullYear(), validDates[validDates.length - 1].getMonth(), 1);
+    const currentMonth = new Date();
+    currentMonth.setDate(1);
+    currentMonth.setHours(0, 0, 0, 0);
+    const lastMonth = lastDataMonth > currentMonth ? lastDataMonth : currentMonth;
+    const monthKeys = [];
+    const cursor = new Date(firstMonth);
+
+    while (cursor <= lastMonth) {
+        const key = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}`;
+        monthKeys.push(key);
+        cursor.setMonth(cursor.getMonth() + 1);
+    }
+
+    monthKeys.reverse().forEach((key) => {
+        const [year, month] = key.split('-');
+        const monthIndex = Number(month) - 1;
+        options.push({
+            value: `month:${key}`,
+            label: `${getMonthName(monthIndex)} ${year}`
+        });
+    });
+
+    return options;
+}
+
+function filterTransactionsByPeriod(items, period) {
+    if (!items.length) return [];
+
+    if (period === 'year') {
+        const now = new Date();
+        const start = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+        const startTs = start.getTime();
+        const endTs = now.getTime();
+        return items.filter((transaction) => {
+            const date = new Date(transaction.date);
+            const ts = date.getTime();
+            return Number.isFinite(ts) && ts >= startTs && ts <= endTs;
+        });
+    }
+
+    if (period && period.startsWith('month:')) {
+        const monthKey = period.slice(6);
+        return items.filter((transaction) => {
+            const date = new Date(transaction.date);
+            if (Number.isNaN(date.getTime())) return false;
+            const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+            return key === monthKey;
+        });
+    }
+
+    return items;
 }
 
 async function updateSavingsTab() {
