@@ -101,6 +101,10 @@ function isSavingsCategoryName(name) {
     return name === 'Накопления' || name === 'Цели';
 }
 
+function getSavingsAmount() {
+    return (categoryStats.expense?.['Накопления'] || 0) + (categoryStats.expense?.['Цели'] || 0);
+}
+
 const translations = {
     en: {
         'Финансы': 'Finance',
@@ -1226,8 +1230,8 @@ function updateSavingsDisplay() {
     
     const usedColors = new Set();
     const hasPiggyCategory = categories.some(cat => cat.name === 'Накопления');
-    const piggyAmount = stats['Накопления'] || 0;
-    if (!hasPiggyCategory) {
+    const piggyAmount = getSavingsAmount();
+    if (!hasPiggyCategory && piggyAmount > 0) {
         const piggyColor = pickDistinctColor('#FFD166', 0, usedColors);
         html += `
             <button class="category-card" onclick="showAddTransactionForCategory('savings', 'Накопления')">
@@ -1569,6 +1573,26 @@ function updateWalletsDisplay() {
             </button>
         `;
     });
+
+    const savingsTotal = getSavingsAmount();
+    if (savingsTotal > 0) {
+        const savingsColor = 'var(--pastel-yellow)';
+        html += `
+            <button class="category-card">
+                <div class="category-icon" style="background: ${savingsColor}20; color: ${savingsColor}; box-shadow: 0 0 15px ${savingsColor}80;">
+                    💰
+                </div>
+                <div class="category-info">
+                    <div class="category-name">
+                        <span class="category-name-text">${t('Накопления')}</span>
+                    </div>
+                </div>
+                <div class="category-amount">
+                    ${formatCurrency(savingsTotal)} ${symbol}
+                </div>
+            </button>
+        `;
+    }
     
     html += `
         <button class="add-category-btn" onclick="showAddWalletModal()">

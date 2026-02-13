@@ -2023,12 +2023,12 @@ def add_to_goal():
                 wallet_balance = db.get_wallet_balance(user_id, wallet)
                 if amount > wallet_balance:
                     return jsonify({'error': 'insufficient_funds'}), 400
-                ensure_expense_category(user_id, 'Цели', '🎯', '#FF9500')
+                ensure_expense_category(user_id, 'Накопления', '💰', '#FFD166')
                 transaction_id = db.add_transaction(
                     user_id,
                     'expense',
                     amount,
-                    'Цели',
+                    'Накопления',
                     wallet,
                     f'Накопления в цель ID: {goal_id}'
                 )
