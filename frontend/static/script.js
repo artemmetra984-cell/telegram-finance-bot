@@ -802,51 +802,68 @@ const segmentPopupPlugin = {
         const value = Number(values[idx] || 0);
         const percent = total > 0 ? (value / total * 100).toFixed(1) : '0.0';
         const symbol = currencySymbols[currentCurrency] || '₽';
+        const labels = chart.data.labels || [];
+        const rawLabel = String(labels[idx] || t('Категория'));
+        const categoryName = rawLabel.length > 26 ? `${rawLabel.slice(0, 25)}…` : rawLabel;
+        const iconList = chart?.options?.plugins?.segmentIcons?.icons || [];
+        const categoryIcon = iconList[idx] || '';
 
-        const midAngle = (arc.startAngle + arc.endAngle) / 2;
-        const iconRadius = arc.innerRadius + (arc.outerRadius - arc.innerRadius) * 0.68;
-        const iconX = arc.x + Math.cos(midAngle) * iconRadius;
-        const iconY = arc.y + Math.sin(midAngle) * iconRadius;
+        const thickness = arc.outerRadius - arc.innerRadius;
+        const anchorAngle = arc.endAngle;
+        const anchorRadius = arc.innerRadius + thickness * 0.5;
+        const anchorX = arc.x + Math.cos(anchorAngle) * anchorRadius;
+        const anchorY = arc.y + Math.sin(anchorAngle) * anchorRadius;
 
         const lines = [
+            `${categoryIcon ? `${categoryIcon} ` : ''}${categoryName}`,
             `${formatCurrency(value)} ${symbol}`,
             `${percent}%`
         ];
 
         const ctx = chart.ctx;
         ctx.save();
+        ctx.font = '600 13px -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif';
+        const width0 = ctx.measureText(lines[0]).width;
         ctx.font = '600 16px -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif';
-        const width1 = ctx.measureText(lines[0]).width;
+        const width1 = ctx.measureText(lines[1]).width;
         ctx.font = '500 13px -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif';
-        const width2 = ctx.measureText(lines[1]).width;
-        const textWidth = Math.max(width1, width2);
+        const width2 = ctx.measureText(lines[2]).width;
+        const textWidth = Math.max(width0, width1, width2);
         const paddingX = 12;
         const paddingY = 10;
-        const lineHeight = 16;
+        const lineHeights = [15, 18, 14];
+        const lineGap = 3;
+        const contentHeight = lineHeights.reduce((a, b) => a + b, 0) + lineGap * 2;
         const boxWidth = textWidth + paddingX * 2;
-        const boxHeight = paddingY * 2 + lineHeight * 2;
+        const boxHeight = paddingY * 2 + contentHeight;
 
-        const centerX = arc.x + Math.cos(midAngle) * (arc.innerRadius * 0.1);
-        const centerY = arc.y + Math.sin(midAngle) * (arc.innerRadius * 0.1);
-        let boxX = centerX - boxWidth / 2;
-        let boxY = centerY - boxHeight / 2;
+        let boxX = anchorX - boxWidth / 2;
+        let boxY = anchorY - boxHeight - 18;
 
         const area = chart.chartArea || { left: 0, top: 0, right: chart.width, bottom: chart.height };
         const clamp = (val, min, max) => Math.max(min, Math.min(max, val));
+        if (boxY < area.top + 6) {
+            boxY = anchorY + 18;
+        }
         boxX = clamp(boxX, area.left + 6, area.right - boxWidth - 6);
         boxY = clamp(boxY, area.top + 6, area.bottom - boxHeight - 6);
 
         const radius = 14;
         const boxCenterX = boxX + boxWidth / 2;
         const boxCenterY = boxY + boxHeight / 2;
-        const angle = Math.atan2(iconY - boxCenterY, iconX - boxCenterX);
-        const pointerLen = 10;
-        const edgeX = boxCenterX + Math.cos(angle) * (boxWidth / 2);
-        const edgeY = boxCenterY + Math.sin(angle) * (boxHeight / 2);
-        const tipX = edgeX + Math.cos(angle) * pointerLen;
-        const tipY = edgeY + Math.sin(angle) * pointerLen;
-        const normalX = Math.cos(angle + Math.PI / 2) * 6;
-        const normalY = Math.sin(angle + Math.PI / 2) * 6;
+        const angle = Math.atan2(anchorY - boxCenterY, anchorX - boxCenterX);
+        const dirX = Math.cos(angle);
+        const dirY = Math.sin(angle);
+        const halfW = boxWidth / 2 - radius / 2;
+        const halfH = boxHeight / 2 - radius / 2;
+        const scaleX = Math.abs(dirX) > 0.001 ? halfW / Math.abs(dirX) : Number.POSITIVE_INFINITY;
+        const scaleY = Math.abs(dirY) > 0.001 ? halfH / Math.abs(dirY) : Number.POSITIVE_INFINITY;
+        const scale = Math.min(scaleX, scaleY);
+        const edgeX = boxCenterX + dirX * scale;
+        const edgeY = boxCenterY + dirY * scale;
+        const pointerHalf = 5;
+        const normalX = -dirY * pointerHalf;
+        const normalY = dirX * pointerHalf;
 
         // Bubble
         ctx.beginPath();
@@ -873,20 +890,26 @@ const segmentPopupPlugin = {
         ctx.beginPath();
         ctx.moveTo(edgeX + normalX, edgeY + normalY);
         ctx.lineTo(edgeX - normalX, edgeY - normalY);
-        ctx.lineTo(tipX, tipY);
+        ctx.lineTo(anchorX, anchorY);
         ctx.closePath();
         ctx.fillStyle = 'rgba(28, 28, 30, 0.95)';
         ctx.fill();
 
         // Text
-        ctx.fillStyle = '#ffffff';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
+        let textY = boxY + paddingY + lineHeights[0] * 0.5;
+        ctx.font = '600 13px -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif';
+        ctx.fillStyle = 'rgba(255,255,255,0.9)';
+        ctx.fillText(lines[0], boxCenterX, textY);
+        textY += lineHeights[0] + lineGap + lineHeights[1] * 0.5;
         ctx.font = '600 16px -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif';
-        ctx.fillText(lines[0], boxCenterX, boxY + paddingY + lineHeight * 0.6);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText(lines[1], boxCenterX, textY);
+        textY += lineHeights[1] * 0.5 + lineGap + lineHeights[2] * 0.5;
         ctx.font = '500 13px -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif';
         ctx.fillStyle = 'rgba(255,255,255,0.75)';
-        ctx.fillText(lines[1], boxCenterX, boxY + paddingY + lineHeight * 1.6);
+        ctx.fillText(lines[2], boxCenterX, textY);
 
         ctx.restore();
     }
@@ -1591,9 +1614,9 @@ function updatePanelGoals() {
                     <div class="debt-progress">
                         <div class="debt-progress-fill" style="width: ${progress}%; background: ${color};"></div>
                     </div>
-                    <div class="debt-actions">
-                        <button class="debt-action-btn" onclick="event.stopPropagation(); showAddGoalModal(${goal.id})">${t('Изменить')}</button>
-                        <button class="debt-action-btn" onclick="event.stopPropagation(); archiveGoal(${goal.id}, true)">${t('Архивировать')}</button>
+                    <div class="debt-actions goal-actions">
+                        <button class="debt-action-btn goal-action-btn" onclick="event.stopPropagation(); showAddGoalModal(${goal.id})">${t('Изменить')}</button>
+                        <button class="debt-action-btn goal-action-btn goal-action-btn--archive" onclick="event.stopPropagation(); archiveGoal(${goal.id}, true)">${t('Архивировать')}</button>
                     </div>
                 </div>
                 <div class="category-amount" style="color: ${color};">

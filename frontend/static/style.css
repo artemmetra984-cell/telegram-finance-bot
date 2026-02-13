@@ -2883,6 +2883,32 @@ body.keyboard-open .modal-content {
   flex-wrap: wrap;
 }
 
+.panel-goals-block .debt-card .category-amount {
+  min-width: 52px;
+  margin-left: 8px;
+}
+
+.panel-goals-block .goal-actions {
+  flex-wrap: nowrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.panel-goals-block .goal-action-btn {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 8px 10px;
+  font-size: 12px;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.panel-goals-block .goal-action-btn--archive {
+  flex: 1.2 1 0;
+}
+
 .debt-action-btn {
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(0, 0, 0, 0.2);
@@ -3183,6 +3209,13 @@ body.keyboard-open .modal-content {
   .nav-icon {
     width: 22px;
     height: 22px;
+  }
+}
+
+@media (max-width: 380px) {
+  .panel-goals-block .goal-action-btn {
+    font-size: 11px;
+    padding: 8px;
   }
 }
 
