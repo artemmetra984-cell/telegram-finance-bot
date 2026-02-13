@@ -1087,12 +1087,6 @@ body.modal-open #main-content {
   margin: 0;
 }
 
-.chart-row.chart-row-balance .chart-wrapper {
-  flex: 0 1 340px;
-  max-width: 340px;
-  height: calc(var(--report-chart-height) - 28px);
-}
-
 .chart-row .chart-legend {
   margin-top: 0;
   flex-direction: column;
@@ -2942,9 +2936,12 @@ body.keyboard-open .modal-content {
 
 .panel-recent-edit-btn {
   font-size: 12px;
-  padding: 7px 11px;
-  min-height: 33px;
-  min-width: 99px;
+  font-weight: 500;
+  line-height: 1;
+  padding: 6px 14px;
+  min-height: 30px;
+  min-width: 84px;
+  border-radius: 999px;
 }
 
 .debt-action-btn:hover {
@@ -3236,10 +3233,6 @@ body.keyboard-open .modal-content {
     height: 22px;
   }
 
-  .chart-row.chart-row-balance .chart-wrapper {
-    max-width: 300px;
-    height: calc(var(--report-chart-height) - 52px);
-  }
 }
 
 @media (max-width: 380px) {

@@ -668,6 +668,35 @@ function mixWithWhite(color, weight = 0.2) {
     return c;
 }
 
+function colorWithAlpha(color, alpha = 1) {
+    const c = normalizeColor(color).trim();
+    if (c.startsWith('#')) {
+        let hex = c.slice(1);
+        if (hex.length === 3 || hex.length === 4) {
+            hex = hex.split('').map(ch => ch + ch).join('');
+        }
+        if (hex.length < 6) return c;
+        const r = parseInt(hex.slice(0, 2), 16);
+        const g = parseInt(hex.slice(2, 4), 16);
+        const b = parseInt(hex.slice(4, 6), 16);
+        if ([r, g, b].some(v => Number.isNaN(v))) return c;
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+    const rgbMatch = c.match(/^rgba?\(([^)]+)\)$/i);
+    if (rgbMatch) {
+        const parts = rgbMatch[1].split(',').map(part => part.trim());
+        if (parts.length >= 3) {
+            const r = parseFloat(parts[0]);
+            const g = parseFloat(parts[1]);
+            const b = parseFloat(parts[2]);
+            if ([r, g, b].every(v => Number.isFinite(v))) {
+                return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+            }
+        }
+    }
+    return c;
+}
+
 function pickDistinctColor(baseColor, index, usedColors) {
     let color = baseColor || colorPalette[index % colorPalette.length];
     if (usedColors && usedColors.has(color)) {
@@ -807,6 +836,14 @@ const segmentPopupPlugin = {
         const categoryName = rawLabel.length > 26 ? `${rawLabel.slice(0, 25)}…` : rawLabel;
         const iconList = chart?.options?.plugins?.segmentIcons?.icons || [];
         const categoryIcon = iconList[idx] || '';
+        const categoryColorList = dataset.backgroundColor || [];
+        const categoryColor = Array.isArray(categoryColorList)
+            ? (categoryColorList[idx] || '#5D9CEC')
+            : (categoryColorList || '#5D9CEC');
+        const popupFillColor = colorWithAlpha(categoryColor, 0.24);
+        const popupStrokeColor = colorWithAlpha(categoryColor, 0.62);
+        const connectorColor = colorWithAlpha(categoryColor, 0.34);
+        const connectorStrokeColor = colorWithAlpha(categoryColor, 0.78);
 
         const anchorAngle = arc.endAngle;
         // Якорь в крайней точке у внутренней кромки сегмента
@@ -882,8 +919,8 @@ const segmentPopupPlugin = {
         ctx.lineTo(boxX, boxY + radius);
         ctx.quadraticCurveTo(boxX, boxY, boxX + radius, boxY);
         ctx.closePath();
-        ctx.fillStyle = 'rgba(28, 28, 30, 0.95)';
-        ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+        ctx.fillStyle = popupFillColor;
+        ctx.strokeStyle = popupStrokeColor;
         ctx.lineWidth = 1;
         ctx.shadowColor = 'rgba(0,0,0,0.6)';
         ctx.shadowBlur = 20;
@@ -903,7 +940,7 @@ const segmentPopupPlugin = {
         ctx.beginPath();
         ctx.moveTo(edgeX, edgeY);
         ctx.quadraticCurveTo(controlX, controlY, anchorX, anchorY);
-        ctx.strokeStyle = 'rgba(28, 28, 30, 0.92)';
+        ctx.strokeStyle = connectorColor;
         ctx.lineWidth = 10;
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
@@ -912,7 +949,7 @@ const segmentPopupPlugin = {
         ctx.beginPath();
         ctx.moveTo(edgeX, edgeY);
         ctx.quadraticCurveTo(controlX, controlY, anchorX, anchorY);
-        ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+        ctx.strokeStyle = connectorStrokeColor;
         ctx.lineWidth = 1.2;
         ctx.stroke();
 
@@ -3839,7 +3876,7 @@ async function updateDistributionChart() {
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            layout: { padding: 32 },
+            layout: { padding: 28 },
             onClick: (evt, elements, chart) => {
                 const points = chart.getElementsAtEventForMode(evt, 'nearest', { intersect: true }, true);
                 if (!points.length) {
@@ -3863,8 +3900,8 @@ async function updateDistributionChart() {
                     enabled: false
                 }
             },
-            cutout: '68%',
-            radius: '74%',
+            cutout: '72%',
+            radius: '90%',
             animation: {
                 animateScale: true,
                 animateRotate: true,
