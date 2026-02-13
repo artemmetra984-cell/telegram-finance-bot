@@ -1791,7 +1791,7 @@ function updateWalletsDisplay() {
     container.innerHTML = html;
 }
 
-const LONG_TRANSACTION_DESCRIPTION_LENGTH = 52;
+const LONG_TRANSACTION_HINT_LENGTH = 28;
 
 function escapeHtml(value) {
     return String(value)
@@ -1806,12 +1806,8 @@ function renderTransactionDescription(description) {
     const rawText = typeof description === 'string' ? description.trim() : '';
     const text = rawText || t('Без описания');
     const safeText = escapeHtml(text);
-
-    if (text.length <= LONG_TRANSACTION_DESCRIPTION_LENGTH) {
-        return `<div class="transaction-title" title="${safeText}">${safeText}</div>`;
-    }
-
-    return `<button class="transaction-title transaction-title-btn transaction-title-btn--long" onclick="openTextModal(${JSON.stringify(text)})">${safeText}</button>`;
+    const hintClass = text.length > LONG_TRANSACTION_HINT_LENGTH ? ' transaction-title-btn--long' : '';
+    return `<button class="transaction-title transaction-title-btn${hintClass}" title="${safeText}" onclick="openTextModal(${JSON.stringify(text)})">${safeText}</button>`;
 }
 
 function updateRecentTransactions(transactions) {
@@ -3297,7 +3293,7 @@ function updateOverviewChart(totalIncome, totalExpense) {
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            layout: { padding: 28 },
+            layout: { padding: 14 },
             cutout: '72%',
             radius: '92%',
             rotation: -90,
@@ -3426,7 +3422,7 @@ async function updateIncomeChart(transactions) {
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            layout: { padding: 28 },
+            layout: { padding: 14 },
             onClick: (evt, elements, chart) => {
                 const points = chart.getElementsAtEventForMode(evt, 'nearest', { intersect: true }, true);
                 if (!points.length) {
@@ -3558,7 +3554,7 @@ async function updateExpenseChart(transactions) {
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            layout: { padding: 28 },
+            layout: { padding: 14 },
             onClick: (evt, elements, chart) => {
                 const points = chart.getElementsAtEventForMode(evt, 'nearest', { intersect: true }, true);
                 if (!points.length) {
@@ -3876,7 +3872,7 @@ async function updateDistributionChart() {
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            layout: { padding: 28 },
+            layout: { padding: 14 },
             onClick: (evt, elements, chart) => {
                 const points = chart.getElementsAtEventForMode(evt, 'nearest', { intersect: true }, true);
                 if (!points.length) {
