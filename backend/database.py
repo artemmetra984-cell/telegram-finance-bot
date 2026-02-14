@@ -22,6 +22,10 @@ class Database:
     def _resolve_db_path(self):
         configured = os.getenv('DB_PATH')
         if configured:
+            configured = configured.strip()
+            if os.path.isdir('/data') and configured in {'/finance.db', 'finance.db', './finance.db'}:
+                print(f"⚠️ DB_PATH={configured} is unsafe, using /data/finance.db instead")
+                return '/data/finance.db'
             return configured
 
         persistent_dir = os.getenv('PERSISTENT_DATA_DIR')

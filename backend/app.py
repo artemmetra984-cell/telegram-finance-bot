@@ -1568,7 +1568,6 @@ def add_transaction():
         wallet = data.get('wallet', 'Карта')
         description = data.get('description', '')
         debt_id = data.get('debt_id')
-        debt_id = data.get('debt_id')
         
         if not all([user_id, trans_type, amount, category]):
             return jsonify({'error': 'Missing fields'}), 400
@@ -1587,18 +1586,8 @@ def add_transaction():
             return jsonify({'error': 'Invalid amount'}), 400
 
         if category == 'Долги':
-            if not debt_id:
-                return jsonify({'error': 'Missing debt_id'}), 400
-            try:
-                debt_id = int(debt_id)
-            except (TypeError, ValueError):
-                return jsonify({'error': 'Invalid debt_id'}), 400
-            if not db.get_debt_by_id(user_id, debt_id):
-                return jsonify({'error': 'Debt not found'}), 404
-        else:
-            debt_id = None
-
-        if category == 'Долги':
+            if trans_type != 'expense':
+                return jsonify({'error': 'Invalid type for debt transaction'}), 400
             if not debt_id:
                 return jsonify({'error': 'Missing debt_id'}), 400
             try:
@@ -1665,6 +1654,7 @@ def update_transaction():
         category = data.get('category')
         wallet = data.get('wallet', 'Карта')
         description = data.get('description', '')
+        debt_id = data.get('debt_id')
 
         if not all([user_id, transaction_id, trans_type, amount, category]):
             return jsonify({'error': 'Missing fields'}), 400
@@ -1685,6 +1675,22 @@ def update_transaction():
         existing = db.get_transaction_by_id(user_id, int(transaction_id))
         if not existing:
             return jsonify({'error': 'Transaction not found'}), 404
+
+        if category == 'Долги':
+            if trans_type != 'expense':
+                return jsonify({'error': 'Invalid type for debt transaction'}), 400
+            if debt_id in (None, ''):
+                debt_id = existing['debt_id']
+            if not debt_id:
+                return jsonify({'error': 'Missing debt_id'}), 400
+            try:
+                debt_id = int(debt_id)
+            except (TypeError, ValueError):
+                return jsonify({'error': 'Invalid debt_id'}), 400
+            if not db.get_debt_by_id(user_id, debt_id):
+                return jsonify({'error': 'Debt not found'}), 404
+        else:
+            debt_id = None
 
         if trans_type == 'expense':
             available_balance = db.get_wallet_balance(user_id, wallet)
