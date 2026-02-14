@@ -1818,11 +1818,11 @@ function renderPanelPeriodControls() {
 
     anchor.innerHTML = `
         <div class="panel-period-controls">
-            <span class="panel-period-label">${t('Период')}</span>
             <button type="button" class="panel-period-trigger" id="panel-period-trigger">
                 <span class="panel-period-trigger-text">${periodLabel}</span>
                 <span class="panel-period-trigger-caret">▾</span>
             </button>
+            <span class="panel-period-label">${t('Период')}</span>
         </div>
     `;
 
@@ -2058,8 +2058,10 @@ function decodeCategoryName(encodedName) {
 
 function setCategorySwipeOffset(item, offset) {
     if (!item) return;
-    const clamped = Math.max(-CATEGORY_SWIPE_MAX, Math.min(0, Math.round(offset)));
+    const clamped = Math.max(-CATEGORY_SWIPE_MAX, Math.min(0, offset));
+    const progress = Math.max(0, Math.min(1, Math.abs(clamped) / CATEGORY_SWIPE_MAX));
     item.style.setProperty('--swipe-offset', `${clamped}px`);
+    item.style.setProperty('--swipe-progress', progress.toFixed(3));
 }
 
 function closeCategorySwipeItem(item = activeCategorySwipeItem) {
@@ -7986,3 +7988,11 @@ window.openSharedWallet = openSharedWallet;
 window.closeSharedWallet = closeSharedWallet;
 window.copySharedCode = copySharedCode;
 window.copySharedLink = copySharedLink;
+window.createSharedWallet = createSharedWallet;
+window.joinSharedWallet = joinSharedWallet;
+window.leaveSharedWallet = leaveSharedWallet;
+window.openAddToHome = openAddToHome;
+window.closeAddToHome = closeAddToHome;
+window.openAddToHomeLink = openAddToHomeLink;
+window.toggleSettingsCard = toggleSettingsCard;
+window.switchPage = switchPage;

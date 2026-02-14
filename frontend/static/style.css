@@ -127,7 +127,15 @@ body.modal-open {
 
 body.modal-open #main-content {
   overscroll-behavior: contain;
+}
+
+/* Keep background pages inert, but allow active modals to stay interactive */
+body.modal-open #main-content .pages-container {
   pointer-events: none;
+}
+
+body.modal-open .modal-overlay.active {
+  pointer-events: auto;
 }
 
 /* iOS-like scroll */
@@ -328,9 +336,10 @@ body.modal-open #main-content {
 
 .panel-period-anchor {
   position: absolute;
-  top: 0;
+  top: 4px;
   right: 0;
   width: auto;
+  max-width: 46%;
   text-align: right;
 }
 
@@ -338,7 +347,7 @@ body.modal-open #main-content {
   display: inline-flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 2px;
+  gap: 1px;
 }
 
 .panel-period-label {
@@ -350,6 +359,7 @@ body.modal-open #main-content {
 
 .panel-period-trigger {
   min-height: 18px;
+  max-width: 100%;
   padding: 0;
   border: none;
   background: transparent;
@@ -370,7 +380,11 @@ body.modal-open #main-content {
 }
 
 .panel-period-trigger-text {
+  display: inline-block;
+  max-width: 130px;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .panel-period-trigger-caret {
@@ -592,6 +606,7 @@ body.modal-open #main-content {
   border-radius: var(--border-radius);
   overflow: hidden;
   --swipe-offset: 0px;
+  --swipe-progress: 0;
   background: var(--ios-elevated);
 }
 
@@ -612,17 +627,16 @@ body.modal-open #main-content {
   cursor: pointer;
   box-shadow: inset 1px 0 0 rgba(255, 255, 255, 0.16);
   z-index: 1;
-  opacity: 0;
+  opacity: calc(var(--swipe-progress) * 0.98);
   pointer-events: none;
-  transform: translateX(10px);
-  transition: opacity 0.18s ease, transform 0.18s ease;
+  transform: translateX(calc((1 - var(--swipe-progress)) * 14px)) scale(calc(0.9 + var(--swipe-progress) * 0.1));
+  transform-origin: right center;
+  transition: opacity 0.26s cubic-bezier(0.22, 1, 0.36, 1), transform 0.26s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .category-swipe-item.swiping .category-swipe-action,
 .category-swipe-item.swipe-open .category-swipe-action {
-  opacity: 1;
   pointer-events: auto;
-  transform: translateX(0);
 }
 
 .category-swipe-action:active {
@@ -648,7 +662,7 @@ body.modal-open #main-content {
   position: relative;
   z-index: 2;
   transform: translateX(var(--swipe-offset));
-  transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: transform 0.3s cubic-bezier(0.18, 0.88, 0.22, 1);
   will-change: transform;
   touch-action: pan-y;
 }
@@ -1635,10 +1649,15 @@ body.modal-open #main-content {
   margin-bottom: calc(var(--spacing-lg) / 4);
 }
 
+.overview-balance-card {
+  padding-top: calc(var(--spacing-lg) / 2);
+  padding-bottom: calc(var(--spacing-lg) / 2);
+}
+
 .overview-balance-card .overview-balance-wrap {
-  min-height: 120px;
-  padding: 4px 12px;
-  gap: 6px;
+  min-height: 92px;
+  padding: 2px 12px;
+  gap: 4px;
 }
 
 .overview-balance-card .overview-value--balance {
@@ -3711,9 +3730,14 @@ body.keyboard-open .modal-content {
   }
 
   .overview-balance-card .overview-balance-wrap {
-    min-height: 104px;
-    padding: 2px 10px;
-    gap: 4px;
+    min-height: 80px;
+    padding: 1px 10px;
+    gap: 3px;
+  }
+
+  .overview-balance-card {
+    padding-top: calc(var(--spacing-md) / 2);
+    padding-bottom: calc(var(--spacing-md) / 2);
   }
   
   .chart-container {
