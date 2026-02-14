@@ -44,10 +44,26 @@ CRYPTOPAY_API_TOKEN = os.getenv('CRYPTOPAY_API_TOKEN', '')
 CRYPTOPAY_WEBHOOK_SECRET = os.getenv('CRYPTOPAY_WEBHOOK_SECRET', '')
 DEFAULT_SUBSCRIPTION_MONTHS = int(os.getenv('SUBSCRIPTION_DEFAULT_MONTHS', '1'))
 SAVINGS_WALLET_NAME = 'Накопления'
+
+def parse_reminder_texts(raw_value):
+    if not raw_value:
+        return []
+    parts = []
+    normalized = str(raw_value).replace('\r', '')
+    for line in normalized.split('\n'):
+        for chunk in line.split('||'):
+            text = chunk.strip()
+            if text:
+                parts.append(text)
+    return parts
+
 DAILY_EXPENSE_REMINDER_ENABLED = os.getenv('DAILY_EXPENSE_REMINDER_ENABLED', '1').strip().lower() in ('1', 'true', 'yes', 'on')
 DAILY_EXPENSE_REMINDER_HOUR = max(0, min(23, int(os.getenv('DAILY_EXPENSE_REMINDER_HOUR', '21') or 21)))
 DAILY_EXPENSE_REMINDER_TZ_OFFSET = int(os.getenv('DAILY_EXPENSE_REMINDER_TZ_OFFSET', '0') or 0)
-DAILY_EXPENSE_REMINDER_TEXT = os.getenv('DAILY_EXPENSE_REMINDER_TEXT', '📝 Напоминание: внеси расходы за сегодня, чтобы отчёты были точными.')
+DAILY_EXPENSE_REMINDER_TEXT = (os.getenv('DAILY_EXPENSE_REMINDER_TEXT', '📝 Напоминание: внеси расходы за сегодня, чтобы отчёты были точными.') or '').strip()
+DAILY_EXPENSE_REMINDER_TEXTS = parse_reminder_texts(os.getenv('DAILY_EXPENSE_REMINDER_TEXTS', ''))
+if not DAILY_EXPENSE_REMINDER_TEXTS:
+    DAILY_EXPENSE_REMINDER_TEXTS = [DAILY_EXPENSE_REMINDER_TEXT or '📝 Напоминание: внеси расходы за сегодня, чтобы отчёты были точными.']
 DAILY_EXPENSE_REMINDER_POLL_SECONDS = max(15, int(os.getenv('DAILY_EXPENSE_REMINDER_POLL_SECONDS', '45') or 45))
 
 def parse_promo_codes(raw_value):
@@ -580,7 +596,7 @@ def _get_daily_reminder_local_now():
 def _send_telegram_expense_reminder(chat_id):
     if not TELEGRAM_TOKEN:
         return False
-    text = DAILY_EXPENSE_REMINDER_TEXT
+    text = random.choice(DAILY_EXPENSE_REMINDER_TEXTS)
     payload = {
         'chat_id': int(chat_id),
         'text': text
