@@ -127,6 +127,7 @@ body.modal-open {
 
 body.modal-open #main-content {
   overscroll-behavior: contain;
+  pointer-events: none;
 }
 
 /* iOS-like scroll */
@@ -2823,7 +2824,8 @@ body.modal-open #main-content {
   top: var(--app-offset-top);
   left: 0;
   right: 0;
-  height: var(--app-base-height);
+  height: var(--app-height);
+  min-height: var(--app-height);
   background: rgba(0, 0, 0, 0.7);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
@@ -2831,9 +2833,9 @@ body.modal-open #main-content {
   align-items: center;
   justify-content: center;
   z-index: 2000;
-  padding: var(--spacing-md);
+  padding: calc(var(--spacing-md) + env(safe-area-inset-top)) var(--spacing-md) calc(var(--spacing-md) + env(safe-area-inset-bottom));
   animation: fadeIn 0.3s;
-  overscroll-behavior: contain;
+  overscroll-behavior-y: contain;
   touch-action: pan-y;
   transition: opacity 0.2s ease, padding 0.2s ease;
 }
@@ -2853,7 +2855,7 @@ body.modal-open #main-content {
   padding: var(--spacing-xl);
   width: 100%;
   max-width: 400px;
-  max-height: calc(var(--app-base-height) - (2 * var(--spacing-md)));
+  max-height: calc(var(--app-height) - (2 * var(--spacing-md)) - env(safe-area-inset-top) - env(safe-area-inset-bottom));
   overflow-y: auto;
   animation: slideUp 0.3s;
   border: 0.5px solid rgba(255, 255, 255, 0.1);
@@ -2861,18 +2863,20 @@ body.modal-open #main-content {
   -webkit-overflow-scrolling: touch;
   will-change: transform;
   touch-action: pan-y;
-  overscroll-behavior: contain;
+  overscroll-behavior-y: contain;
+  scroll-padding-top: 18px;
+  scroll-padding-bottom: calc(var(--spacing-xl) + env(safe-area-inset-bottom));
   transition: max-height 0.2s ease;
 }
 
 body.keyboard-open .modal-overlay {
-  align-items: center;
-  padding: var(--spacing-md);
+  align-items: flex-start;
+  padding: calc(var(--spacing-sm) + env(safe-area-inset-top)) var(--spacing-md) calc(var(--spacing-sm) + env(safe-area-inset-bottom));
 }
 
 body.keyboard-open .modal-content {
   transform: none;
-  max-height: calc(var(--app-base-height) - (2 * var(--spacing-md)));
+  max-height: calc(var(--app-height) - (2 * var(--spacing-sm)) - env(safe-area-inset-top) - env(safe-area-inset-bottom));
 }
 
 @keyframes slideUp {

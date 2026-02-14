@@ -98,6 +98,71 @@ let viewportRaf = null;
 let lastViewportHeight = null;
 let lastViewportOffsetTop = null;
 let lastKeyboardHeight = null;
+let bodyScrollLocked = false;
+let bodyScrollTop = 0;
+let modalTouchStartY = 0;
+let focusScrollTimer = null;
+
+function getActiveModalContent() {
+    return document.querySelector('.modal-overlay.active .modal-content');
+}
+
+function lockBodyScroll() {
+    if (bodyScrollLocked) return;
+    bodyScrollTop = window.scrollY || window.pageYOffset || 0;
+    document.body.style.position = 'fixed';
+    document.body.style.top = `-${bodyScrollTop}px`;
+    document.body.style.left = '0';
+    document.body.style.right = '0';
+    document.body.style.width = '100%';
+    bodyScrollLocked = true;
+}
+
+function unlockBodyScroll() {
+    if (!bodyScrollLocked) return;
+    document.body.style.position = '';
+    document.body.style.top = '';
+    document.body.style.left = '';
+    document.body.style.right = '';
+    document.body.style.width = '';
+    window.scrollTo(0, bodyScrollTop);
+    bodyScrollLocked = false;
+}
+
+function ensureFocusedFieldVisible(target = document.activeElement, smooth = true) {
+    const modalContent = getActiveModalContent();
+    if (!modalContent || !target || !(target instanceof HTMLElement) || !modalContent.contains(target)) {
+        return;
+    }
+    const fieldRect = target.getBoundingClientRect();
+    const modalRect = modalContent.getBoundingClientRect();
+    const topPadding = 18;
+    const bottomPadding = keyboardOpen ? 26 : 18;
+    let delta = 0;
+
+    if (fieldRect.bottom > modalRect.bottom - bottomPadding) {
+        delta = fieldRect.bottom - (modalRect.bottom - bottomPadding);
+    } else if (fieldRect.top < modalRect.top + topPadding) {
+        delta = fieldRect.top - (modalRect.top + topPadding);
+    }
+
+    if (Math.abs(delta) < 2) return;
+    modalContent.scrollBy({
+        top: delta,
+        behavior: smooth ? 'smooth' : 'auto'
+    });
+}
+
+function queueEnsureFocusedFieldVisible(delay = 90, smooth = true) {
+    if (focusScrollTimer) {
+        clearTimeout(focusScrollTimer);
+    }
+    const target = document.activeElement;
+    focusScrollTimer = setTimeout(() => {
+        focusScrollTimer = null;
+        ensureFocusedFieldVisible(target, smooth);
+    }, delay);
+}
 
 function updateViewportVars() {
     if (viewportRaf) cancelAnimationFrame(viewportRaf);
@@ -140,6 +205,10 @@ function updateViewportVars() {
             lastKeyboardHeight = keyboardHeight;
         }
         document.body.classList.toggle('keyboard-open', keyboardOpen);
+
+        if (keyboardOpen && document.body.classList.contains('modal-open')) {
+            queueEnsureFocusedFieldVisible(60, true);
+        }
     });
 }
 
@@ -155,6 +224,11 @@ function initViewportVars() {
 function updateBodyModalState() {
     const hasActiveModal = !!document.querySelector('.modal-overlay.active');
     document.body.classList.toggle('modal-open', hasActiveModal);
+    if (hasActiveModal) {
+        lockBodyScroll();
+    } else {
+        unlockBodyScroll();
+    }
 }
 
 function isSavingsCategoryName(name) {
@@ -5603,6 +5677,7 @@ function openDebtModal(debtId = null) {
         if (deleteBtn) deleteBtn.style.display = 'none';
     }
     modal.classList.add('active');
+    updateBodyModalState();
     setTimeout(() => (nameInput || amountInput)?.focus(), 100);
 }
 
@@ -6781,11 +6856,55 @@ function initEventListeners() {
         }
     });
 
+    document.addEventListener('touchstart', function(e) {
+        if (!document.body.classList.contains('modal-open')) return;
+        const touch = e.touches && e.touches[0];
+        if (!touch) return;
+        modalTouchStartY = touch.clientY;
+    }, { passive: true });
+
     document.addEventListener('touchmove', function(e) {
-        if (document.body.classList.contains('modal-open') && !e.target.closest('.modal-content')) {
-            e.preventDefault();
+        if (!document.body.classList.contains('modal-open')) return;
+        const modalContent = e.target.closest('.modal-content');
+        if (!modalContent) {
+            if (e.cancelable) e.preventDefault();
+            return;
+        }
+
+        const touch = e.touches && e.touches[0];
+        if (!touch) return;
+        const deltaY = touch.clientY - modalTouchStartY;
+        let scroller = modalContent;
+        let cursor = e.target;
+        while (cursor && cursor !== modalContent) {
+            if (cursor instanceof HTMLElement && cursor.scrollHeight > cursor.clientHeight + 1) {
+                scroller = cursor;
+                break;
+            }
+            cursor = cursor.parentElement;
+        }
+        const canScroll = scroller.scrollHeight > scroller.clientHeight + 1;
+
+        if (!canScroll) {
+            if (e.cancelable) e.preventDefault();
+            return;
+        }
+
+        const atTop = scroller.scrollTop <= 0;
+        const atBottom = scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 1;
+        if ((atTop && deltaY > 0) || (atBottom && deltaY < 0)) {
+            if (e.cancelable) e.preventDefault();
         }
     }, { passive: false });
+
+    document.addEventListener('focusin', function(e) {
+        if (!document.body.classList.contains('modal-open')) return;
+        const target = e.target;
+        if (!(target instanceof HTMLElement)) return;
+        const isInputLike = target.matches('input, textarea, select, [contenteditable="true"]');
+        if (!isInputLike) return;
+        queueEnsureFocusedFieldVisible(130, true);
+    }, true);
 }
 
 function setupAddButton() {
