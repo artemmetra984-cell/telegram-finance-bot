@@ -110,6 +110,9 @@ class Database:
                 debts_enabled INTEGER DEFAULT 0,
                 debt_target_amount REAL DEFAULT 0,
                 debt_note TEXT DEFAULT '',
+                reminder_enabled INTEGER DEFAULT 1,
+                reminder_hour INTEGER DEFAULT 21,
+                reminder_last_sent_date TEXT,
                 last_login TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
@@ -372,6 +375,19 @@ class Database:
             cursor.execute("ALTER TABLE users ADD COLUMN debt_note TEXT DEFAULT ''")
         except sqlite3.OperationalError:
             pass
+        # Миграция: ежедневные напоминания
+        try:
+            cursor.execute("ALTER TABLE users ADD COLUMN reminder_enabled INTEGER DEFAULT 1")
+        except sqlite3.OperationalError:
+            pass
+        try:
+            cursor.execute("ALTER TABLE users ADD COLUMN reminder_hour INTEGER DEFAULT 21")
+        except sqlite3.OperationalError:
+            pass
+        try:
+            cursor.execute("ALTER TABLE users ADD COLUMN reminder_last_sent_date TEXT")
+        except sqlite3.OperationalError:
+            pass
         
         self.conn.commit()
         print("✅ Tables ready")
@@ -444,6 +460,29 @@ class Database:
             FROM users WHERE session_token = ?
         ''', (session_token,))
         return cursor.fetchone()
+
+    def get_daily_reminder_targets(self, date_key, hour):
+        cursor = self.conn.cursor()
+        hour_value = int(hour)
+        cursor.execute('''
+            SELECT id, telegram_id
+            FROM users
+            WHERE telegram_id IS NOT NULL
+              AND COALESCE(reminder_enabled, 1) = 1
+              AND COALESCE(reminder_hour, 21) = ?
+              AND (reminder_last_sent_date IS NULL OR reminder_last_sent_date <> ?)
+        ''', (hour_value, date_key))
+        return cursor.fetchall()
+
+    def mark_daily_reminder_sent(self, user_id, date_key):
+        cursor = self.conn.cursor()
+        cursor.execute('''
+            UPDATE users
+            SET reminder_last_sent_date = ?
+            WHERE id = ?
+        ''', (date_key, user_id))
+        self.conn.commit()
+        return cursor.rowcount > 0
 
     def get_debts_enabled(self, user_id):
         cursor = self.conn.cursor()

@@ -7,6 +7,8 @@ import hmac
 import hashlib
 import json
 import base64
+import threading
+import time
 from flask import Flask, render_template, jsonify, request, send_from_directory
 from flask_cors import CORS
 from dotenv import load_dotenv
@@ -42,6 +44,11 @@ CRYPTOPAY_API_TOKEN = os.getenv('CRYPTOPAY_API_TOKEN', '')
 CRYPTOPAY_WEBHOOK_SECRET = os.getenv('CRYPTOPAY_WEBHOOK_SECRET', '')
 DEFAULT_SUBSCRIPTION_MONTHS = int(os.getenv('SUBSCRIPTION_DEFAULT_MONTHS', '1'))
 SAVINGS_WALLET_NAME = 'Накопления'
+DAILY_EXPENSE_REMINDER_ENABLED = os.getenv('DAILY_EXPENSE_REMINDER_ENABLED', '1').strip().lower() in ('1', 'true', 'yes', 'on')
+DAILY_EXPENSE_REMINDER_HOUR = max(0, min(23, int(os.getenv('DAILY_EXPENSE_REMINDER_HOUR', '21') or 21)))
+DAILY_EXPENSE_REMINDER_TZ_OFFSET = int(os.getenv('DAILY_EXPENSE_REMINDER_TZ_OFFSET', '0') or 0)
+DAILY_EXPENSE_REMINDER_TEXT = os.getenv('DAILY_EXPENSE_REMINDER_TEXT', '📝 Напоминание: внеси расходы за сегодня, чтобы отчёты были точными.')
+DAILY_EXPENSE_REMINDER_POLL_SECONDS = max(15, int(os.getenv('DAILY_EXPENSE_REMINDER_POLL_SECONDS', '45') or 45))
 
 def parse_promo_codes(raw_value):
     if not raw_value:
@@ -565,6 +572,103 @@ except ImportError as e:
     print(f"⚠️ Database error: {e}")
     db = None
 
+_daily_reminder_thread = None
+
+def _get_daily_reminder_local_now():
+    return datetime.utcnow() + timedelta(hours=DAILY_EXPENSE_REMINDER_TZ_OFFSET)
+
+def _send_telegram_expense_reminder(chat_id):
+    if not TELEGRAM_TOKEN:
+        return False
+    text = DAILY_EXPENSE_REMINDER_TEXT
+    payload = {
+        'chat_id': int(chat_id),
+        'text': text
+    }
+    if WEBHOOK_URL:
+        payload['reply_markup'] = {
+            'inline_keyboard': [[{
+                'text': '📱 Открыть',
+                'web_app': {'url': WEBHOOK_URL}
+            }]]
+        }
+    try:
+        response = requests.post(
+            f'https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage',
+            json=payload,
+            timeout=8
+        )
+        if response.status_code != 200:
+            print(f"Reminder send failed for {chat_id}: {response.status_code} {response.text}")
+            return False
+        return True
+    except Exception as exc:
+        print(f"Reminder send exception for {chat_id}: {exc}")
+        return False
+
+def dispatch_daily_expense_reminders(force=False):
+    result = {
+        'checked': 0,
+        'sent': 0,
+        'failed': 0,
+        'skipped': False
+    }
+    if not db or not TELEGRAM_TOKEN or not DAILY_EXPENSE_REMINDER_ENABLED:
+        result['skipped'] = True
+        return result
+
+    now_local = _get_daily_reminder_local_now()
+    if not force and now_local.hour != DAILY_EXPENSE_REMINDER_HOUR:
+        result['skipped'] = True
+        return result
+
+    date_key = now_local.date().isoformat()
+    targets = db.get_daily_reminder_targets(date_key, DAILY_EXPENSE_REMINDER_HOUR)
+    result['checked'] = len(targets)
+
+    for user in targets:
+        user_id = user['id']
+        chat_id = user['telegram_id']
+        if not chat_id:
+            continue
+        if _send_telegram_expense_reminder(chat_id):
+            db.mark_daily_reminder_sent(user_id, date_key)
+            result['sent'] += 1
+        else:
+            result['failed'] += 1
+    return result
+
+def _daily_reminder_worker():
+    print(
+        f"🔔 Daily reminder worker started "
+        f"(hour={DAILY_EXPENSE_REMINDER_HOUR}, tz_offset={DAILY_EXPENSE_REMINDER_TZ_OFFSET})"
+    )
+    while True:
+        try:
+            dispatch_daily_expense_reminders(force=False)
+        except Exception as exc:
+            print(f"Daily reminder worker error: {exc}")
+        time.sleep(DAILY_EXPENSE_REMINDER_POLL_SECONDS)
+
+def start_daily_reminder_worker():
+    global _daily_reminder_thread
+    if _daily_reminder_thread and _daily_reminder_thread.is_alive():
+        return
+    if not DAILY_EXPENSE_REMINDER_ENABLED:
+        print("🔕 Daily reminders disabled via env")
+        return
+    if not TELEGRAM_TOKEN:
+        print("🔕 Daily reminders disabled: TELEGRAM_BOT_TOKEN is missing")
+        return
+    _daily_reminder_thread = threading.Thread(
+        target=_daily_reminder_worker,
+        name='daily-expense-reminder',
+        daemon=True
+    )
+    _daily_reminder_thread.start()
+
+start_daily_reminder_worker()
+
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -607,6 +711,22 @@ def telegram_webhook():
 @app.route('/api/health')
 def health():
     return jsonify({'status': 'ok'})
+
+@app.route('/api/reminders/daily/dispatch', methods=['POST'])
+def dispatch_daily_reminders_api():
+    try:
+        admin_secret = os.getenv('ADMIN_SECRET', '')
+        if not admin_secret:
+            return jsonify({'error': 'ADMIN_SECRET is not set'}), 500
+        data = request.json or {}
+        admin_key = (data.get('admin_key') or '').strip()
+        if admin_key != admin_secret:
+            return jsonify({'error': 'Forbidden'}), 403
+        result = dispatch_daily_expense_reminders(force=True)
+        return jsonify({'success': True, **result})
+    except Exception as e:
+        print(f"Dispatch reminders API error: {e}")
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/init', methods=['POST'])
 def init_user():
