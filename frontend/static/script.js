@@ -3482,9 +3482,20 @@ function loadSubscriptionState() {
             (subscriptionPayment.webAppUrl || '') +
             (subscriptionPayment.miniAppUrl || '') +
             (subscriptionPayment.botUrl || '');
+        const parsedAmount = Number.parseFloat(String(parsed?.amount ?? '').replace(',', '.'));
+        const priceList = Object.values(subscriptionPrices).map((value) => Number(value));
+        const amountLooksCurrent = Number.isFinite(parsedAmount)
+            ? priceList.some((price) => Math.abs(parsedAmount - price) < 0.0001)
+            : true;
+        const parsedMonths = Number.parseInt(parsed?.months, 10);
+        const expectedPrice = subscriptionPrices[parsedMonths];
+        const priceMismatchByPeriod = Number.isFinite(parsedAmount) && expectedPrice
+            ? Math.abs(parsedAmount - Number(expectedPrice)) > 0.0001
+            : false;
+        const stalePrice = (!amountLooksCurrent) || priceMismatchByPeriod;
         const badProvider = url.includes('lecryptio') || url.includes('cryptocloud');
         const providerMismatch = parsed && parsed.provider && parsed.provider !== subscriptionProvider;
-        if (badProvider || providerMismatch) {
+        if (badProvider || providerMismatch || stalePrice) {
             subscriptionPayment = { invoiceId: null, status: '', asset: 'USDT', amount: '', currency: '', invoiceUrl: '', miniAppUrl: '', webAppUrl: '', botUrl: '', months: subscriptionDuration };
             localStorage.removeItem('subscription_payment');
         }
