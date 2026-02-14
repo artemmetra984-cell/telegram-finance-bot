@@ -3724,7 +3724,7 @@ function handleReportChartTap(canvasId, event) {
     const rect = chart.canvas.getBoundingClientRect();
     const x = touch.clientX - rect.left;
     const y = touch.clientY - rect.top;
-    const points = chart.getElementsAtEventForMode({ x, y }, 'nearest', { intersect: true }, true);
+    const points = chart.getElementsAtEventForMode({ x, y }, 'nearest', { intersect: false }, true);
     if (!points.length) {
         chart.$segmentPopupIndex = null;
         chart.update();
@@ -3952,7 +3952,7 @@ function updateOverviewChart(segments) {
             radius: '92%',
             rotation: -90,
             onClick: (evt, elements, chart) => {
-                const points = chart.getElementsAtEventForMode(evt, 'nearest', { intersect: true }, true);
+                const points = chart.getElementsAtEventForMode(evt, 'nearest', { intersect: false }, true);
                 if (!points.length) {
                     chart.$segmentPopupIndex = null;
                     chart.update();
@@ -4017,16 +4017,19 @@ async function updateIncomeTab() {
 async function updateIncomeChart(transactions) {
     const ctx = document.getElementById('income-chart');
     if (!ctx) return;
+
+    if (charts['income-chart']) {
+        charts['income-chart'].destroy();
+        charts['income-chart'] = null;
+    }
+    const baseContext = ctx.getContext('2d');
+    if (baseContext) {
+        baseContext.clearRect(0, 0, ctx.width, ctx.height);
+    }
     
     const incomeTransactions = transactions.filter(t => t.type === 'income');
     
     if (incomeTransactions.length === 0) {
-        ctx.innerHTML = `
-            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--ios-text-tertiary);">
-                <div style="font-size: 48px; margin-bottom: 16px;">📈</div>
-                <div style="font-size: 15px;">${t('Нет доходов за период')}</div>
-            </div>
-        `;
         return;
     }
     
@@ -4041,11 +4044,6 @@ async function updateIncomeChart(transactions) {
     const categories = sorted.map(([name]) => name);
     const displayLabels = categories.map(name => t(name));
     const amounts = sorted.map(([, value]) => value);
-    
-    // Удаляем старый график
-    if (charts['income-chart']) {
-        charts['income-chart'].destroy();
-    }
     
     // Получаем цвета категорий
     const usedColors = new Set();
@@ -4088,7 +4086,7 @@ async function updateIncomeChart(transactions) {
             maintainAspectRatio: false,
             layout: { padding: 14 },
             onClick: (evt, elements, chart) => {
-                const points = chart.getElementsAtEventForMode(evt, 'nearest', { intersect: true }, true);
+                const points = chart.getElementsAtEventForMode(evt, 'nearest', { intersect: false }, true);
                 if (!points.length) {
                     chart.$segmentPopupIndex = null;
                     chart.update();
@@ -4157,18 +4155,21 @@ async function updateExpenseChart(transactions) {
     const ctx = document.getElementById('expense-chart');
     if (!ctx) return;
 
+    if (charts['expense-chart']) {
+        charts['expense-chart'].destroy();
+        charts['expense-chart'] = null;
+    }
+    const baseContext = ctx.getContext('2d');
+    if (baseContext) {
+        baseContext.clearRect(0, 0, ctx.width, ctx.height);
+    }
+
     // Ensure debt category exists for color/icon lookup in charts
     injectDebtCategory();
     
     const expenseTransactions = transactions.filter(t => t.type === 'expense');
     
     if (expenseTransactions.length === 0) {
-        ctx.innerHTML = `
-            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--ios-text-tertiary);">
-                <div style="font-size: 48px; margin-bottom: 16px;">📉</div>
-                <div style="font-size: 15px;">${t('Нет расходов за период')}</div>
-            </div>
-        `;
         return;
     }
     
@@ -4183,11 +4184,6 @@ async function updateExpenseChart(transactions) {
     const categories = sorted.map(([name]) => name);
     const displayLabels = categories.map(name => t(name));
     const amounts = sorted.map(([, value]) => value);
-    
-    // Удаляем старый график
-    if (charts['expense-chart']) {
-        charts['expense-chart'].destroy();
-    }
     
     // Получаем цвета категорий
     const usedColors = new Set();
@@ -4230,7 +4226,7 @@ async function updateExpenseChart(transactions) {
             maintainAspectRatio: false,
             layout: { padding: 14 },
             onClick: (evt, elements, chart) => {
-                const points = chart.getElementsAtEventForMode(evt, 'nearest', { intersect: true }, true);
+                const points = chart.getElementsAtEventForMode(evt, 'nearest', { intersect: false }, true);
                 if (!points.length) {
                     chart.$segmentPopupIndex = null;
                     chart.update();
