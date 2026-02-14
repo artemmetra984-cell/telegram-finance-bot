@@ -2919,6 +2919,18 @@ def export_users_admin():
         if not db:
             return jsonify({'error': 'Database error'}), 500
 
+        delimiter_raw = (request.args.get('delimiter') or ';').strip().lower()
+        if delimiter_raw in ('tab', '\\t'):
+            delimiter = '\t'
+            ext = 'tsv'
+        elif delimiter_raw == ',':
+            delimiter = ','
+            ext = 'csv'
+        else:
+            # Excel-friendly default for RU locale
+            delimiter = ';'
+            ext = 'csv'
+
         cursor = db.conn.cursor()
         cursor.execute('''
             SELECT
@@ -2939,7 +2951,7 @@ def export_users_admin():
         rows = cursor.fetchall()
 
         output = io.StringIO()
-        writer = csv.writer(output)
+        writer = csv.writer(output, delimiter=delimiter, quoting=csv.QUOTE_MINIMAL)
         writer.writerow([
             'id',
             'telegram_id',
@@ -2954,11 +2966,13 @@ def export_users_admin():
         ])
 
         for row in rows:
+            username = (row['username'] or '').replace('\n', ' ').replace('\r', ' ')
+            first_name = (row['first_name'] or '').replace('\n', ' ').replace('\r', ' ')
             writer.writerow([
                 row['id'],
                 row['telegram_id'],
-                row['username'] or '',
-                row['first_name'] or '',
+                username,
+                first_name,
                 row['currency'] or 'RUB',
                 row['created_at'] or '',
                 row['last_login'] or '',
@@ -2967,10 +2981,10 @@ def export_users_admin():
                 row['subscription_end'] or ''
             ])
 
-        filename = f"users_export_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.csv"
+        filename = f"users_export_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.{ext}"
         csv_data = '\ufeff' + output.getvalue()
         return csv_data, 200, {
-            'Content-Type': 'text/csv; charset=utf-8',
+            'Content-Type': ('text/tab-separated-values; charset=utf-8' if ext == 'tsv' else 'text/csv; charset=utf-8'),
             'Content-Disposition': f'attachment; filename={filename}'
         }
     except Exception as e:
