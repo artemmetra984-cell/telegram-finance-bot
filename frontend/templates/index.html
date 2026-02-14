@@ -1184,6 +1184,29 @@
         </div>
     </div>
 
+    <!-- Свой интервал для панели -->
+    <div id="panel-range-modal" class="modal-overlay">
+        <div class="modal-content panel-range-modal">
+            <div class="modal-header">
+                <div class="modal-title" data-i18n="Свой интервал">Свой интервал</div>
+            </div>
+            <div class="panel-range-grid">
+                <span class="panel-range-label" data-i18n="С">С</span>
+                <input type="date" id="panel-range-modal-from" class="form-input panel-range-input" />
+                <span class="panel-range-separator" data-i18n="по">по</span>
+                <input type="date" id="panel-range-modal-to" class="form-input panel-range-input" />
+            </div>
+            <div class="modal-actions" style="margin-top: 20px;">
+                <button type="button" class="modal-btn secondary" onclick="closePanelRangeModal()">
+                    <span data-i18n="Отмена">Отмена</span>
+                </button>
+                <button type="button" class="modal-btn primary" onclick="applyPanelCustomRange()">
+                    <span data-i18n="Сохранить">Сохранить</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Модальное окно добавления кошелька -->
     <div id="add-wallet-modal" class="modal-overlay">
         <div class="modal-content">

@@ -516,6 +516,7 @@ const translations = {
         'За год': 'Year',
         'За всё время': 'All time',
         'Свой интервал': 'Custom range',
+        'Свой': 'Custom',
         'Данные загружаются...': 'Loading data...',
         'Расходы по категориям': 'Expenses by category',
         'Топ расходов': 'Top expenses',
@@ -1094,8 +1095,13 @@ const segmentIconsPlugin = {
             if (!icon) return;
             const color = Array.isArray(colors) ? colors[i] : colors;
             const thickness = arc.outerRadius - arc.innerRadius;
-            const maxBadgeRadius = Math.max(4, (thickness * 0.5) - 1.5);
-            const badgeRadius = Math.min(15, maxBadgeRadius, Math.max(6, thickness * 0.36));
+            const ringFill = Number.isFinite(pluginOptions?.ringFill) ? pluginOptions.ringFill : 0.36;
+            const minRadius = Number.isFinite(pluginOptions?.minRadius) ? pluginOptions.minRadius : 6;
+            const maxRadius = Number.isFinite(pluginOptions?.maxRadius) ? pluginOptions.maxRadius : 15;
+            const fontScale = Number.isFinite(pluginOptions?.fontScale) ? pluginOptions.fontScale : 1.1;
+            const iconOffsetY = Number.isFinite(pluginOptions?.iconOffsetY) ? pluginOptions.iconOffsetY : 0.5;
+            const maxBadgeRadius = Math.max(4, (thickness * 0.5) - 1.2);
+            const badgeRadius = Math.min(maxRadius, maxBadgeRadius, Math.max(minRadius, thickness * ringFill));
             // Place icon badge on the segment edge (legacy visual style).
             const angle = arc.endAngle;
             const radius = arc.innerRadius + thickness * 0.5;
@@ -1113,8 +1119,8 @@ const segmentIconsPlugin = {
             ctx.fill();
             ctx.restore();
             ctx.fillStyle = '#ffffff';
-            ctx.font = `${Math.round(badgeRadius * 1.1)}px "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
-            ctx.fillText(icon, x, y + 0.5);
+            ctx.font = `${Math.round(badgeRadius * fontScale)}px "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+            ctx.fillText(icon, x, y + iconOffsetY);
         });
         ctx.restore();
     }
@@ -1806,9 +1812,9 @@ function renderPanelPeriodControls() {
         reportChartRanges.panel = { from: '', to: '' };
     }
     const selectedPeriod = reportChartPeriods.panel || defaultPeriod;
-    const periodLabel = getReportPeriodLabel('panel', selectedPeriod);
-    const isRange = selectedPeriod === 'range';
-    const range = reportChartRanges.panel || { from: '', to: '' };
+    const periodLabel = selectedPeriod === 'range'
+        ? t('Свой')
+        : getReportPeriodLabel('panel', selectedPeriod);
 
     anchor.innerHTML = `
         <div class="panel-period-controls">
@@ -1818,41 +1824,12 @@ function renderPanelPeriodControls() {
                 <span class="panel-period-trigger-caret">▾</span>
             </button>
         </div>
-        <div class="panel-period-range ${isRange ? 'active' : ''}">
-            <span class="panel-period-range-label">${t('С')}</span>
-            <input
-                type="date"
-                id="panel-range-from"
-                class="form-input panel-period-range-input"
-                value="${range.from || ''}"
-            />
-            <span class="panel-period-range-separator">${t('по')}</span>
-            <input
-                type="date"
-                id="panel-range-to"
-                class="form-input panel-period-range-input"
-                value="${range.to || ''}"
-            />
-        </div>
     `;
 
     const trigger = document.getElementById('panel-period-trigger');
     if (trigger) {
         trigger.onclick = () => openReportPeriodModal('panel');
     }
-
-    const fromInput = document.getElementById('panel-range-from');
-    const toInput = document.getElementById('panel-range-to');
-    const onRangeChange = () => {
-        reportChartRanges.panel = {
-            from: fromInput?.value || '',
-            to: toInput?.value || ''
-        };
-        applyPanelPeriodFilter();
-    };
-
-    if (fromInput) fromInput.onchange = onRangeChange;
-    if (toInput) toInput.onchange = onRangeChange;
 }
 
 function applyPanelPeriodFilter() {
@@ -1864,6 +1841,35 @@ function applyPanelPeriodFilter() {
     updatePanelGoals();
     updateRecentTransactions(filteredTransactions);
     updateBalanceDisplay(panelInitSummary || {});
+}
+
+function openPanelRangeModal() {
+    const modal = document.getElementById('panel-range-modal');
+    if (!modal) return;
+    const fromInput = document.getElementById('panel-range-modal-from');
+    const toInput = document.getElementById('panel-range-modal-to');
+    const range = reportChartRanges.panel || { from: '', to: '' };
+    if (fromInput) fromInput.value = range.from || '';
+    if (toInput) toInput.value = range.to || '';
+    modal.classList.add('active');
+    updateBodyModalState();
+}
+
+function closePanelRangeModal() {
+    closeModal('panel-range-modal');
+}
+
+function applyPanelCustomRange() {
+    const fromInput = document.getElementById('panel-range-modal-from');
+    const toInput = document.getElementById('panel-range-modal-to');
+    reportChartPeriods.panel = 'range';
+    reportChartRanges.panel = {
+        from: fromInput?.value || '',
+        to: toInput?.value || ''
+    };
+    renderPanelPeriodControls();
+    applyPanelPeriodFilter();
+    closePanelRangeModal();
 }
 
 async function loadPanelData() {
@@ -2172,7 +2178,6 @@ function initCategorySwipe() {
             axis: null,
             dragging: false
         };
-        item.classList.add('swiping');
     }, { passive: true });
 
     document.addEventListener('touchmove', (event) => {
@@ -2194,8 +2199,15 @@ function initCategorySwipe() {
             return;
         }
 
+        if (!categorySwipeState.dragging && Math.abs(dx) < 8) {
+            return;
+        }
+
         event.preventDefault();
         categorySwipeState.dragging = true;
+        if (!categorySwipeState.item.classList.contains('swiping')) {
+            categorySwipeState.item.classList.add('swiping');
+        }
         const offset = categorySwipeState.startOffset + dx;
         categorySwipeState.offset = Math.max(-CATEGORY_SWIPE_MAX, Math.min(0, offset));
         setCategorySwipeOffset(categorySwipeState.item, categorySwipeState.offset);
@@ -4154,13 +4166,19 @@ function closeReportPeriodModal() {
 
 function selectReportPeriod(tabId, value) {
     if (!tabId || !value) return;
-    reportChartPeriods[tabId] = value;
     if (tabId === 'panel') {
+        if (value === 'range') {
+            closeReportPeriodModal();
+            openPanelRangeModal();
+            return;
+        }
+        reportChartPeriods.panel = value;
         renderPanelPeriodControls();
         applyPanelPeriodFilter();
         closeReportPeriodModal();
         return;
     }
+    reportChartPeriods[tabId] = value;
     updateReportChartArrows(tabId);
     requestAnimationFrame(() => updateReportTab(tabId));
     closeReportPeriodModal();
@@ -5255,7 +5273,12 @@ async function updateDistributionChart() {
                 legend: { display: false },
                 segmentIcons: {
                     icons,
-                    colors
+                    colors,
+                    ringFill: 0.49,
+                    minRadius: 10,
+                    maxRadius: 26,
+                    fontScale: 1.2,
+                    iconOffsetY: 0.4
                 },
                 segmentPopup: { enabled: true },
                 tooltip: {
