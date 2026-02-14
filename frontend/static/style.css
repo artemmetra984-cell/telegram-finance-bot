@@ -1097,6 +1097,63 @@ body.modal-open #main-content {
   padding-right: 4px;
 }
 
+.report-chart-period-anchor {
+  width: min(100%, 340px);
+  margin: 0 auto 4px;
+}
+
+.report-chart-period-controls {
+  display: flex;
+  justify-content: center;
+}
+
+.report-chart-period-select {
+  width: 100%;
+  min-height: 34px;
+  padding: 6px 10px;
+  font-size: 13px;
+  font-weight: 500;
+  background: var(--ios-elevated);
+}
+
+.report-chart-range {
+  display: none;
+  grid-template-columns: auto 1fr auto 1fr;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.report-chart-range.active {
+  display: grid;
+}
+
+.report-chart-range-label {
+  font-size: 12px;
+  color: var(--ios-text-secondary);
+}
+
+.report-chart-range-separator {
+  font-size: 12px;
+  color: var(--ios-text-secondary);
+  text-align: center;
+}
+
+.report-chart-range-input {
+  min-height: 30px;
+  padding: 6px 8px;
+  font-size: 12px;
+  border-radius: 10px;
+}
+
+.chart-container.has-report-period .chart-wrapper {
+  margin-top: 8px;
+}
+
+.chart-container.has-report-period .chart-row {
+  margin-top: 8px;
+}
+
 .report-stats-controls {
   display: flex;
   align-items: center;

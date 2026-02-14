@@ -26,6 +26,16 @@ let currentHistoryMonth = new Date();
 let currentFilter = 'all';
 let incomeStatsPeriod = getCurrentMonthPeriodValue();
 let expenseStatsPeriod = getCurrentMonthPeriodValue();
+let reportChartPeriods = {
+    overview: getCurrentMonthPeriodValue(),
+    income: getCurrentMonthPeriodValue(),
+    expense: getCurrentMonthPeriodValue()
+};
+let reportChartRanges = {
+    overview: { from: '', to: '' },
+    income: { from: '', to: '' },
+    expense: { from: '', to: '' }
+};
 let sessionToken = null;
 let defaultWallet = 'Карта';
 let charts = {};
@@ -331,6 +341,7 @@ const translations = {
         'Период': 'Period',
         'За год': 'Year',
         'За всё время': 'All time',
+        'Свой интервал': 'Custom range',
         'Данные загружаются...': 'Loading data...',
         'Расходы по категориям': 'Expenses by category',
         'Топ расходов': 'Top expenses',
@@ -3444,20 +3455,71 @@ async function updateReportTab(tabId) {
 
 async function loadReportData() {
     if (!currentUser) return;
-    
-    try {
-        const response = await fetch(`/api/transactions/${currentUser.id}?limit=1000`);
-        const transactions = await response.json();
-        
-        // Обновляем графики на соответствующих вкладках
-        await updateIncomeChart(transactions);
-        await updateExpenseChart(transactions);
-        await updateSavingsChart(transactions);
-        await updateDistributionChart();
-        
-    } catch (error) {
-        console.error('❌ Ошибка загрузки данных для отчёта:', error);
+    const activeTab = document.querySelector('.report-tab.active')?.dataset.tab || 'overview';
+    await updateReportTab(activeTab);
+}
+
+function renderReportChartPeriodControls(tabId, sourceTransactions) {
+    const anchor = document.getElementById(`${tabId}-chart-period-anchor`);
+    if (!anchor) return;
+
+    const periodOptions = getReportStatsPeriodOptions(sourceTransactions, true);
+    const defaultPeriod = getCurrentMonthPeriodValue();
+    const hasStoredPeriod = periodOptions.some(option => option.value === reportChartPeriods[tabId]);
+    if (!hasStoredPeriod) {
+        reportChartPeriods[tabId] = periodOptions.some(option => option.value === defaultPeriod) ? defaultPeriod : 'all';
     }
+
+    const selectedPeriod = reportChartPeriods[tabId] || defaultPeriod;
+    const range = reportChartRanges[tabId] || { from: '', to: '' };
+    const isRange = selectedPeriod === 'range';
+
+    anchor.innerHTML = `
+        <div class="report-chart-period-controls">
+            <select id="${tabId}-chart-period" class="form-select report-chart-period-select">
+                ${periodOptions.map(option => `
+                    <option value="${option.value}" ${option.value === selectedPeriod ? 'selected' : ''}>${option.label}</option>
+                `).join('')}
+            </select>
+        </div>
+        <div class="report-chart-range ${isRange ? 'active' : ''}">
+            <span class="report-chart-range-label">${t('С')}</span>
+            <input
+                type="date"
+                id="${tabId}-chart-range-from"
+                class="form-input report-chart-range-input"
+                value="${range.from || ''}"
+            />
+            <span class="report-chart-range-separator">${t('по')}</span>
+            <input
+                type="date"
+                id="${tabId}-chart-range-to"
+                class="form-input report-chart-range-input"
+                value="${range.to || ''}"
+            />
+        </div>
+    `;
+
+    const periodSelect = document.getElementById(`${tabId}-chart-period`);
+    if (periodSelect) {
+        periodSelect.onchange = () => {
+            reportChartPeriods[tabId] = periodSelect.value || defaultPeriod;
+            requestAnimationFrame(() => updateReportTab(tabId));
+        };
+    }
+
+    const fromInput = document.getElementById(`${tabId}-chart-range-from`);
+    const toInput = document.getElementById(`${tabId}-chart-range-to`);
+    const onRangeChange = () => {
+        reportChartRanges[tabId] = {
+            from: fromInput?.value || '',
+            to: toInput?.value || ''
+        };
+        requestAnimationFrame(() => updateReportTab(tabId));
+    };
+
+    if (fromInput) fromInput.onchange = onRangeChange;
+    if (toInput) toInput.onchange = onRangeChange;
 }
 
 async function updateOverviewTab() {
@@ -3466,9 +3528,16 @@ async function updateOverviewTab() {
     try {
         const response = await fetch(`/api/transactions/${currentUser.id}?limit=1000`);
         const transactions = await response.json();
+        renderReportChartPeriodControls('overview', transactions);
+
+        const scopedTransactions = filterTransactionsByPeriod(
+            transactions,
+            reportChartPeriods.overview,
+            reportChartRanges.overview
+        );
         
-        const incomeTransactions = transactions.filter(t => t.type === 'income');
-        const expenseTransactions = transactions.filter(t => t.type === 'expense');
+        const incomeTransactions = scopedTransactions.filter(t => t.type === 'income');
+        const expenseTransactions = scopedTransactions.filter(t => t.type === 'expense');
 
         const totalIncome = incomeTransactions.reduce((sum, t) => sum + t.amount, 0);
         const savingsTransactions = expenseTransactions.filter(t => isSavingsCategoryName(t.category));
@@ -3608,8 +3677,15 @@ async function updateIncomeTab() {
     try {
         const response = await fetch(`/api/transactions/${currentUser.id}?limit=1000`);
         const transactions = await response.json();
-        await updateIncomeChart(transactions);
-        updateIncomeStats(transactions);
+        const incomeTransactions = transactions.filter(t => t.type === 'income');
+        renderReportChartPeriodControls('income', incomeTransactions);
+        const scopedIncomeTransactions = filterTransactionsByPeriod(
+            incomeTransactions,
+            reportChartPeriods.income,
+            reportChartRanges.income
+        );
+        await updateIncomeChart(scopedIncomeTransactions);
+        updateIncomeStats(scopedIncomeTransactions, { prefiltered: true, showControls: false });
     } catch (error) {
         console.error('❌ Ошибка обновления доходов:', error);
     }
@@ -3740,8 +3816,15 @@ async function updateExpenseTab() {
     try {
         const response = await fetch(`/api/transactions/${currentUser.id}?limit=1000`);
         const transactions = await response.json();
-        await updateExpenseChart(transactions);
-        updateExpenseTop(transactions);
+        const expenseTransactions = transactions.filter(t => t.type === 'expense');
+        renderReportChartPeriodControls('expense', expenseTransactions);
+        const scopedExpenseTransactions = filterTransactionsByPeriod(
+            expenseTransactions,
+            reportChartPeriods.expense,
+            reportChartRanges.expense
+        );
+        await updateExpenseChart(scopedExpenseTransactions);
+        updateExpenseTop(scopedExpenseTransactions, { prefiltered: true, showControls: false });
     } catch (error) {
         console.error('❌ Ошибка обновления расходов:', error);
     }
@@ -3869,17 +3952,24 @@ async function updateExpenseChart(transactions) {
     });
 }
 
-function updateIncomeStats(transactions) {
+function updateIncomeStats(transactions, options = {}) {
     const container = document.getElementById('income-stats');
     if (!container) return;
 
-    const incomeTransactions = transactions.filter(t => t.type === 'income');
-    const periodOptions = getReportStatsPeriodOptions(incomeTransactions);
+    const prefiltered = !!options.prefiltered;
+    const showControls = options.showControls !== false;
+    const incomeTransactions = prefiltered ? transactions : transactions.filter(t => t.type === 'income');
+    let filteredTransactions = incomeTransactions;
+    let periodOptions = [];
     const defaultPeriod = getCurrentMonthPeriodValue();
-    if (!periodOptions.some(option => option.value === incomeStatsPeriod)) {
-        incomeStatsPeriod = periodOptions.some(option => option.value === defaultPeriod) ? defaultPeriod : 'all';
+
+    if (!prefiltered) {
+        periodOptions = getReportStatsPeriodOptions(incomeTransactions);
+        if (!periodOptions.some(option => option.value === incomeStatsPeriod)) {
+            incomeStatsPeriod = periodOptions.some(option => option.value === defaultPeriod) ? defaultPeriod : 'all';
+        }
+        filteredTransactions = filterTransactionsByPeriod(incomeTransactions, incomeStatsPeriod);
     }
-    const filteredTransactions = filterTransactionsByPeriod(incomeTransactions, incomeStatsPeriod);
 
     const symbol = currencySymbols[currentCurrency] || '₽';
 
@@ -3919,38 +4009,49 @@ function updateIncomeStats(transactions) {
         `;
     }
 
-    container.innerHTML = `
-        <div class="report-stats-controls">
-            <label class="report-stats-label" for="income-stats-period">${t('Период')}</label>
-            <select id="income-stats-period" class="form-select report-stats-period">
-                ${periodOptions.map(option => `
-                    <option value="${option.value}" ${option.value === incomeStatsPeriod ? 'selected' : ''}>${option.label}</option>
-                `).join('')}
-            </select>
-        </div>
-        ${statsHtml}
-    `;
+    if (showControls) {
+        container.innerHTML = `
+            <div class="report-stats-controls">
+                <label class="report-stats-label" for="income-stats-period">${t('Период')}</label>
+                <select id="income-stats-period" class="form-select report-stats-period">
+                    ${periodOptions.map(option => `
+                        <option value="${option.value}" ${option.value === incomeStatsPeriod ? 'selected' : ''}>${option.label}</option>
+                    `).join('')}
+                </select>
+            </div>
+            ${statsHtml}
+        `;
 
-    const periodSelect = document.getElementById('income-stats-period');
-    if (periodSelect) {
-        periodSelect.onchange = function() {
-            incomeStatsPeriod = this.value || defaultPeriod;
-            updateIncomeStats(transactions);
-        };
+        const periodSelect = document.getElementById('income-stats-period');
+        if (periodSelect) {
+            periodSelect.onchange = function() {
+                incomeStatsPeriod = this.value || defaultPeriod;
+                updateIncomeStats(transactions);
+            };
+        }
+    } else {
+        container.innerHTML = statsHtml;
     }
 }
 
-function updateExpenseTop(transactions) {
+function updateExpenseTop(transactions, options = {}) {
     const container = document.getElementById('expense-top');
     if (!container) return;
 
-    const expenseTransactions = transactions.filter(t => t.type === 'expense');
-    const periodOptions = getReportStatsPeriodOptions(expenseTransactions);
+    const prefiltered = !!options.prefiltered;
+    const showControls = options.showControls !== false;
+    const expenseTransactions = prefiltered ? transactions : transactions.filter(t => t.type === 'expense');
+    let filteredTransactions = expenseTransactions;
+    let periodOptions = [];
     const defaultPeriod = getCurrentMonthPeriodValue();
-    if (!periodOptions.some(option => option.value === expenseStatsPeriod)) {
-        expenseStatsPeriod = periodOptions.some(option => option.value === defaultPeriod) ? defaultPeriod : 'all';
+
+    if (!prefiltered) {
+        periodOptions = getReportStatsPeriodOptions(expenseTransactions);
+        if (!periodOptions.some(option => option.value === expenseStatsPeriod)) {
+            expenseStatsPeriod = periodOptions.some(option => option.value === defaultPeriod) ? defaultPeriod : 'all';
+        }
+        filteredTransactions = filterTransactionsByPeriod(expenseTransactions, expenseStatsPeriod);
     }
-    const filteredTransactions = filterTransactionsByPeriod(expenseTransactions, expenseStatsPeriod);
     const symbol = currencySymbols[currentCurrency] || '₽';
 
     let statsHtml = `
@@ -3991,28 +4092,32 @@ function updateExpenseTop(transactions) {
         `;
     }
 
-    container.innerHTML = `
-        <div class="report-stats-controls">
-            <label class="report-stats-label" for="expense-stats-period">${t('Период')}</label>
-            <select id="expense-stats-period" class="form-select report-stats-period">
-                ${periodOptions.map(option => `
-                    <option value="${option.value}" ${option.value === expenseStatsPeriod ? 'selected' : ''}>${option.label}</option>
-                `).join('')}
-            </select>
-        </div>
-        ${statsHtml}
-    `;
+    if (showControls) {
+        container.innerHTML = `
+            <div class="report-stats-controls">
+                <label class="report-stats-label" for="expense-stats-period">${t('Период')}</label>
+                <select id="expense-stats-period" class="form-select report-stats-period">
+                    ${periodOptions.map(option => `
+                        <option value="${option.value}" ${option.value === expenseStatsPeriod ? 'selected' : ''}>${option.label}</option>
+                    `).join('')}
+                </select>
+            </div>
+            ${statsHtml}
+        `;
 
-    const periodSelect = document.getElementById('expense-stats-period');
-    if (periodSelect) {
-        periodSelect.onchange = function() {
-            expenseStatsPeriod = this.value || defaultPeriod;
-            updateExpenseTop(transactions);
-        };
+        const periodSelect = document.getElementById('expense-stats-period');
+        if (periodSelect) {
+            periodSelect.onchange = function() {
+                expenseStatsPeriod = this.value || defaultPeriod;
+                updateExpenseTop(transactions);
+            };
+        }
+    } else {
+        container.innerHTML = statsHtml;
     }
 }
 
-function getReportStatsPeriodOptions(items) {
+function getReportStatsPeriodOptions(items, includeCustomRange = false) {
     const now = new Date();
     const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     const currentMonthValue = `month:${currentMonthKey}`;
@@ -4021,6 +4126,9 @@ function getReportStatsPeriodOptions(items) {
         { value: 'year', label: t('За год') },
         { value: 'all', label: t('За всё время') }
     ];
+    if (includeCustomRange) {
+        options.push({ value: 'range', label: t('Свой интервал') });
+    }
 
     if (!items.length) return options;
 
@@ -4062,8 +4170,32 @@ function getReportStatsPeriodOptions(items) {
     return options;
 }
 
-function filterTransactionsByPeriod(items, period) {
+function filterTransactionsByPeriod(items, period, customRange = null) {
     if (!items.length) return [];
+
+    if (period === 'range') {
+        const fromRaw = customRange?.from || '';
+        const toRaw = customRange?.to || '';
+        if (!fromRaw && !toRaw) {
+            return items;
+        }
+        const fromTsRaw = fromRaw ? new Date(`${fromRaw}T00:00:00`).getTime() : null;
+        const toTsRaw = toRaw ? new Date(`${toRaw}T23:59:59.999`).getTime() : null;
+        const validFrom = Number.isFinite(fromTsRaw) ? fromTsRaw : null;
+        const validTo = Number.isFinite(toTsRaw) ? toTsRaw : null;
+        if (validFrom === null && validTo === null) {
+            return items;
+        }
+        const minTs = validFrom !== null && validTo !== null ? Math.min(validFrom, validTo) : validFrom;
+        const maxTs = validFrom !== null && validTo !== null ? Math.max(validFrom, validTo) : validTo;
+        return items.filter((transaction) => {
+            const ts = new Date(transaction.date).getTime();
+            if (!Number.isFinite(ts)) return false;
+            if (minTs !== null && ts < minTs) return false;
+            if (maxTs !== null && ts > maxTs) return false;
+            return true;
+        });
+    }
 
     if (period === 'year') {
         const now = new Date();
