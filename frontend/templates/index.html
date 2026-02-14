@@ -223,8 +223,18 @@
                         <div class="chart-container has-report-period">
                             <div class="chart-title" data-i18n="Финансовый обзор">Финансовый обзор</div>
                             <div class="report-chart-period-anchor" id="overview-chart-period-anchor"></div>
-                            <div class="chart-wrapper">
+                            <div class="chart-wrapper report-chart-wrapper">
+                                <button type="button" class="report-chart-arrow report-chart-arrow--prev" data-tab="overview" title="Месяц назад" aria-label="Месяц назад">
+                                    <svg viewBox="0 0 16 16" aria-hidden="true">
+                                        <path d="M10.5 3.5L5.5 8L10.5 12.5" />
+                                    </svg>
+                                </button>
                                 <canvas id="overview-chart"></canvas>
+                                <button type="button" class="report-chart-arrow report-chart-arrow--next" data-tab="overview" title="Месяц вперед" aria-label="Месяц вперед">
+                                    <svg viewBox="0 0 16 16" aria-hidden="true">
+                                        <path d="M5.5 3.5L10.5 8L5.5 12.5" />
+                                    </svg>
+                                </button>
                             </div>
                             
                             <!-- Числовые показатели -->
@@ -256,8 +266,18 @@
                             <div class="chart-title" data-i18n="Доходы по категориям">Доходы по категориям</div>
                             <div class="report-chart-period-anchor" id="income-chart-period-anchor"></div>
                             <div class="chart-row">
-                                <div class="chart-wrapper">
+                                <div class="chart-wrapper report-chart-wrapper">
+                                    <button type="button" class="report-chart-arrow report-chart-arrow--prev" data-tab="income" title="Месяц назад" aria-label="Месяц назад">
+                                        <svg viewBox="0 0 16 16" aria-hidden="true">
+                                            <path d="M10.5 3.5L5.5 8L10.5 12.5" />
+                                        </svg>
+                                    </button>
                                     <canvas id="income-chart"></canvas>
+                                    <button type="button" class="report-chart-arrow report-chart-arrow--next" data-tab="income" title="Месяц вперед" aria-label="Месяц вперед">
+                                        <svg viewBox="0 0 16 16" aria-hidden="true">
+                                            <path d="M5.5 3.5L10.5 8L5.5 12.5" />
+                                        </svg>
+                                    </button>
                                 </div>
                                 <div class="chart-legend" id="income-legend">
                                     <!-- Легенда диаграммы -->
@@ -280,8 +300,18 @@
                             <div class="chart-title" data-i18n="Расходы по категориям">Расходы по категориям</div>
                             <div class="report-chart-period-anchor" id="expense-chart-period-anchor"></div>
                             <div class="chart-row">
-                                <div class="chart-wrapper">
+                                <div class="chart-wrapper report-chart-wrapper">
+                                    <button type="button" class="report-chart-arrow report-chart-arrow--prev" data-tab="expense" title="Месяц назад" aria-label="Месяц назад">
+                                        <svg viewBox="0 0 16 16" aria-hidden="true">
+                                            <path d="M10.5 3.5L5.5 8L10.5 12.5" />
+                                        </svg>
+                                    </button>
                                     <canvas id="expense-chart"></canvas>
+                                    <button type="button" class="report-chart-arrow report-chart-arrow--next" data-tab="expense" title="Месяц вперед" aria-label="Месяц вперед">
+                                        <svg viewBox="0 0 16 16" aria-hidden="true">
+                                            <path d="M5.5 3.5L10.5 8L5.5 12.5" />
+                                        </svg>
+                                    </button>
                                 </div>
                                 <div class="chart-legend" id="expense-legend">
                                     <!-- Легенда диаграммы -->

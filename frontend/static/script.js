@@ -633,10 +633,10 @@ function parseTransactionDate(value) {
     if (value instanceof Date) return value;
     if (typeof value === 'string') {
         const cleaned = value.trim();
-        if (/^\\d{4}-\\d{2}-\\d{2}\\s+\\d{2}:\\d{2}/.test(cleaned)) {
+        if (/^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}/.test(cleaned)) {
             return new Date(cleaned.replace(' ', 'T'));
         }
-        if (/^\\d{4}-\\d{2}-\\d{2}$/.test(cleaned)) {
+        if (/^\d{4}-\d{2}-\d{2}$/.test(cleaned)) {
             return new Date(`${cleaned}T00:00:00`);
         }
     }
@@ -2470,6 +2470,7 @@ function setupHistoryControls() {
 function loadReportPage() {
     setupReportTabs();
     setupReportChartSwipes();
+    setupReportChartArrows();
     loadGoals();
     setupBalancePeriods();
     const activeTab = document.querySelector('.report-tab.active')?.dataset.tab || 'overview';
@@ -3536,6 +3537,20 @@ function setupReportChartSwipes() {
     bindReportChartSwipe('expense', 'expense-chart');
 }
 
+function setupReportChartArrows() {
+    document.querySelectorAll('.report-chart-arrow').forEach((btn) => {
+        if (btn.dataset.bound === '1') return;
+        const tabId = btn.dataset.tab;
+        if (!tabId) return;
+        const direction = btn.classList.contains('report-chart-arrow--prev') ? 'older' : 'newer';
+        btn.addEventListener('click', (event) => {
+            event.preventDefault();
+            shiftReportChartMonth(tabId, direction);
+        });
+        btn.dataset.bound = '1';
+    });
+}
+
 function bindReportChartSwipe(tabId, canvasId) {
     const canvas = document.getElementById(canvasId);
     if (!canvas) return;
@@ -3544,7 +3559,10 @@ function bindReportChartSwipe(tabId, canvasId) {
 
 function shiftReportChartMonth(tabId, direction) {
     const monthValues = reportChartMonthValues[tabId] || [];
-    if (!monthValues.length) return;
+    if (!monthValues.length) {
+        updateReportChartArrows(tabId);
+        return;
+    }
 
     const currentValue = reportChartPeriods[tabId];
     let currentIndex = monthValues.indexOf(currentValue);
@@ -3562,9 +3580,35 @@ function shiftReportChartMonth(tabId, direction) {
     }
 
     const nextValue = monthValues[currentIndex];
-    if (!nextValue || nextValue === currentValue) return;
+    if (!nextValue || nextValue === currentValue) {
+        updateReportChartArrows(tabId);
+        return;
+    }
     reportChartPeriods[tabId] = nextValue;
+    updateReportChartArrows(tabId);
     requestAnimationFrame(() => updateReportTab(tabId));
+}
+
+function updateReportChartArrows(tabId) {
+    const prev = document.querySelector(`.report-chart-arrow--prev[data-tab="${tabId}"]`);
+    const next = document.querySelector(`.report-chart-arrow--next[data-tab="${tabId}"]`);
+    if (!prev || !next) return;
+
+    const monthValues = reportChartMonthValues[tabId] || [];
+    if (!monthValues.length) {
+        prev.disabled = true;
+        next.disabled = true;
+        return;
+    }
+
+    const currentValue = reportChartPeriods[tabId];
+    let currentIndex = monthValues.indexOf(currentValue);
+    if (currentIndex < 0) currentIndex = 0;
+
+    const canGoOlder = currentIndex < monthValues.length - 1;
+    const canGoNewer = currentIndex > 0;
+    prev.disabled = !canGoOlder;
+    next.disabled = !canGoNewer;
 }
 
 function getReportPeriodLabel(tabId, value) {
@@ -3597,6 +3641,7 @@ function closeReportPeriodModal() {
 function selectReportPeriod(tabId, value) {
     if (!tabId || !value) return;
     reportChartPeriods[tabId] = value;
+    updateReportChartArrows(tabId);
     requestAnimationFrame(() => updateReportTab(tabId));
     closeReportPeriodModal();
 }
@@ -3709,6 +3754,7 @@ function renderReportChartPeriodControls(tabId, sourceTransactions) {
     if (!hasStoredPeriod) {
         reportChartPeriods[tabId] = periodOptions.some(option => option.value === defaultPeriod) ? defaultPeriod : 'all';
     }
+    updateReportChartArrows(tabId);
 
     const selectedPeriod = reportChartPeriods[tabId] || defaultPeriod;
     const range = reportChartRanges[tabId] || { from: '', to: '' };
@@ -4493,6 +4539,7 @@ async function updateSavingsChart(transactions) {
     const savingsByMonth = {};
     savingsTransactions.forEach(trans => {
         const date = parseTransactionDate(trans.date);
+        if (Number.isNaN(date.getTime())) return;
         const monthKey = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
         savingsByMonth[monthKey] = (savingsByMonth[monthKey] || 0) + trans.amount;
     });
