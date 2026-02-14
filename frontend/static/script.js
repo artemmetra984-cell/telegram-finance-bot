@@ -46,6 +46,7 @@ let reportChartMonthValues = {
 };
 let reportChartSwipeInitialized = false;
 let reportPeriodModalTabId = null;
+let reportRangeModalTabId = null;
 let reportChartPeriodOptions = {
     overview: [],
     income: [],
@@ -4328,6 +4329,11 @@ function selectReportPeriod(tabId, value) {
         closeReportPeriodModal();
         return;
     }
+    if (value === 'range') {
+        closeReportPeriodModal();
+        openReportRangeModal(tabId);
+        return;
+    }
     reportChartPeriods[tabId] = value;
     updateReportChartArrows(tabId);
     requestAnimationFrame(() => updateReportTab(tabId));
@@ -4363,6 +4369,45 @@ function renderReportPeriodModal(tabId) {
             ${option.label}
         </button>
     `).join('');
+}
+
+function openReportRangeModal(tabId) {
+    if (!tabId) return;
+    reportRangeModalTabId = tabId;
+    const modal = document.getElementById('report-range-modal');
+    if (!modal) return;
+
+    const fromInput = document.getElementById('report-range-modal-from');
+    const toInput = document.getElementById('report-range-modal-to');
+    const range = reportChartRanges[tabId] || { from: '', to: '' };
+    if (fromInput) fromInput.value = range.from || '';
+    if (toInput) toInput.value = range.to || '';
+
+    modal.classList.add('active');
+    updateBodyModalState();
+}
+
+function closeReportRangeModal() {
+    reportRangeModalTabId = null;
+    closeModal('report-range-modal');
+}
+
+function applyReportCustomRange() {
+    const tabId = reportRangeModalTabId;
+    if (!tabId) {
+        closeReportRangeModal();
+        return;
+    }
+    const fromInput = document.getElementById('report-range-modal-from');
+    const toInput = document.getElementById('report-range-modal-to');
+    reportChartPeriods[tabId] = 'range';
+    reportChartRanges[tabId] = {
+        from: fromInput?.value || '',
+        to: toInput?.value || ''
+    };
+    updateReportChartArrows(tabId);
+    requestAnimationFrame(() => updateReportTab(tabId));
+    closeReportRangeModal();
 }
 
 function handleReportChartTap(canvasId, event) {
@@ -4445,8 +4490,6 @@ function renderReportChartPeriodControls(tabId, sourceTransactions) {
     updateReportChartArrows(tabId);
 
     const selectedPeriod = reportChartPeriods[tabId] || defaultPeriod;
-    const range = reportChartRanges[tabId] || { from: '', to: '' };
-    const isRange = selectedPeriod === 'range';
     const periodLabel = getReportPeriodLabel(tabId, selectedPeriod);
 
     anchor.innerHTML = `
@@ -4456,22 +4499,6 @@ function renderReportChartPeriodControls(tabId, sourceTransactions) {
                 <span class="report-chart-period-caret">▾</span>
             </button>
         </div>
-        <div class="report-chart-range ${isRange ? 'active' : ''}">
-            <span class="report-chart-range-label">${t('С')}</span>
-            <input
-                type="date"
-                id="${tabId}-chart-range-from"
-                class="form-input report-chart-range-input"
-                value="${range.from || ''}"
-            />
-            <span class="report-chart-range-separator">${t('по')}</span>
-            <input
-                type="date"
-                id="${tabId}-chart-range-to"
-                class="form-input report-chart-range-input"
-                value="${range.to || ''}"
-            />
-        </div>
     `;
 
     const periodTrigger = document.getElementById(`${tabId}-chart-period-trigger`);
@@ -4479,19 +4506,6 @@ function renderReportChartPeriodControls(tabId, sourceTransactions) {
         periodTrigger.onclick = () => openReportPeriodModal(tabId);
         bindReportSwipeElement(tabId, periodTrigger);
     }
-
-    const fromInput = document.getElementById(`${tabId}-chart-range-from`);
-    const toInput = document.getElementById(`${tabId}-chart-range-to`);
-    const onRangeChange = () => {
-        reportChartRanges[tabId] = {
-            from: fromInput?.value || '',
-            to: toInput?.value || ''
-        };
-        requestAnimationFrame(() => updateReportTab(tabId));
-    };
-
-    if (fromInput) fromInput.onchange = onRangeChange;
-    if (toInput) toInput.onchange = onRangeChange;
 }
 
 async function updateOverviewTab() {
@@ -8096,6 +8110,8 @@ window.closeTextModal = closeTextModal;
 window.openReportPeriodModal = openReportPeriodModal;
 window.closeReportPeriodModal = closeReportPeriodModal;
 window.selectReportPeriod = selectReportPeriod;
+window.closeReportRangeModal = closeReportRangeModal;
+window.applyReportCustomRange = applyReportCustomRange;
 window.openCompoundCalculator = openCompoundCalculator;
 window.calculateCompound = calculateCompound;
 window.closeCompoundCalculator = closeCompoundCalculator;
