@@ -36,6 +36,12 @@ let reportChartRanges = {
     income: { from: '', to: '' },
     expense: { from: '', to: '' }
 };
+let reportChartMonthValues = {
+    overview: [],
+    income: [],
+    expense: []
+};
+let reportChartSwipeInitialized = false;
 let sessionToken = null;
 let defaultWallet = 'Карта';
 let charts = {};
@@ -2401,6 +2407,7 @@ function setupHistoryControls() {
 
 function loadReportPage() {
     setupReportTabs();
+    setupReportChartSwipes();
     loadGoals();
     setupBalancePeriods();
     const activeTab = document.querySelector('.report-tab.active')?.dataset.tab || 'overview';
@@ -3459,11 +3466,88 @@ async function loadReportData() {
     await updateReportTab(activeTab);
 }
 
+function setupReportChartSwipes() {
+    if (reportChartSwipeInitialized) return;
+    reportChartSwipeInitialized = true;
+    bindReportChartSwipe('overview', 'overview-chart');
+    bindReportChartSwipe('income', 'income-chart');
+    bindReportChartSwipe('expense', 'expense-chart');
+}
+
+function bindReportChartSwipe(tabId, canvasId) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas || canvas.dataset.swipeBound === '1') return;
+
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let touchStartedAt = 0;
+
+    canvas.addEventListener('touchstart', (event) => {
+        const touch = event.touches && event.touches[0];
+        if (!touch) return;
+        touchStartX = touch.clientX;
+        touchStartY = touch.clientY;
+        touchStartedAt = Date.now();
+    }, { passive: true });
+
+    canvas.addEventListener('touchend', (event) => {
+        if (!touchStartedAt) return;
+        const touch = event.changedTouches && event.changedTouches[0];
+        const startedAt = touchStartedAt;
+        touchStartedAt = 0;
+        if (!touch) return;
+
+        const deltaX = touch.clientX - touchStartX;
+        const deltaY = touch.clientY - touchStartY;
+        const elapsed = Date.now() - startedAt;
+        const absX = Math.abs(deltaX);
+        const absY = Math.abs(deltaY);
+
+        // Horizontal swipe only, fast enough, and clearly stronger than vertical move.
+        if (elapsed > 650 || absX < 42 || absX < absY * 1.3) return;
+        if (deltaX < 0) {
+            shiftReportChartMonth(tabId, 'older');
+        } else {
+            shiftReportChartMonth(tabId, 'newer');
+        }
+    }, { passive: true });
+
+    canvas.dataset.swipeBound = '1';
+}
+
+function shiftReportChartMonth(tabId, direction) {
+    const monthValues = reportChartMonthValues[tabId] || [];
+    if (!monthValues.length) return;
+
+    const currentValue = reportChartPeriods[tabId];
+    let currentIndex = monthValues.indexOf(currentValue);
+
+    if (currentIndex === -1) {
+        if (direction === 'older') {
+            currentIndex = Math.min(1, monthValues.length - 1);
+        } else {
+            currentIndex = 0;
+        }
+    } else if (direction === 'older') {
+        currentIndex = Math.min(currentIndex + 1, monthValues.length - 1);
+    } else {
+        currentIndex = Math.max(currentIndex - 1, 0);
+    }
+
+    const nextValue = monthValues[currentIndex];
+    if (!nextValue || nextValue === currentValue) return;
+    reportChartPeriods[tabId] = nextValue;
+    requestAnimationFrame(() => updateReportTab(tabId));
+}
+
 function renderReportChartPeriodControls(tabId, sourceTransactions) {
     const anchor = document.getElementById(`${tabId}-chart-period-anchor`);
     if (!anchor) return;
 
     const periodOptions = getReportStatsPeriodOptions(sourceTransactions, true);
+    reportChartMonthValues[tabId] = periodOptions
+        .map(option => option.value)
+        .filter(value => typeof value === 'string' && value.startsWith('month:'));
     const defaultPeriod = getCurrentMonthPeriodValue();
     const hasStoredPeriod = periodOptions.some(option => option.value === reportChartPeriods[tabId]);
     if (!hasStoredPeriod) {
