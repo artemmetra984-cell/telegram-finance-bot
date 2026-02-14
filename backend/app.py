@@ -41,6 +41,7 @@ LECRYPTIO_WEBHOOK_SECRET = os.getenv('LECRYPTIO_WEBHOOK_SECRET', '')
 CRYPTOPAY_API_TOKEN = os.getenv('CRYPTOPAY_API_TOKEN', '')
 CRYPTOPAY_WEBHOOK_SECRET = os.getenv('CRYPTOPAY_WEBHOOK_SECRET', '')
 DEFAULT_SUBSCRIPTION_MONTHS = int(os.getenv('SUBSCRIPTION_DEFAULT_MONTHS', '1'))
+SAVINGS_WALLET_NAME = 'Накопления'
 
 def parse_promo_codes(raw_value):
     if not raw_value:
@@ -613,6 +614,7 @@ def init_user():
                 default_wallet = 'Карта'
         
         if db:
+            ensure_savings_wallet(user_id)
             stats = db.get_user_stats(user_id)
             default_wallet = db.get_effective_default_wallet(user_id)
             subscription_info = db.get_subscription_info(user_id)
@@ -1557,6 +1559,21 @@ def ensure_expense_category(user_id, name, icon, color):
     except Exception:
         pass
 
+def ensure_savings_wallet(user_id):
+    if not db:
+        return
+    try:
+        db.ensure_savings_wallet_from_history(user_id)
+    except Exception:
+        pass
+
+def get_available_wallet_balance(user_id, wallet_name):
+    if not db:
+        return 0.0
+    if wallet_name == SAVINGS_WALLET_NAME:
+        ensure_savings_wallet(user_id)
+    return db.get_wallet_balance(user_id, wallet_name)
+
 @app.route('/api/transaction', methods=['POST'])
 def add_transaction():
     try:
@@ -1605,7 +1622,7 @@ def add_transaction():
             if category == 'Цели':
                 ensure_expense_category(user_id, 'Цели', '🎯', '#FF9500')
             if trans_type == 'expense':
-                wallet_balance = db.get_wallet_balance(user_id, wallet)
+                wallet_balance = get_available_wallet_balance(user_id, wallet)
                 if amount > wallet_balance:
                     return jsonify({'error': 'insufficient_funds'}), 400
 
@@ -1721,7 +1738,7 @@ def update_transaction():
             debt_id = None
 
         if trans_type == 'expense':
-            available_balance = db.get_wallet_balance(user_id, wallet)
+            available_balance = get_available_wallet_balance(user_id, wallet)
             if existing['wallet'] == wallet:
                 old_amount = float(existing['amount']) if existing['amount'] is not None else 0
                 if existing['type'] == 'expense':
@@ -2064,7 +2081,7 @@ def add_to_goal():
                 # Также добавляем транзакцию накопления с выбранным кошельком
                 if not wallet:
                     wallet = db.get_effective_default_wallet(user_id)
-                wallet_balance = db.get_wallet_balance(user_id, wallet)
+                wallet_balance = get_available_wallet_balance(user_id, wallet)
                 if amount > wallet_balance:
                     return jsonify({'error': 'insufficient_funds'}), 400
                 ensure_expense_category(user_id, 'Накопления', '💰', '#FFD166')
@@ -2116,6 +2133,37 @@ def add_category():
             return jsonify({'error': 'Database error'}), 500
     except Exception as e:
         print(f"Add category error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/category/delete', methods=['POST'])
+def delete_category():
+    try:
+        data = request.json or {}
+        user_id = data.get('user_id')
+        category_type = data.get('type')
+        name = (data.get('name') or '').strip()
+
+        if not all([user_id, category_type, name]):
+            return jsonify({'error': 'Missing fields'}), 400
+
+        if category_type not in ['income', 'expense', 'savings']:
+            return jsonify({'error': 'Invalid category type'}), 400
+
+        if not db:
+            return jsonify({'error': 'Database error'}), 500
+
+        result = db.delete_category_with_transactions(user_id, category_type, name)
+        if result.get('error') == 'not_found':
+            return jsonify({'error': 'Category not found'}), 404
+
+        ensure_savings_wallet(user_id)
+        return jsonify({
+            'success': True,
+            'deleted_category': bool(result.get('deleted_category')),
+            'deleted_transactions': int(result.get('deleted_transactions', 0))
+        })
+    except Exception as e:
+        print(f"Delete category error: {e}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/balance_dynamics/<int:user_id>')

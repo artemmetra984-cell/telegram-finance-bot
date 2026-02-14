@@ -29,29 +29,37 @@ let expenseStatsPeriod = getCurrentMonthPeriodValue();
 let reportChartPeriods = {
     overview: getCurrentMonthPeriodValue(),
     income: getCurrentMonthPeriodValue(),
-    expense: getCurrentMonthPeriodValue()
+    expense: getCurrentMonthPeriodValue(),
+    panel: getCurrentMonthPeriodValue()
 };
 let reportChartRanges = {
     overview: { from: '', to: '' },
     income: { from: '', to: '' },
-    expense: { from: '', to: '' }
+    expense: { from: '', to: '' },
+    panel: { from: '', to: '' }
 };
 let reportChartMonthValues = {
     overview: [],
     income: [],
-    expense: []
+    expense: [],
+    panel: []
 };
 let reportChartSwipeInitialized = false;
 let reportPeriodModalTabId = null;
 let reportChartPeriodOptions = {
     overview: [],
     income: [],
-    expense: []
+    expense: [],
+    panel: []
 };
 let sessionToken = null;
 let defaultWallet = 'Карта';
 let charts = {};
 let allTransactions = [];
+let panelTransactions = [];
+let panelScopedStats = { income: {}, expense: {} };
+let panelScopedSummary = { income: 0, expense: 0, savings: 0, balance: 0 };
+let panelInitSummary = null;
 let currentSavingsDestination = 'piggybank';
 let selectedGoalId = null;
 let editingTransactionId = null;
@@ -102,6 +110,12 @@ let bodyScrollLocked = false;
 let bodyScrollTop = 0;
 let modalTouchStartY = 0;
 let focusScrollTimer = null;
+let categorySwipeInitialized = false;
+let activeCategorySwipeItem = null;
+let categorySwipeState = null;
+let categorySwipeSuppressClickUntil = 0;
+const CATEGORY_SWIPE_MAX = 72;
+const CATEGORY_SWIPE_THRESHOLD = 28;
 
 function getActiveModalContent() {
     return document.querySelector('.modal-overlay.active .modal-content');
@@ -235,8 +249,81 @@ function isSavingsCategoryName(name) {
     return name === 'Накопления' || name === 'Цели';
 }
 
+function getSavingsWallet() {
+    return (walletsData || []).find(wallet => wallet && wallet.name === 'Накопления') || null;
+}
+
 function getSavingsAmount() {
+    if (currentPage === 'panel' && panelTransactions.length > 0) {
+        return Number(panelScopedSummary?.savings) || 0;
+    }
+    const savingsWallet = getSavingsWallet();
+    if (savingsWallet) {
+        const walletBalance = Number(savingsWallet.balance);
+        if (Number.isFinite(walletBalance)) {
+            return Math.max(0, walletBalance);
+        }
+    }
     return (categoryStats.expense?.['Накопления'] || 0) + (categoryStats.expense?.['Цели'] || 0);
+}
+
+function getPanelSavingsCategorySet() {
+    const names = new Set(['Накопления', 'Цели']);
+    (categoriesData.savings || []).forEach((category) => {
+        if (category && category.name) {
+            names.add(category.name);
+        }
+    });
+    return names;
+}
+
+function buildCategoryStatsFromTransactions(transactions) {
+    const stats = { income: {}, expense: {} };
+    if (!Array.isArray(transactions)) return stats;
+
+    transactions.forEach((transaction) => {
+        if (!transaction) return;
+        const type = transaction.type === 'income' ? 'income' : 'expense';
+        const name = transaction.category || '';
+        const amount = Number(transaction.amount) || 0;
+        if (!name || !Number.isFinite(amount)) return;
+        stats[type][name] = (stats[type][name] || 0) + amount;
+    });
+
+    return stats;
+}
+
+function recalculatePanelScopedData() {
+    const filteredTransactions = filterTransactionsByPeriod(
+        panelTransactions || [],
+        reportChartPeriods.panel,
+        reportChartRanges.panel
+    );
+    panelScopedStats = buildCategoryStatsFromTransactions(filteredTransactions);
+
+    const totalIncome = Object.values(panelScopedStats.income || {}).reduce((sum, value) => sum + (Number(value) || 0), 0);
+    const totalExpense = Object.values(panelScopedStats.expense || {}).reduce((sum, value) => sum + (Number(value) || 0), 0);
+    const savingsCategories = getPanelSavingsCategorySet();
+    const totalSavings = Object.entries(panelScopedStats.expense || {}).reduce((sum, [name, value]) => {
+        if (!savingsCategories.has(name)) return sum;
+        return sum + (Number(value) || 0);
+    }, 0);
+
+    panelScopedSummary = {
+        income: totalIncome,
+        expense: totalExpense,
+        savings: totalSavings,
+        balance: totalIncome - totalExpense
+    };
+
+    return filteredTransactions;
+}
+
+function getDisplayCategoryStats(type) {
+    if (currentPage === 'panel' && panelTransactions.length > 0) {
+        return panelScopedStats[type] || {};
+    }
+    return categoryStats[type] || {};
 }
 
 const translations = {
@@ -481,6 +568,9 @@ const translations = {
         'Введите название категории': 'Enter category name',
         'Категория добавлена': 'Category added',
         'Ошибка добавления категории': 'Failed to add category',
+        'Категория удалена': 'Category deleted',
+        'Ошибка удаления категории': 'Failed to delete category',
+        'Будут удалены все операции этой категории': 'All transactions in this category will be deleted',
         'Добавить первую категорию': 'Add your first category',
         'Введите название цели': 'Enter goal name',
         'Сначала создайте цель': 'Create a goal first',
@@ -639,6 +729,10 @@ function setLanguage(lang) {
     applyTranslations();
     updateSubscriptionUI();
     updateMonthDisplay();
+    if (currentPage === 'panel') {
+        renderPanelPeriodControls();
+        applyPanelPeriodFilter();
+    }
 }
 
 function initLanguage() {
@@ -1358,6 +1452,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         initEventListeners();
         initNavigation();
+        initCategorySwipe();
         updateCurrencyDisplay();
         setupAddButton();
         initViewportVars();
@@ -1576,14 +1671,20 @@ function toggleSettingsCard(forceState = null) {
 
 function updateBalanceDisplay(summary) {
     const symbol = currencySymbols[currentCurrency] || '₽';
+    panelInitSummary = summary || panelInitSummary;
     
     // Остаток
     const balanceElement = document.getElementById('balance');
     if (balanceElement) {
-        const walletsTotal = walletsData.reduce((sum, w) => sum + (w.balance || 0), 0);
-        const balanceValue = Number.isFinite(walletsTotal) && walletsTotal > 0
-            ? walletsTotal
-            : (summary?.balance ?? 0);
+        let balanceValue = summary?.balance ?? 0;
+        if (currentPage === 'panel' && panelTransactions.length > 0) {
+            balanceValue = Number(panelScopedSummary?.balance) || 0;
+        } else {
+            const walletsTotal = walletsData.reduce((sum, wallet) => sum + (wallet.balance || 0), 0);
+            if (Number.isFinite(walletsTotal) && walletsTotal > 0) {
+                balanceValue = walletsTotal;
+            }
+        }
         balanceElement.textContent = formatCurrency(balanceValue) + ' ' + symbol;
     }
     
@@ -1593,23 +1694,25 @@ function updateBalanceDisplay(summary) {
 
 function updateSectionTotals() {
     const symbol = currencySymbols[currentCurrency] || '₽';
+    const incomeStats = getDisplayCategoryStats('income');
+    const expenseStats = getDisplayCategoryStats('expense');
     
     // Доходы
     let incomeTotal = 0;
-    Object.values(categoryStats.income || {}).forEach(value => {
+    Object.values(incomeStats || {}).forEach(value => {
         incomeTotal += value;
     });
     document.getElementById('income-total').textContent = formatCurrency(incomeTotal) + ' ' + symbol;
     
     // Расходы
     let expenseTotal = 0;
-    Object.values(categoryStats.expense || {}).forEach(value => {
+    Object.values(expenseStats || {}).forEach(value => {
         expenseTotal += value;
     });
     document.getElementById('expense-total').textContent = formatCurrency(expenseTotal) + ' ' + symbol;
     
     // Накопления
-    let savingsTotal = (categoryStats.expense?.['Накопления'] || 0) + (categoryStats.expense?.['Цели'] || 0);
+    let savingsTotal = getSavingsAmount();
     document.getElementById('savings-total').textContent = formatCurrency(savingsTotal) + ' ' + symbol;
     
     // Цели
@@ -1658,6 +1761,111 @@ function formatCurrency(amount) {
 /* НОВОЕ: сворачиваемые секции */
 // ==================== //
 
+function sortTransactionsByDateDesc(items) {
+    if (!Array.isArray(items)) return [];
+    return [...items].sort((a, b) => {
+        const aTs = parseTransactionDate(a?.date).getTime();
+        const bTs = parseTransactionDate(b?.date).getTime();
+        if (Number.isFinite(aTs) && Number.isFinite(bTs)) {
+            return bTs - aTs;
+        }
+        return Number(b?.id || 0) - Number(a?.id || 0);
+    });
+}
+
+async function loadPanelTransactions() {
+    if (!currentUser) return [];
+    try {
+        const response = await fetch(`/api/transactions/${currentUser.id}?limit=1000`);
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        const data = await response.json();
+        panelTransactions = sortTransactionsByDateDesc(Array.isArray(data) ? data : []);
+    } catch (error) {
+        console.error('❌ Ошибка загрузки транзакций панели:', error);
+        panelTransactions = sortTransactionsByDateDesc(Array.isArray(allTransactions) ? allTransactions : []);
+    }
+    allTransactions = panelTransactions;
+    return panelTransactions;
+}
+
+function renderPanelPeriodControls() {
+    const anchor = document.getElementById('panel-period-anchor');
+    if (!anchor) return;
+
+    const periodOptions = getReportStatsPeriodOptions(panelTransactions || [], true);
+    reportChartPeriodOptions.panel = periodOptions;
+    reportChartMonthValues.panel = periodOptions
+        .map(option => option.value)
+        .filter(value => typeof value === 'string' && value.startsWith('month:'));
+
+    const defaultPeriod = getCurrentMonthPeriodValue();
+    if (!periodOptions.some(option => option.value === reportChartPeriods.panel)) {
+        reportChartPeriods.panel = periodOptions.some(option => option.value === defaultPeriod) ? defaultPeriod : 'all';
+    }
+    if (!reportChartRanges.panel) {
+        reportChartRanges.panel = { from: '', to: '' };
+    }
+    const selectedPeriod = reportChartPeriods.panel || defaultPeriod;
+    const periodLabel = getReportPeriodLabel('panel', selectedPeriod);
+    const isRange = selectedPeriod === 'range';
+    const range = reportChartRanges.panel || { from: '', to: '' };
+
+    anchor.innerHTML = `
+        <div class="panel-period-controls">
+            <span class="panel-period-label">${t('Период')}</span>
+            <button type="button" class="panel-period-trigger" id="panel-period-trigger">
+                <span class="panel-period-trigger-text">${periodLabel}</span>
+                <span class="panel-period-trigger-caret">▾</span>
+            </button>
+        </div>
+        <div class="panel-period-range ${isRange ? 'active' : ''}">
+            <span class="panel-period-range-label">${t('С')}</span>
+            <input
+                type="date"
+                id="panel-range-from"
+                class="form-input panel-period-range-input"
+                value="${range.from || ''}"
+            />
+            <span class="panel-period-range-separator">${t('по')}</span>
+            <input
+                type="date"
+                id="panel-range-to"
+                class="form-input panel-period-range-input"
+                value="${range.to || ''}"
+            />
+        </div>
+    `;
+
+    const trigger = document.getElementById('panel-period-trigger');
+    if (trigger) {
+        trigger.onclick = () => openReportPeriodModal('panel');
+    }
+
+    const fromInput = document.getElementById('panel-range-from');
+    const toInput = document.getElementById('panel-range-to');
+    const onRangeChange = () => {
+        reportChartRanges.panel = {
+            from: fromInput?.value || '',
+            to: toInput?.value || ''
+        };
+        applyPanelPeriodFilter();
+    };
+
+    if (fromInput) fromInput.onchange = onRangeChange;
+    if (toInput) toInput.onchange = onRangeChange;
+}
+
+function applyPanelPeriodFilter() {
+    const filteredTransactions = recalculatePanelScopedData();
+    updatePanelCategories();
+    updateWalletsDisplay();
+    updateSavingsDisplay();
+    updateDebtsDisplay();
+    updatePanelGoals();
+    updateRecentTransactions(filteredTransactions);
+    updateBalanceDisplay(panelInitSummary || {});
+}
+
 async function loadPanelData() {
     if (!currentUser) return;
     
@@ -1682,20 +1890,17 @@ async function loadPanelData() {
         goalsData = data.goals || goalsData;
         debtsData = data.debts || debtsData;
         categoryStats = data.category_stats || categoryStats;
-        allTransactions = data.recent_transactions || allTransactions;
+        allTransactions = sortTransactionsByDateDesc(data.recent_transactions || allTransactions);
+        panelInitSummary = data.summary || panelInitSummary;
         if (typeof data.debts_enabled !== 'undefined') {
             debtsEnabled = !!data.debts_enabled;
         }
+
+        await loadPanelTransactions();
+        renderPanelPeriodControls();
+        applyPanelPeriodFilter();
         
         // Обновляем отображение
-        updatePanelCategories();
-        updateWalletsDisplay();
-        updateSavingsDisplay();
-        updateDebtsDisplay();
-        updatePanelGoals();
-        updateRecentTransactions(allTransactions);
-        updateBalanceDisplay(data.summary);
-        updateSectionTotals();
         updateDebtsUI(false);
         
     } catch (error) {
@@ -1710,12 +1915,34 @@ function updatePanelCategories() {
     updateCategorySection('expense', 'Расходы');
 }
 
+function renderSwipeCategoryCard(type, name, icon, color, amountMarkup) {
+    const encodedName = encodeURIComponent(name);
+    return `
+        <div class="category-swipe-item" data-category-type="${type}" data-category-name="${encodedName}">
+            <button type="button" class="category-swipe-action" onclick="event.stopPropagation(); handleCategoryDeleteFromSwipe(this)" aria-label="${t('Удалить')}">
+                🗑
+            </button>
+            <button type="button" class="category-card category-card--swipe" data-category-type="${type}" data-category-name="${encodedName}" onclick="handleCategoryCardTap(event, this)">
+                <div class="category-icon" style="background: ${color}20; color: ${color}; box-shadow: 0 0 15px ${color}50;">
+                    ${icon}
+                </div>
+                <div class="category-info">
+                    <div class="category-name">
+                        <span class="category-name-text">${t(name)}</span>
+                    </div>
+                </div>
+                ${amountMarkup}
+            </button>
+        </div>
+    `;
+}
+
 function updateCategorySection(type, title) {
     const container = document.getElementById(`${type}-categories`);
     if (!container) return;
     
     const categories = categoriesData[type] || [];
-    const stats = categoryStats[type] || {};
+    const stats = getDisplayCategoryStats(type);
     const symbol = currencySymbols[currentCurrency] || '₽';
     
     let html = '';
@@ -1726,22 +1953,28 @@ function updateCategorySection(type, title) {
         const isPositive = type !== 'expense';
         const icon = cat.icon || (type === 'income' ? '📈' : '📉');
         const color = pickDistinctColor(cat.color, index, usedColors);
-        
-        html += `
-            <button class="category-card" onclick="showAddTransactionForCategory('${type}', '${cat.name}')">
-                <div class="category-icon" style="background: ${color}20; color: ${color}; box-shadow: 0 0 15px ${color}50;">
-                    ${icon}
-                </div>
-                <div class="category-info">
-                    <div class="category-name">
-                        <span class="category-name-text">${t(cat.name)}</span>
+
+        const amountMarkup = `<div class="category-amount ${isPositive ? 'amount-positive' : 'amount-negative'}">
+                ${isPositive ? '+' : '−'}${formatCurrency(amount)} ${symbol}
+            </div>`;
+        const isDeletable = !(type === 'expense' && cat.name === 'Долги');
+        if (isDeletable) {
+            html += renderSwipeCategoryCard(type, cat.name, icon, color, amountMarkup);
+        } else {
+            html += `
+                <button class="category-card" onclick="showAddTransactionForCategory('${type}', '${cat.name}')">
+                    <div class="category-icon" style="background: ${color}20; color: ${color}; box-shadow: 0 0 15px ${color}50;">
+                        ${icon}
                     </div>
-                </div>
-                <div class="category-amount ${isPositive ? 'amount-positive' : 'amount-negative'}">
-                    ${isPositive ? '+' : '−'}${formatCurrency(amount)} ${symbol}
-                </div>
-            </button>
-        `;
+                    <div class="category-info">
+                        <div class="category-name">
+                            <span class="category-name-text">${t(cat.name)}</span>
+                        </div>
+                    </div>
+                    ${amountMarkup}
+                </button>
+            `;
+        }
     });
     
     // Добавляем кнопку "Добавить категорию" если есть категории
@@ -1769,7 +2002,7 @@ function updateSavingsDisplay() {
     if (!container) return;
     
     const categories = categoriesData.savings || [];
-    const stats = categoryStats.expense || {};
+    const stats = getDisplayCategoryStats('expense');
     const symbol = currencySymbols[currentCurrency] || '₽';
     
     let html = '';
@@ -1779,21 +2012,10 @@ function updateSavingsDisplay() {
     const piggyAmount = getSavingsAmount();
     if (!hasPiggyCategory && piggyAmount > 0) {
         const piggyColor = pickDistinctColor('#FFD166', 0, usedColors);
-        html += `
-            <button class="category-card" onclick="showAddTransactionForCategory('savings', 'Накопления')">
-                <div class="category-icon" style="background: ${piggyColor}20; color: ${piggyColor}; box-shadow: 0 0 15px ${piggyColor}80;">
-                    💰
-                </div>
-                <div class="category-info">
-                    <div class="category-name">
-                        <span class="category-name-text">${t('Накопления')}</span>
-                    </div>
-                </div>
-                <div class="category-amount" style="color: ${piggyColor};">
-                    ${formatCurrency(piggyAmount)} ${symbol}
-                </div>
-            </button>
-        `;
+        const amountMarkup = `<div class="category-amount" style="color: ${piggyColor};">
+                ${formatCurrency(piggyAmount)} ${symbol}
+            </div>`;
+        html += renderSwipeCategoryCard('savings', 'Накопления', '💰', piggyColor, amountMarkup);
     }
     
     // Показываем накопления из категорий
@@ -1801,22 +2023,10 @@ function updateSavingsDisplay() {
         const amount = stats[cat.name] || 0;
         const icon = cat.icon || '💰';
         const color = pickDistinctColor(cat.color, index, usedColors);
-        
-        html += `
-            <button class="category-card" onclick="showAddTransactionForCategory('savings', '${cat.name}')">
-                <div class="category-icon" style="background: ${color}20; color: ${color}; box-shadow: 0 0 15px ${color}50;">
-                    ${icon}
-                </div>
-                <div class="category-info">
-                    <div class="category-name">
-                        <span class="category-name-text">${t(cat.name)}</span>
-                    </div>
-                </div>
-                <div class="category-amount" style="color: ${color};">
-                    ${formatCurrency(amount)} ${symbol}
-                </div>
-            </button>
-        `;
+        const amountMarkup = `<div class="category-amount" style="color: ${color};">
+                ${formatCurrency(amount)} ${symbol}
+            </div>`;
+        html += renderSwipeCategoryCard('savings', cat.name, icon, color, amountMarkup);
     });
     
     
@@ -1829,6 +2039,193 @@ function updateSavingsDisplay() {
     `;
     
     container.innerHTML = html;
+}
+
+function decodeCategoryName(encodedName) {
+    if (!encodedName) return '';
+    try {
+        return decodeURIComponent(encodedName);
+    } catch {
+        return encodedName;
+    }
+}
+
+function setCategorySwipeOffset(item, offset) {
+    if (!item) return;
+    const clamped = Math.max(-CATEGORY_SWIPE_MAX, Math.min(0, Math.round(offset)));
+    item.style.setProperty('--swipe-offset', `${clamped}px`);
+}
+
+function closeCategorySwipeItem(item = activeCategorySwipeItem) {
+    if (!item) return;
+    item.classList.remove('swipe-open');
+    item.classList.remove('swiping');
+    setCategorySwipeOffset(item, 0);
+    if (activeCategorySwipeItem === item) {
+        activeCategorySwipeItem = null;
+    }
+}
+
+function openCategorySwipeItem(item) {
+    if (!item) return;
+    if (activeCategorySwipeItem && activeCategorySwipeItem !== item) {
+        closeCategorySwipeItem(activeCategorySwipeItem);
+    }
+    item.classList.add('swipe-open');
+    setCategorySwipeOffset(item, -CATEGORY_SWIPE_MAX);
+    activeCategorySwipeItem = item;
+}
+
+function handleCategoryCardTap(event, button) {
+    if (!button) return;
+    const now = Date.now();
+    if (now < categorySwipeSuppressClickUntil) {
+        event.preventDefault();
+        return;
+    }
+    const swipeItem = button.closest('.category-swipe-item');
+    if (swipeItem && swipeItem.classList.contains('swipe-open')) {
+        event.preventDefault();
+        closeCategorySwipeItem(swipeItem);
+        categorySwipeSuppressClickUntil = Date.now() + 160;
+        return;
+    }
+
+    const type = button.dataset.categoryType;
+    const category = decodeCategoryName(button.dataset.categoryName);
+    if (!type || !category) return;
+    showAddTransactionForCategory(type, category);
+}
+
+async function deleteCategoryAndTransactions(type, name) {
+    if (!currentUser || !type || !name) return;
+    const confirmText = `${t('Удалить')} "${name}"?\n${t('Будут удалены все операции этой категории')}`;
+    if (!window.confirm(confirmText)) {
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/category/delete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                user_id: currentUser.id,
+                type,
+                name
+            })
+        });
+        const data = await response.json();
+        if (data.error) throw new Error(data.error);
+
+        closeCategorySwipeItem();
+        showNotification(t('Категория удалена'), 'success');
+        await loadPanelData();
+        if (currentPage === 'history') {
+            loadMonthTransactions();
+        } else if (currentPage === 'report') {
+            await loadReportData();
+        }
+    } catch (error) {
+        console.error('❌ Ошибка удаления категории:', error);
+        showNotification(t('Ошибка удаления категории'), 'error');
+    }
+}
+
+function handleCategoryDeleteFromSwipe(button) {
+    const item = button?.closest('.category-swipe-item');
+    if (!item) return;
+    const type = item.dataset.categoryType;
+    const name = decodeCategoryName(item.dataset.categoryName);
+    deleteCategoryAndTransactions(type, name);
+}
+
+function initCategorySwipe() {
+    if (categorySwipeInitialized) return;
+    categorySwipeInitialized = true;
+
+    document.addEventListener('touchstart', (event) => {
+        const card = event.target.closest('.category-card--swipe');
+        if (!card) {
+            if (!event.target.closest('.category-swipe-action')) {
+                closeCategorySwipeItem();
+            }
+            categorySwipeState = null;
+            return;
+        }
+
+        const touch = event.touches && event.touches[0];
+        if (!touch) return;
+        const item = card.closest('.category-swipe-item');
+        if (!item) return;
+
+        if (activeCategorySwipeItem && activeCategorySwipeItem !== item) {
+            closeCategorySwipeItem(activeCategorySwipeItem);
+        }
+
+        const opened = item.classList.contains('swipe-open');
+        categorySwipeState = {
+            item,
+            startX: touch.clientX,
+            startY: touch.clientY,
+            startOffset: opened ? -CATEGORY_SWIPE_MAX : 0,
+            offset: opened ? -CATEGORY_SWIPE_MAX : 0,
+            axis: null,
+            dragging: false
+        };
+        item.classList.add('swiping');
+    }, { passive: true });
+
+    document.addEventListener('touchmove', (event) => {
+        if (!categorySwipeState) return;
+        const touch = event.touches && event.touches[0];
+        if (!touch) return;
+
+        const dx = touch.clientX - categorySwipeState.startX;
+        const dy = touch.clientY - categorySwipeState.startY;
+
+        if (!categorySwipeState.axis) {
+            if (Math.abs(dx) < 5 && Math.abs(dy) < 5) return;
+            categorySwipeState.axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+        }
+
+        if (categorySwipeState.axis !== 'x') {
+            categorySwipeState.item.classList.remove('swiping');
+            categorySwipeState = null;
+            return;
+        }
+
+        event.preventDefault();
+        categorySwipeState.dragging = true;
+        const offset = categorySwipeState.startOffset + dx;
+        categorySwipeState.offset = Math.max(-CATEGORY_SWIPE_MAX, Math.min(0, offset));
+        setCategorySwipeOffset(categorySwipeState.item, categorySwipeState.offset);
+    }, { passive: false });
+
+    document.addEventListener('touchend', () => {
+        if (!categorySwipeState) return;
+        const { item, dragging, offset } = categorySwipeState;
+        item.classList.remove('swiping');
+
+        if (!dragging) {
+            categorySwipeState = null;
+            return;
+        }
+
+        if (offset <= -CATEGORY_SWIPE_THRESHOLD) {
+            openCategorySwipeItem(item);
+        } else {
+            closeCategorySwipeItem(item);
+        }
+        categorySwipeSuppressClickUntil = Date.now() + 220;
+        categorySwipeState = null;
+    }, { passive: true });
+
+    document.addEventListener('click', (event) => {
+        const swipeTarget = event.target.closest('.category-swipe-item');
+        if (!swipeTarget && !event.target.closest('.category-swipe-action')) {
+            closeCategorySwipeItem();
+        }
+    });
 }
 
 function updateDebtsDisplay() {
@@ -2121,7 +2518,8 @@ function updateWalletsDisplay() {
     });
 
     const savingsTotal = getSavingsAmount();
-    if (savingsTotal > 0) {
+    const hasSavingsWallet = walletsData.some(wallet => wallet.name === 'Накопления');
+    if (savingsTotal > 0 && !hasSavingsWallet) {
         const savingsColor = 'var(--pastel-yellow)';
         html += `
             <button class="category-card">
@@ -2737,7 +3135,7 @@ function openSubscriptionModal() {
 }
 
 function openSupportChat() {
-    const url = 'https://t.me/finsupp';
+    const url = 'https://t.me/uppersupp';
     if (window.Telegram && Telegram.WebApp && Telegram.WebApp.openTelegramLink) {
         try {
             Telegram.WebApp.openTelegramLink(url);
@@ -3737,6 +4135,9 @@ function getReportPeriodLabel(tabId, value) {
 }
 
 function openReportPeriodModal(tabId) {
+    if (tabId === 'panel') {
+        renderPanelPeriodControls();
+    }
     reportPeriodModalTabId = tabId;
     renderReportPeriodModal(tabId);
     const modal = document.getElementById('report-period-modal');
@@ -3754,6 +4155,12 @@ function closeReportPeriodModal() {
 function selectReportPeriod(tabId, value) {
     if (!tabId || !value) return;
     reportChartPeriods[tabId] = value;
+    if (tabId === 'panel') {
+        renderPanelPeriodControls();
+        applyPanelPeriodFilter();
+        closeReportPeriodModal();
+        return;
+    }
     updateReportChartArrows(tabId);
     requestAnimationFrame(() => updateReportTab(tabId));
     closeReportPeriodModal();
@@ -4746,7 +5153,8 @@ async function updateDistributionChart() {
     let totalBalance = 0;
     walletsData.forEach(wallet => totalBalance += wallet.balance || 0);
     const savingsTotal = getSavingsAmount();
-    const includeSavings = savingsTotal > 0;
+    const hasSavingsWallet = walletsData.some(wallet => wallet.name === 'Накопления');
+    const includeSavings = !hasSavingsWallet && savingsTotal > 0;
     if (includeSavings) {
         totalBalance += savingsTotal;
     }
@@ -4831,7 +5239,7 @@ async function updateDistributionChart() {
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            layout: { padding: 14 },
+            layout: { padding: 18 },
             onClick: (evt, elements, chart) => {
                 const points = chart.getElementsAtEventForMode(evt, 'nearest', { intersect: true }, true);
                 if (!points.length) {
@@ -4855,7 +5263,7 @@ async function updateDistributionChart() {
                 }
             },
             cutout: '72%',
-            radius: '90%',
+            radius: '86%',
             animation: {
                 animateScale: true,
                 animateRotate: true,
@@ -5645,6 +6053,15 @@ function populateWallets() {
         }
         select.appendChild(option);
     });
+
+    const hasSavingsWallet = walletsData.some(wallet => wallet.name === 'Накопления');
+    const savingsAmount = getSavingsAmount();
+    if (!hasSavingsWallet && savingsAmount > 0) {
+        const option = document.createElement('option');
+        option.value = 'Накопления';
+        option.textContent = t('Накопления');
+        select.appendChild(option);
+    }
 }
 
 function openDebtModal(debtId = null) {
@@ -7490,6 +7907,8 @@ window.selectCalendarMonth = selectCalendarMonth;
 window.changeCalendarYear = changeCalendarYear;
 window.showCalendar = showCalendar;
 window.showAddTransactionForCategory = showAddTransactionForCategory;
+window.handleCategoryCardTap = handleCategoryCardTap;
+window.handleCategoryDeleteFromSwipe = handleCategoryDeleteFromSwipe;
 window.showWalletTransactions = showWalletTransactions;
 window.openEditTransactionById = openEditTransactionById;
 window.openEditTransactionFromAll = openEditTransactionFromAll;

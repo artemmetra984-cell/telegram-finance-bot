@@ -4,6 +4,10 @@ import os
 import shutil
 from datetime import datetime, timedelta
 
+SAVINGS_WALLET_NAME = 'Накопления'
+SAVINGS_WALLET_ICON = '💰'
+SAVINGS_CATEGORIES = ('Накопления', 'Цели')
+
 class Database:
     def __init__(self):
         db_path = self._resolve_db_path()
@@ -580,6 +584,54 @@ class Database:
             return row['owner_id']
         return user_id
 
+    def _ensure_wallet_row(self, cursor, owner_id, wallet_name, icon='💳', initial_balance=0.0):
+        cursor.execute('SELECT name FROM wallets WHERE user_id = ? AND name = ?', (owner_id, wallet_name))
+        if cursor.fetchone():
+            return
+        cursor.execute('''
+            INSERT INTO wallets (user_id, name, icon, balance, is_default)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (owner_id, wallet_name, icon, float(initial_balance or 0), 0))
+
+    def _ensure_savings_wallet_cursor(self, cursor, owner_id, create_if_missing=False):
+        cursor.execute('SELECT balance FROM wallets WHERE user_id = ? AND name = ?', (owner_id, SAVINGS_WALLET_NAME))
+        row = cursor.fetchone()
+        if row:
+            return float(row['balance'] or 0)
+
+        cursor.execute('''
+            SELECT COALESCE(SUM(CASE WHEN type = 'expense' AND category IN ('Накопления', 'Цели') THEN amount ELSE 0 END), 0) AS total_savings
+            FROM transactions
+            WHERE user_id = ?
+        ''', (owner_id,))
+        total_row = cursor.fetchone()
+        total_savings = float(total_row['total_savings'] or 0) if total_row else 0.0
+
+        if total_savings <= 0 and not create_if_missing:
+            return 0.0
+
+        self._ensure_wallet_row(
+            cursor,
+            owner_id,
+            SAVINGS_WALLET_NAME,
+            icon=SAVINGS_WALLET_ICON,
+            initial_balance=max(total_savings, 0.0)
+        )
+        return max(total_savings, 0.0)
+
+    def ensure_savings_wallet_from_history(self, user_id):
+        cursor = self.conn.cursor()
+        owner_id = self._resolve_owner_id(user_id)
+        self._ensure_savings_wallet_cursor(cursor, owner_id, create_if_missing=False)
+        self.conn.commit()
+
+    def get_savings_wallet_balance(self, user_id):
+        cursor = self.conn.cursor()
+        owner_id = self._resolve_owner_id(user_id)
+        cursor.execute('SELECT balance FROM wallets WHERE user_id = ? AND name = ?', (owner_id, SAVINGS_WALLET_NAME))
+        row = cursor.fetchone()
+        return float(row['balance'] or 0) if row else 0.0
+
     def get_shared_wallet_status(self, user_id):
         cursor = self.conn.cursor()
         cursor.execute('''
@@ -692,6 +744,8 @@ class Database:
             SELECT name, balance FROM wallets WHERE user_id = ?
         ''', (owner_id,))
         wallet_balances = {row['name']: float(row['balance']) for row in cursor.fetchall()}
+        if SAVINGS_WALLET_NAME in wallet_balances:
+            summary['total_savings'] = max(0.0, wallet_balances[SAVINGS_WALLET_NAME])
         
         return {
             'summary': summary,
@@ -703,13 +757,14 @@ class Database:
     def add_transaction(self, user_id, trans_type, amount, category, wallet, description, debt_id=None):
         cursor = self.conn.cursor()
         owner_id = self._resolve_owner_id(user_id)
-        
-        cursor.execute('SELECT name FROM wallets WHERE user_id = ? AND name = ?', (owner_id, wallet))
-        if not cursor.fetchone():
-            cursor.execute('''
-                INSERT INTO wallets (user_id, name, icon, balance, is_default)
-                VALUES (?, ?, ?, ?, ?)
-            ''', (owner_id, wallet, '💳', 0, 0))
+
+        if trans_type == 'expense' and category in SAVINGS_CATEGORIES and wallet != SAVINGS_WALLET_NAME:
+            # Ensure target savings wallet exists before insert to avoid counting current deposit twice.
+            self._ensure_savings_wallet_cursor(cursor, owner_id, create_if_missing=True)
+        if wallet == SAVINGS_WALLET_NAME:
+            self._ensure_savings_wallet_cursor(cursor, owner_id, create_if_missing=True)
+        else:
+            self._ensure_wallet_row(cursor, owner_id, wallet)
         
         cursor.execute('''
             INSERT INTO transactions (user_id, type, amount, category, wallet, description, debt_id)
@@ -726,6 +781,12 @@ class Database:
                 UPDATE wallets SET balance = balance - ? 
                 WHERE user_id = ? AND name = ?
             ''', (amount, owner_id, wallet))
+
+        if trans_type == 'expense' and category in SAVINGS_CATEGORIES and wallet != SAVINGS_WALLET_NAME:
+            cursor.execute('''
+                UPDATE wallets SET balance = balance + ?
+                WHERE user_id = ? AND name = ?
+            ''', (amount, owner_id, SAVINGS_WALLET_NAME))
         
         self.conn.commit()
         return cursor.lastrowid
@@ -751,6 +812,7 @@ class Database:
             return False
         amount = float(transaction['amount']) if transaction['amount'] is not None else 0
         wallet = transaction['wallet']
+        category = transaction['category']
         if transaction['type'] == 'income':
             cursor.execute('''
                 UPDATE wallets SET balance = balance - ?
@@ -761,6 +823,12 @@ class Database:
                 UPDATE wallets SET balance = balance + ?
                 WHERE user_id = ? AND name = ?
             ''', (amount, owner_id, wallet))
+        if transaction['type'] == 'expense' and category in SAVINGS_CATEGORIES and wallet != SAVINGS_WALLET_NAME:
+            self._ensure_savings_wallet_cursor(cursor, owner_id, create_if_missing=True)
+            cursor.execute('''
+                UPDATE wallets SET balance = MAX(balance - ?, 0)
+                WHERE user_id = ? AND name = ?
+            ''', (amount, owner_id, SAVINGS_WALLET_NAME))
         cursor.execute('DELETE FROM transactions WHERE id = ? AND user_id = ?', (transaction_id, owner_id))
         self.conn.commit()
         return True
@@ -778,13 +846,12 @@ class Database:
         old_amount = float(transaction['amount']) if transaction['amount'] is not None else 0
         old_wallet = transaction['wallet']
         old_type = transaction['type']
+        old_category = transaction['category']
 
-        cursor.execute('SELECT name FROM wallets WHERE user_id = ? AND name = ?', (owner_id, wallet))
-        if not cursor.fetchone():
-            cursor.execute('''
-                INSERT INTO wallets (user_id, name, icon, balance, is_default)
-                VALUES (?, ?, ?, ?, ?)
-            ''', (owner_id, wallet, '💳', 0, 0))
+        if wallet == SAVINGS_WALLET_NAME or old_wallet == SAVINGS_WALLET_NAME:
+            self._ensure_savings_wallet_cursor(cursor, owner_id, create_if_missing=True)
+        if wallet != SAVINGS_WALLET_NAME:
+            self._ensure_wallet_row(cursor, owner_id, wallet)
 
         if old_type == 'income':
             cursor.execute('''
@@ -796,6 +863,12 @@ class Database:
                 UPDATE wallets SET balance = balance + ?
                 WHERE user_id = ? AND name = ?
             ''', (old_amount, owner_id, old_wallet))
+        if old_type == 'expense' and old_category in SAVINGS_CATEGORIES and old_wallet != SAVINGS_WALLET_NAME:
+            self._ensure_savings_wallet_cursor(cursor, owner_id, create_if_missing=True)
+            cursor.execute('''
+                UPDATE wallets SET balance = MAX(balance - ?, 0)
+                WHERE user_id = ? AND name = ?
+            ''', (old_amount, owner_id, SAVINGS_WALLET_NAME))
 
         if trans_type == 'income':
             cursor.execute('''
@@ -807,6 +880,12 @@ class Database:
                 UPDATE wallets SET balance = balance - ?
                 WHERE user_id = ? AND name = ?
             ''', (amount, owner_id, wallet))
+        if trans_type == 'expense' and category in SAVINGS_CATEGORIES and wallet != SAVINGS_WALLET_NAME:
+            self._ensure_savings_wallet_cursor(cursor, owner_id, create_if_missing=True)
+            cursor.execute('''
+                UPDATE wallets SET balance = balance + ?
+                WHERE user_id = ? AND name = ?
+            ''', (amount, owner_id, SAVINGS_WALLET_NAME))
 
         cursor.execute('''
             UPDATE transactions
@@ -955,6 +1034,40 @@ class Database:
             return cursor.lastrowid
         except sqlite3.IntegrityError:
             return None
+
+    def delete_category_with_transactions(self, user_id, category_type, name):
+        owner_id = self._resolve_owner_id(user_id)
+        trans_type = 'income' if category_type == 'income' else 'expense'
+
+        cursor = self.conn.cursor()
+        cursor.execute('''
+            SELECT id FROM transactions
+            WHERE user_id = ? AND type = ? AND category = ?
+            ORDER BY id
+        ''', (owner_id, trans_type, name))
+        transaction_ids = [int(row['id']) for row in cursor.fetchall()]
+
+        deleted_transactions = 0
+        for transaction_id in transaction_ids:
+            if self.delete_transaction(owner_id, transaction_id):
+                deleted_transactions += 1
+
+        cursor = self.conn.cursor()
+        cursor.execute('''
+            DELETE FROM categories
+            WHERE user_id = ? AND type = ? AND name = ?
+        ''', (owner_id, category_type, name))
+        deleted_category = cursor.rowcount > 0
+        self.conn.commit()
+
+        if not deleted_category and deleted_transactions == 0:
+            return {'error': 'not_found'}
+
+        return {
+            'success': True,
+            'deleted_category': deleted_category,
+            'deleted_transactions': deleted_transactions
+        }
     
     def get_categories(self, user_id, trans_type=None):
         cursor = self.conn.cursor()
