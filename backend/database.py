@@ -72,6 +72,11 @@ class Database:
         try:
             size = os.path.getsize(db_path) if os.path.exists(db_path) else 0
             print(f"🗄️ DB file size: {size} bytes")
+            if os.path.abspath(db_path).startswith('/data'):
+                if os.path.ismount('/data'):
+                    print("✅ /data is a mounted persistent disk")
+                else:
+                    print("⚠️ /data is NOT a mounted disk (data may be ephemeral)")
             cursor = self.conn.cursor()
             for table in ('users', 'transactions', 'goals', 'debts', 'subscriptions'):
                 cursor.execute(f'SELECT COUNT(*) as total FROM {table}')
