@@ -1116,6 +1116,37 @@ body.modal-open #main-content {
   background: var(--ios-elevated);
 }
 
+.report-chart-period-trigger {
+  width: 100%;
+  min-height: 34px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--ios-tertiary);
+  background: var(--ios-elevated);
+  color: var(--ios-text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.report-chart-period-trigger:active {
+  transform: translateY(1px);
+}
+
+.report-chart-period-text {
+  white-space: nowrap;
+}
+
+.report-chart-period-caret {
+  font-size: 12px;
+  color: var(--ios-text-secondary);
+}
+
 .report-chart-range {
   display: none;
   grid-template-columns: auto 1fr auto 1fr;
@@ -1144,6 +1175,21 @@ body.modal-open #main-content {
   padding: 6px 8px;
   font-size: 12px;
   border-radius: 10px;
+}
+
+.report-period-quick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 4px;
+}
+
+.report-period-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
 }
 
 .chart-container.has-report-period .chart-wrapper {

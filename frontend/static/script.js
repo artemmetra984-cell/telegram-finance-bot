@@ -42,6 +42,12 @@ let reportChartMonthValues = {
     expense: []
 };
 let reportChartSwipeInitialized = false;
+let reportPeriodModalTabId = null;
+let reportChartPeriodOptions = {
+    overview: [],
+    income: [],
+    expense: []
+};
 let sessionToken = null;
 let defaultWallet = 'Карта';
 let charts = {};
@@ -620,6 +626,32 @@ const monthNames = {
 function getMonthName(index) {
     const list = monthNames[currentLang] || monthNames.ru;
     return list[index] || '';
+}
+
+function parseTransactionDate(value) {
+    if (!value) return new Date(NaN);
+    if (value instanceof Date) return value;
+    if (typeof value === 'string') {
+        const cleaned = value.trim();
+        if (/^\\d{4}-\\d{2}-\\d{2}\\s+\\d{2}:\\d{2}/.test(cleaned)) {
+            return new Date(cleaned.replace(' ', 'T'));
+        }
+        if (/^\\d{4}-\\d{2}-\\d{2}$/.test(cleaned)) {
+            return new Date(`${cleaned}T00:00:00`);
+        }
+    }
+    return new Date(value);
+}
+
+function getMonthLabelFromValue(value) {
+    if (!value || !value.startsWith('month:')) return '';
+    const monthKey = value.slice(6);
+    const parts = monthKey.split('-');
+    if (parts.length !== 2) return monthKey;
+    const year = parts[0];
+    const monthIndex = Number(parts[1]) - 1;
+    if (!Number.isFinite(monthIndex)) return monthKey;
+    return `${getMonthName(monthIndex)} ${year}`;
 }
 const colorPalette = [
   '#2ED9FF', '#22D3A6', '#F5D547', '#FF9F1C',
@@ -2345,12 +2377,15 @@ function displayMonthTransactions(transactions) {
         const amountSign = isSavings ? '+' : (isIncome ? '+' : '−');
         const icon = isDebt ? '💸' : (isSavings ? '💰' : (isIncome ? '📈' : '📉'));
         const iconClass = isDebt ? 'debt' : (isSavings ? 'savings' : (isIncome ? 'income' : 'expense'));
-        const date = new Date(trans.date).toLocaleDateString(getLocale(), {
-            day: 'numeric',
-            month: 'short',
-            hour: '2-digit',
-            minute: '2-digit'
-        });
+        const dateValue = parseTransactionDate(trans.date);
+        const date = Number.isNaN(dateValue.getTime())
+            ? ''
+            : dateValue.toLocaleDateString(getLocale(), {
+                day: 'numeric',
+                month: 'short',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
         
         const categoryLabel = t(trans.category);
         const descriptionMarkup = renderTransactionDescription(trans.description);
@@ -3503,43 +3538,8 @@ function setupReportChartSwipes() {
 
 function bindReportChartSwipe(tabId, canvasId) {
     const canvas = document.getElementById(canvasId);
-    if (!canvas || canvas.dataset.swipeBound === '1') return;
-
-    let touchStartX = 0;
-    let touchStartY = 0;
-    let touchStartedAt = 0;
-
-    canvas.addEventListener('touchstart', (event) => {
-        const touch = event.touches && event.touches[0];
-        if (!touch) return;
-        touchStartX = touch.clientX;
-        touchStartY = touch.clientY;
-        touchStartedAt = Date.now();
-    }, { passive: true });
-
-    canvas.addEventListener('touchend', (event) => {
-        if (!touchStartedAt) return;
-        const touch = event.changedTouches && event.changedTouches[0];
-        const startedAt = touchStartedAt;
-        touchStartedAt = 0;
-        if (!touch) return;
-
-        const deltaX = touch.clientX - touchStartX;
-        const deltaY = touch.clientY - touchStartY;
-        const elapsed = Date.now() - startedAt;
-        const absX = Math.abs(deltaX);
-        const absY = Math.abs(deltaY);
-
-        // Horizontal swipe only, fast enough, and clearly stronger than vertical move.
-        if (elapsed > 650 || absX < 42 || absX < absY * 1.3) return;
-        if (deltaX < 0) {
-            shiftReportChartMonth(tabId, 'older');
-        } else {
-            shiftReportChartMonth(tabId, 'newer');
-        }
-    }, { passive: true });
-
-    canvas.dataset.swipeBound = '1';
+    if (!canvas) return;
+    bindReportSwipeElement(tabId, canvas, canvasId);
 }
 
 function shiftReportChartMonth(tabId, direction) {
@@ -3567,11 +3567,140 @@ function shiftReportChartMonth(tabId, direction) {
     requestAnimationFrame(() => updateReportTab(tabId));
 }
 
+function getReportPeriodLabel(tabId, value) {
+    if (!value) return '';
+    const options = reportChartPeriodOptions[tabId] || [];
+    const found = options.find(option => option.value === value);
+    if (found) return found.label;
+    if (value === 'year') return t('За год');
+    if (value === 'all') return t('За всё время');
+    if (value === 'range') return t('Свой интервал');
+    if (value.startsWith('month:')) return getMonthLabelFromValue(value);
+    return value;
+}
+
+function openReportPeriodModal(tabId) {
+    reportPeriodModalTabId = tabId;
+    renderReportPeriodModal(tabId);
+    const modal = document.getElementById('report-period-modal');
+    if (modal) {
+        modal.classList.add('active');
+        updateBodyModalState();
+    }
+}
+
+function closeReportPeriodModal() {
+    reportPeriodModalTabId = null;
+    closeModal('report-period-modal');
+}
+
+function selectReportPeriod(tabId, value) {
+    if (!tabId || !value) return;
+    reportChartPeriods[tabId] = value;
+    requestAnimationFrame(() => updateReportTab(tabId));
+    closeReportPeriodModal();
+}
+
+function renderReportPeriodModal(tabId) {
+    const grid = document.getElementById('report-period-grid');
+    const quick = document.getElementById('report-period-quick');
+    const title = document.getElementById('report-period-title');
+    if (!grid || !quick) return;
+    if (title) title.textContent = t('Период');
+
+    const options = reportChartPeriodOptions[tabId] || [];
+    const currentValue = reportChartPeriods[tabId] || getCurrentMonthPeriodValue();
+    const monthOptions = options.filter(option => typeof option.value === 'string' && option.value.startsWith('month:'));
+
+    grid.innerHTML = monthOptions.map(option => `
+        <button class="period-btn ${option.value === currentValue ? 'active' : ''}"
+                onclick="selectReportPeriod('${tabId}', '${option.value}')">
+            ${option.label}
+        </button>
+    `).join('');
+
+    const quickOptions = [
+        { value: 'year', label: t('За год') },
+        { value: 'all', label: t('За всё время') },
+        { value: 'range', label: t('Свой интервал') }
+    ];
+    quick.innerHTML = quickOptions.map(option => `
+        <button class="period-btn ${option.value === currentValue ? 'active' : ''}"
+                onclick="selectReportPeriod('${tabId}', '${option.value}')">
+            ${option.label}
+        </button>
+    `).join('');
+}
+
+function handleReportChartTap(canvasId, event) {
+    const chart = charts[canvasId];
+    if (!chart) return;
+    const touch = event?.changedTouches ? event.changedTouches[0] : null;
+    if (!touch) return;
+    const rect = chart.canvas.getBoundingClientRect();
+    const x = touch.clientX - rect.left;
+    const y = touch.clientY - rect.top;
+    const points = chart.getElementsAtEventForMode({ x, y }, 'nearest', { intersect: true }, true);
+    if (!points.length) {
+        chart.$segmentPopupIndex = null;
+        chart.update();
+        return;
+    }
+    const nextIndex = points[0].index;
+    chart.$segmentPopupIndex = chart.$segmentPopupIndex === nextIndex ? null : nextIndex;
+    chart.update();
+}
+
+function bindReportSwipeElement(tabId, element, canvasId = null) {
+    if (!element || element.dataset.swipeBound === '1') return;
+    let startX = 0;
+    let startY = 0;
+    let startedAt = 0;
+    let handled = false;
+
+    element.addEventListener('touchstart', (event) => {
+        const touch = event.touches && event.touches[0];
+        if (!touch) return;
+        startX = touch.clientX;
+        startY = touch.clientY;
+        startedAt = Date.now();
+        handled = false;
+    }, { passive: true });
+
+    element.addEventListener('touchmove', (event) => {
+        if (!startedAt || handled) return;
+        const touch = event.touches && event.touches[0];
+        if (!touch) return;
+        const deltaX = touch.clientX - startX;
+        const deltaY = touch.clientY - startY;
+        const absX = Math.abs(deltaX);
+        const absY = Math.abs(deltaY);
+        if (absX > 32 && absX > absY * 1.2) {
+            handled = true;
+            if (event.cancelable) event.preventDefault();
+            shiftReportChartMonth(tabId, deltaX < 0 ? 'older' : 'newer');
+        }
+    }, { passive: false });
+
+    element.addEventListener('touchend', (event) => {
+        if (!startedAt) return;
+        const elapsed = Date.now() - startedAt;
+        startedAt = 0;
+        if (handled || elapsed > 600) return;
+        if (canvasId) {
+            handleReportChartTap(canvasId, event);
+        }
+    }, { passive: true });
+
+    element.dataset.swipeBound = '1';
+}
+
 function renderReportChartPeriodControls(tabId, sourceTransactions) {
     const anchor = document.getElementById(`${tabId}-chart-period-anchor`);
     if (!anchor) return;
 
     const periodOptions = getReportStatsPeriodOptions(sourceTransactions, true);
+    reportChartPeriodOptions[tabId] = periodOptions;
     reportChartMonthValues[tabId] = periodOptions
         .map(option => option.value)
         .filter(value => typeof value === 'string' && value.startsWith('month:'));
@@ -3584,14 +3713,14 @@ function renderReportChartPeriodControls(tabId, sourceTransactions) {
     const selectedPeriod = reportChartPeriods[tabId] || defaultPeriod;
     const range = reportChartRanges[tabId] || { from: '', to: '' };
     const isRange = selectedPeriod === 'range';
+    const periodLabel = getReportPeriodLabel(tabId, selectedPeriod);
 
     anchor.innerHTML = `
         <div class="report-chart-period-controls">
-            <select id="${tabId}-chart-period" class="form-select report-chart-period-select">
-                ${periodOptions.map(option => `
-                    <option value="${option.value}" ${option.value === selectedPeriod ? 'selected' : ''}>${option.label}</option>
-                `).join('')}
-            </select>
+            <button type="button" class="report-chart-period-trigger" id="${tabId}-chart-period-trigger" data-tab="${tabId}">
+                <span class="report-chart-period-text">${periodLabel}</span>
+                <span class="report-chart-period-caret">▾</span>
+            </button>
         </div>
         <div class="report-chart-range ${isRange ? 'active' : ''}">
             <span class="report-chart-range-label">${t('С')}</span>
@@ -3611,12 +3740,10 @@ function renderReportChartPeriodControls(tabId, sourceTransactions) {
         </div>
     `;
 
-    const periodSelect = document.getElementById(`${tabId}-chart-period`);
-    if (periodSelect) {
-        periodSelect.onchange = () => {
-            reportChartPeriods[tabId] = periodSelect.value || defaultPeriod;
-            requestAnimationFrame(() => updateReportTab(tabId));
-        };
+    const periodTrigger = document.getElementById(`${tabId}-chart-period-trigger`);
+    if (periodTrigger) {
+        periodTrigger.onclick = () => openReportPeriodModal(tabId);
+        bindReportSwipeElement(tabId, periodTrigger);
     }
 
     const fromInput = document.getElementById(`${tabId}-chart-range-from`);
@@ -4244,7 +4371,7 @@ function getReportStatsPeriodOptions(items, includeCustomRange = false) {
     if (!items.length) return options;
 
     const validDates = items
-        .map(transaction => new Date(transaction.date))
+        .map(transaction => parseTransactionDate(transaction.date))
         .filter(date => !Number.isNaN(date.getTime()))
         .sort((a, b) => a - b);
 
@@ -4300,7 +4427,7 @@ function filterTransactionsByPeriod(items, period, customRange = null) {
         const minTs = validFrom !== null && validTo !== null ? Math.min(validFrom, validTo) : validFrom;
         const maxTs = validFrom !== null && validTo !== null ? Math.max(validFrom, validTo) : validTo;
         return items.filter((transaction) => {
-            const ts = new Date(transaction.date).getTime();
+            const ts = parseTransactionDate(transaction.date).getTime();
             if (!Number.isFinite(ts)) return false;
             if (minTs !== null && ts < minTs) return false;
             if (maxTs !== null && ts > maxTs) return false;
@@ -4314,7 +4441,7 @@ function filterTransactionsByPeriod(items, period, customRange = null) {
         const startTs = start.getTime();
         const endTs = now.getTime();
         return items.filter((transaction) => {
-            const date = new Date(transaction.date);
+            const date = parseTransactionDate(transaction.date);
             const ts = date.getTime();
             return Number.isFinite(ts) && ts >= startTs && ts <= endTs;
         });
@@ -4323,7 +4450,7 @@ function filterTransactionsByPeriod(items, period, customRange = null) {
     if (period && period.startsWith('month:')) {
         const monthKey = period.slice(6);
         return items.filter((transaction) => {
-            const date = new Date(transaction.date);
+            const date = parseTransactionDate(transaction.date);
             if (Number.isNaN(date.getTime())) return false;
             const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
             return key === monthKey;
@@ -4365,7 +4492,7 @@ async function updateSavingsChart(transactions) {
     // Группируем по месяцам
     const savingsByMonth = {};
     savingsTransactions.forEach(trans => {
-        const date = new Date(trans.date);
+        const date = parseTransactionDate(trans.date);
         const monthKey = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
         savingsByMonth[monthKey] = (savingsByMonth[monthKey] || 0) + trans.amount;
     });
@@ -6643,12 +6770,15 @@ function showAllTransactions() {
             const amountSign = isSavings ? '+' : (isIncome ? '+' : '−');
             const icon = isDebt ? '💸' : (isSavings ? '💰' : (isIncome ? '📈' : '📉'));
             const iconClass = isDebt ? 'debt' : (isSavings ? 'savings' : (isIncome ? 'income' : 'expense'));
-            const date = new Date(trans.date).toLocaleDateString(getLocale(), {
-                day: 'numeric',
-                month: 'short',
-                hour: '2-digit',
-                minute: '2-digit'
-            });
+            const dateValue = parseTransactionDate(trans.date);
+            const date = Number.isNaN(dateValue.getTime())
+                ? ''
+                : dateValue.toLocaleDateString(getLocale(), {
+                    day: 'numeric',
+                    month: 'short',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
             const categoryLabel = t(trans.category);
             const descriptionMarkup = renderTransactionDescription(trans.description);
             html += `
@@ -7179,6 +7309,9 @@ window.openArticle = openArticle;
 window.closeArticle = closeArticle;
 window.openTextModal = openTextModal;
 window.closeTextModal = closeTextModal;
+window.openReportPeriodModal = openReportPeriodModal;
+window.closeReportPeriodModal = closeReportPeriodModal;
+window.selectReportPeriod = selectReportPeriod;
 window.openCompoundCalculator = openCompoundCalculator;
 window.calculateCompound = calculateCompound;
 window.closeCompoundCalculator = closeCompoundCalculator;
