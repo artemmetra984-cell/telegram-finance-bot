@@ -716,7 +716,7 @@ def telegram_webhook():
                     f'https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage',
                     json={
                         'chat_id': chat_id,
-                        'text': '💰 Финансовый помощник iOS 26\n\nНажми кнопку:',
+                        'text': 'Твой личный финансвоый помощник 💸\nНажми на кнопку что бы начать',
                         'reply_markup': {
                             'inline_keyboard': [[{
                                 'text': '📱 Открыть',
