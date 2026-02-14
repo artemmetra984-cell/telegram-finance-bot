@@ -600,6 +600,7 @@ const translations = {
         'Введите ID/username и ключ': 'Enter ID/username and key',
         'Промокод активирован на': 'Promo activated for',
         'мес.': 'mo.',
+        'дн.': 'd.',
         'Не удалось активировать промокод': 'Failed to redeem promo',
         'Не удалось создать оплату': 'Failed to create payment',
         'Ошибка выдачи': 'Grant failed',
@@ -3397,7 +3398,10 @@ async function redeemPromoCode() {
         const data = await res.json();
         if (data.error) throw new Error(data.error);
         if (input) input.value = '';
-        showNotification(`${t('Промокод активирован на')} ${data.months} ${t('мес.')}`, 'success');
+        const promoUnit = data.promo_unit || (data.days ? 'days' : 'months');
+        const promoValue = Number(data.promo_value ?? data.days ?? data.months ?? 0);
+        const promoSuffix = promoUnit === 'days' ? t('дн.') : t('мес.');
+        showNotification(`${t('Промокод активирован на')} ${promoValue} ${promoSuffix}`, 'success');
         activateSubscriptionState(data, true);
     } catch (e) {
         showNotification(e.message || 'Не удалось активировать промокод', 'error');
@@ -3581,13 +3585,15 @@ async function loadPromoStats() {
         }
         if (container) {
             container.innerHTML = items.map((item) => {
-                const monthsText = `${item.months} ${t('мес.')}`;
+                const periodValue = Number(item.period_value ?? item.days ?? item.months ?? 0);
+                const periodUnit = item.period_unit || (item.days ? 'days' : 'months');
+                const periodText = `${periodValue} ${periodUnit === 'days' ? t('дн.') : t('мес.')}`;
                 const typeText = item.type === 'multi' ? t('Многоразовый') : t('Одноразовый');
                 const usedText = item.limit ? `${item.used}/${item.limit}` : `${item.used}`;
                 return `
                     <div class="promo-stat-item">
                         <div class="promo-stat-code">${item.code}</div>
-                        <div class="promo-stat-meta">${monthsText} • ${typeText} • ${t('Использовано')}: ${usedText}</div>
+                        <div class="promo-stat-meta">${periodText} • ${typeText} • ${t('Использовано')}: ${usedText}</div>
                     </div>
                 `;
             }).join('');

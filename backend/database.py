@@ -332,6 +332,7 @@ class Database:
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_cryptopay_user_id ON cryptopay_invoices(user_id)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_promo_user_id ON promo_redemptions(user_id)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_promo_multi_code ON promo_multi_redemptions(code)')
+        cursor.execute('CREATE UNIQUE INDEX IF NOT EXISTS idx_promo_multi_code_user ON promo_multi_redemptions(code, user_id)')
 
         # ensure new columns for subscriptions
         cursor.execute("PRAGMA table_info(subscriptions)")
@@ -1126,7 +1127,7 @@ class Database:
                 pass
         return {'active': active, 'activated_at': activated_at, 'expires_at': expires_at}
 
-    def set_subscription_active(self, user_id, active=True, months=None, extend=True):
+    def set_subscription_active(self, user_id, active=True, months=None, days=None, extend=True):
         cursor = self.conn.cursor()
         owner_id = self._resolve_owner_id(user_id)
         cursor.execute('SELECT active, activated_at, expires_at FROM subscriptions WHERE user_id = ?', (owner_id,))
@@ -1147,6 +1148,20 @@ class Database:
                 except Exception:
                     pass
             expires_at = self._add_months(start, months).isoformat()
+            if start == now:
+                activated_at = now.isoformat()
+            elif row and row['activated_at']:
+                activated_at = row['activated_at']
+        elif active and days:
+            start = now
+            if extend and expires_at:
+                try:
+                    existing = datetime.fromisoformat(expires_at)
+                    if existing > now:
+                        start = existing
+                except Exception:
+                    pass
+            expires_at = (start + timedelta(days=int(days))).isoformat()
             if start == now:
                 activated_at = now.isoformat()
             elif row and row['activated_at']:
@@ -1360,6 +1375,12 @@ class Database:
     def is_promo_redeemed(self, code):
         cursor = self.conn.cursor()
         cursor.execute('SELECT code FROM promo_redemptions WHERE code = ?', (code,))
+        return cursor.fetchone() is not None
+
+    def has_promo_user(self, code, user_id):
+        cursor = self.conn.cursor()
+        owner_id = self._resolve_owner_id(user_id)
+        cursor.execute('SELECT code FROM promo_redemptions WHERE code = ? AND user_id = ?', (code, owner_id))
         return cursor.fetchone() is not None
 
     def get_promo_redemption_count(self, code):

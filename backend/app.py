@@ -54,6 +54,28 @@ def parse_promo_codes(raw_value):
         parts.append(token.upper())
     return parts
 
+def promo_period_spec(unit, value):
+    return {
+        'unit': unit,
+        'value': int(value)
+    }
+
+def promo_period_key(unit, value):
+    return f"{unit}:{int(value)}"
+
+def promo_period_label(period):
+    unit = (period or {}).get('unit') or 'months'
+    value = int((period or {}).get('value') or 0)
+    suffix = 'дн.' if unit == 'days' else 'мес.'
+    return f"{value} {suffix}"
+
+def promo_period_sort_order(period):
+    unit = (period or {}).get('unit') or 'months'
+    value = int((period or {}).get('value') or 0)
+    if unit == 'days':
+        return value
+    return value * 31
+
 PROMO_CODE_MAP = {}
 for code in parse_promo_codes(os.getenv('PROMO_CODES_1M', '')):
     PROMO_CODE_MAP[code] = 1
@@ -66,10 +88,16 @@ for code in parse_promo_codes(os.getenv('PROMO_CODES_12M', '')):
 
 PROMO_MULTI_CODE_MAP = {}
 for code in parse_promo_codes(os.getenv('PROMO_CODES_1M_MULTI_100', '')):
-    PROMO_MULTI_CODE_MAP[code] = 1
+    PROMO_MULTI_CODE_MAP[code] = promo_period_spec('months', 1)
+for code in parse_promo_codes(os.getenv('PROMO_CODES_1D_MULTI', '')):
+    PROMO_MULTI_CODE_MAP[code] = promo_period_spec('days', 1)
+for code in parse_promo_codes(os.getenv('PROMO_CODES_3D_MULTI', '')):
+    PROMO_MULTI_CODE_MAP[code] = promo_period_spec('days', 3)
 
 PROMO_MULTI_LIMITS = {
-    1: int(os.getenv('PROMO_CODES_1M_MULTI_LIMIT', '100'))
+    promo_period_key('months', 1): int(os.getenv('PROMO_CODES_1M_MULTI_LIMIT', '100')),
+    promo_period_key('days', 1): int(os.getenv('PROMO_CODES_1D_MULTI_LIMIT', '0')),
+    promo_period_key('days', 3): int(os.getenv('PROMO_CODES_3D_MULTI_LIMIT', '0'))
 }
 
 print(f"🚀 Starting Flask app (iOS 26 Version)")
@@ -1049,31 +1077,54 @@ def subscription_redeem():
             return jsonify({'error': 'Missing fields'}), 400
         if not db:
             return jsonify({'error': 'Database error'}), 500
+        promo_unit = 'months'
+        promo_value = 0
         months = PROMO_CODE_MAP.get(code)
         if months:
+            if db.has_promo_user(code, user_id):
+                return jsonify({'error': 'Promo code already used'}), 400
             if db.is_promo_redeemed(code):
                 return jsonify({'error': 'Promo code already used'}), 400
             if not db.redeem_promo_code(user_id, code, months):
                 return jsonify({'error': 'Promo code already used'}), 400
+            promo_unit = 'months'
+            promo_value = int(months)
+            db.set_subscription_active(user_id, True, months=promo_value)
         else:
-            months = PROMO_MULTI_CODE_MAP.get(code)
-            if not months:
+            period = PROMO_MULTI_CODE_MAP.get(code)
+            if not period:
+                return jsonify({'error': 'Invalid promo code'}), 400
+            promo_unit = period.get('unit') or 'months'
+            promo_value = int(period.get('value') or 0)
+            if promo_value <= 0:
                 return jsonify({'error': 'Invalid promo code'}), 400
             if db.has_promo_multi_user(code, user_id):
                 return jsonify({'error': 'Promo code already used'}), 400
-            limit = PROMO_MULTI_LIMITS.get(months, 0)
+            limit_key = promo_period_key(promo_unit, promo_value)
+            limit = PROMO_MULTI_LIMITS.get(limit_key, 0)
             if limit and db.get_promo_multi_count(code) >= limit:
                 return jsonify({'error': 'Promo code limit reached'}), 400
-            if not db.redeem_promo_multi_code(user_id, code, months):
+            months_to_store = promo_value if promo_unit == 'months' else 0
+            if not db.redeem_promo_multi_code(user_id, code, months_to_store):
                 return jsonify({'error': 'Promo code already used'}), 400
-        db.set_subscription_active(user_id, True, months=months)
+            if promo_unit == 'days':
+                db.set_subscription_active(user_id, True, days=promo_value)
+            else:
+                db.set_subscription_active(user_id, True, months=promo_value)
         info = db.get_subscription_info(user_id)
-        return jsonify({
+        response = {
             'success': True,
-            'months': months,
+            'promo_unit': promo_unit,
+            'promo_value': promo_value,
+            'period_text': promo_period_label({'unit': promo_unit, 'value': promo_value}),
             'subscription_start': info['activated_at'],
             'subscription_end': info['expires_at']
-        })
+        }
+        if promo_unit == 'months':
+            response['months'] = promo_value
+        if promo_unit == 'days':
+            response['days'] = promo_value
+        return jsonify(response)
     except Exception as e:
         print(f"Subscription redeem error: {e}")
         return jsonify({'error': str(e)}), 500
@@ -1093,26 +1144,41 @@ def subscription_promo_stats():
 
         items = []
         for code, months in PROMO_CODE_MAP.items():
+            period = promo_period_spec('months', months)
             used = db.get_promo_redemption_count(code)
             items.append({
                 'code': code,
                 'months': months,
+                'days': None,
+                'period_unit': period['unit'],
+                'period_value': period['value'],
+                'period_text': promo_period_label(period),
+                'period_order': promo_period_sort_order(period),
                 'used': used,
                 'limit': 1,
                 'type': 'single'
             })
-        for code, months in PROMO_MULTI_CODE_MAP.items():
+        for code, period in PROMO_MULTI_CODE_MAP.items():
+            unit = period.get('unit') or 'months'
+            value = int(period.get('value') or 0)
+            if value <= 0:
+                continue
             used = db.get_promo_multi_count(code)
-            limit = PROMO_MULTI_LIMITS.get(months, 0) or None
+            limit = PROMO_MULTI_LIMITS.get(promo_period_key(unit, value), 0) or None
             items.append({
                 'code': code,
-                'months': months,
+                'months': value if unit == 'months' else None,
+                'days': value if unit == 'days' else None,
+                'period_unit': unit,
+                'period_value': value,
+                'period_text': promo_period_label(period),
+                'period_order': promo_period_sort_order(period),
                 'used': used,
                 'limit': limit,
                 'type': 'multi'
             })
 
-        items.sort(key=lambda x: (x['months'], x['code']))
+        items.sort(key=lambda x: (x.get('period_order', 0), x['code']))
         return jsonify({'items': items})
     except Exception as e:
         print(f"Promo stats error: {e}")
