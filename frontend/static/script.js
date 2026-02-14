@@ -1067,6 +1067,148 @@ function buildDisplayValuesWithMinimumPercent(values, minPercent = 10) {
     return { rawValues, displayValues };
 }
 
+function destroyChartInstance(chartKey) {
+    if (!charts[chartKey]) return;
+    charts[chartKey].destroy();
+    charts[chartKey] = null;
+}
+
+function getPlaceholderCircularColors(sliceCount = 4) {
+    const alphaPattern = [0.2, 0.14, 0.17, 0.11, 0.15];
+    return Array.from({ length: sliceCount }, (_, index) => `rgba(255, 255, 255, ${alphaPattern[index % alphaPattern.length]})`);
+}
+
+function renderPlaceholderCircularChart(chartKey, canvas, options = {}) {
+    if (!canvas) return;
+    destroyChartInstance(chartKey);
+    const sliceCount = Math.max(3, Number(options.sliceCount) || 4);
+    const colors = getPlaceholderCircularColors(sliceCount);
+    const borderColors = colors.map(() => 'rgba(255, 255, 255, 0.22)');
+    const data = Array.from({ length: sliceCount }, () => 1);
+    charts[chartKey] = new Chart(canvas, {
+        type: options.type || 'doughnut',
+        data: {
+            labels: Array.from({ length: sliceCount }, () => ''),
+            datasets: [{
+                data,
+                backgroundColor: colors,
+                borderColor: borderColors,
+                borderWidth: 0,
+                borderRadius: 0,
+                spacing: 0,
+                hoverOffset: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            layout: { padding: Number(options.padding) || 14 },
+            cutout: options.cutout || '72%',
+            radius: options.radius || '90%',
+            rotation: Number.isFinite(options.rotation) ? options.rotation : -90,
+            events: [],
+            plugins: {
+                legend: { display: false },
+                tooltip: { enabled: false },
+                chartShadow: false
+            },
+            animation: {
+                duration: 650,
+                easing: 'easeOutQuart'
+            }
+        }
+    });
+}
+
+function renderPlaceholderBarChart(chartKey, canvas) {
+    if (!canvas) return;
+    destroyChartInstance(chartKey);
+    charts[chartKey] = new Chart(canvas, {
+        type: 'bar',
+        data: {
+            labels: ['', '', '', '', ''],
+            datasets: [{
+                data: [4, 6, 5, 7, 6],
+                backgroundColor: 'rgba(255, 255, 255, 0.16)',
+                borderColor: 'rgba(255, 255, 255, 0.24)',
+                borderWidth: 1,
+                borderRadius: 8
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            events: [],
+            plugins: {
+                legend: { display: false },
+                tooltip: { enabled: false }
+            },
+            scales: {
+                x: {
+                    ticks: { display: false },
+                    grid: { color: 'rgba(255,255,255,0.06)', drawTicks: false },
+                    border: { color: 'rgba(255,255,255,0.1)' }
+                },
+                y: {
+                    beginAtZero: true,
+                    ticks: { display: false },
+                    grid: { color: 'rgba(255,255,255,0.06)', drawTicks: false },
+                    border: { color: 'rgba(255,255,255,0.1)' }
+                }
+            },
+            animation: {
+                duration: 650,
+                easing: 'easeOutQuart'
+            }
+        }
+    });
+}
+
+function renderPlaceholderLineChart(chartKey, canvas) {
+    if (!canvas) return;
+    destroyChartInstance(chartKey);
+    charts[chartKey] = new Chart(canvas, {
+        type: 'line',
+        data: {
+            labels: ['', '', '', '', '', ''],
+            datasets: [{
+                data: [2.5, 3.2, 2.8, 3.6, 3.1, 3.7],
+                borderColor: 'rgba(255, 255, 255, 0.3)',
+                backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.4,
+                pointRadius: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            events: [],
+            plugins: {
+                legend: { display: false },
+                tooltip: { enabled: false }
+            },
+            scales: {
+                x: {
+                    ticks: { display: false },
+                    grid: { color: 'rgba(255,255,255,0.06)', drawTicks: false },
+                    border: { color: 'rgba(255,255,255,0.1)' }
+                },
+                y: {
+                    ticks: { display: false },
+                    grid: { color: 'rgba(255,255,255,0.06)', drawTicks: false },
+                    border: { color: 'rgba(255,255,255,0.1)' }
+                }
+            },
+            animation: {
+                duration: 650,
+                easing: 'easeOutQuart'
+            }
+        }
+    });
+}
+
 const segmentIconsPlugin = {
     id: 'segmentIcons',
     afterDatasetDraw(chart, args, pluginOptions) {
@@ -4411,17 +4553,16 @@ function updateOverviewChart(segments) {
     const ctx = document.getElementById('overview-chart');
     if (!ctx) return;
     
-    if (charts['overview-chart']) {
-        charts['overview-chart'].destroy();
-    }
+    destroyChartInstance('overview-chart');
     
     if (!Array.isArray(segments) || segments.length === 0) {
-        ctx.innerHTML = `
-            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--ios-text-tertiary);">
-                <div style="font-size: 48px; margin-bottom: 16px;">📊</div>
-                <div style="font-size: 15px;">${t('Нет данных для отображения')}</div>
-            </div>
-        `;
+        renderPlaceholderCircularChart('overview-chart', ctx, {
+            type: 'doughnut',
+            cutout: '72%',
+            radius: '92%',
+            rotation: -90,
+            padding: 14
+        });
         return;
     }
 
@@ -4525,10 +4666,7 @@ async function updateIncomeChart(transactions) {
     const ctx = document.getElementById('income-chart');
     if (!ctx) return;
 
-    if (charts['income-chart']) {
-        charts['income-chart'].destroy();
-        charts['income-chart'] = null;
-    }
+    destroyChartInstance('income-chart');
     const baseContext = ctx.getContext('2d');
     if (baseContext) {
         baseContext.clearRect(0, 0, ctx.width, ctx.height);
@@ -4537,6 +4675,13 @@ async function updateIncomeChart(transactions) {
     const incomeTransactions = transactions.filter(t => t.type === 'income');
     
     if (incomeTransactions.length === 0) {
+        renderPlaceholderCircularChart('income-chart', ctx, {
+            type: 'doughnut',
+            cutout: '72%',
+            radius: '90%',
+            rotation: -90,
+            padding: 14
+        });
         return;
     }
     
@@ -4662,10 +4807,7 @@ async function updateExpenseChart(transactions) {
     const ctx = document.getElementById('expense-chart');
     if (!ctx) return;
 
-    if (charts['expense-chart']) {
-        charts['expense-chart'].destroy();
-        charts['expense-chart'] = null;
-    }
+    destroyChartInstance('expense-chart');
     const baseContext = ctx.getContext('2d');
     if (baseContext) {
         baseContext.clearRect(0, 0, ctx.width, ctx.height);
@@ -4677,6 +4819,13 @@ async function updateExpenseChart(transactions) {
     const expenseTransactions = transactions.filter(t => t.type === 'expense');
     
     if (expenseTransactions.length === 0) {
+        renderPlaceholderCircularChart('expense-chart', ctx, {
+            type: 'doughnut',
+            cutout: '72%',
+            radius: '90%',
+            rotation: -90,
+            padding: 14
+        });
         return;
     }
     
@@ -5064,16 +5213,12 @@ async function updateSavingsTab() {
 async function updateSavingsChart(transactions) {
     const ctx = document.getElementById('savings-chart');
     if (!ctx) return;
+    destroyChartInstance('savings-chart');
     
     const savingsTransactions = transactions.filter(t => isSavingsCategoryName(t.category));
     
     if (savingsTransactions.length === 0) {
-        ctx.innerHTML = `
-            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--ios-text-tertiary);">
-                <div style="font-size: 48px; margin-bottom: 16px;">💰</div>
-                <div style="font-size: 15px;">${t('Нет накоплений за период')}</div>
-            </div>
-        `;
+        renderPlaceholderBarChart('savings-chart', ctx);
         return;
     }
     
@@ -5088,11 +5233,6 @@ async function updateSavingsChart(transactions) {
     
     const months = Object.keys(savingsByMonth).sort();
     const amounts = months.map(month => savingsByMonth[month]);
-    
-    // Удаляем старый график
-    if (charts['savings-chart']) {
-        charts['savings-chart'].destroy();
-    }
     
     // Создаем новый график
     charts['savings-chart'] = new Chart(ctx, {
@@ -5174,6 +5314,7 @@ async function updateBalanceTab() {
 async function updateDistributionChart() {
     const ctx = document.getElementById('distribution-chart');
     if (!ctx) return;
+    const legendContainer = document.getElementById('distribution-legend');
     
     const symbol = currencySymbols[currentCurrency] || '₽';
     let totalBalance = 0;
@@ -5186,12 +5327,14 @@ async function updateDistributionChart() {
     }
     
     if (totalBalance === 0) {
-        ctx.innerHTML = `
-            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--ios-text-tertiary);">
-                <div style="font-size: 48px; margin-bottom: 16px;">🏦</div>
-                <div style="font-size: 15px;">${t('Нет данных о распределении')}</div>
-            </div>
-        `;
+        if (legendContainer) legendContainer.innerHTML = '';
+        renderPlaceholderCircularChart('distribution-chart', ctx, {
+            type: 'pie',
+            cutout: '72%',
+            radius: '86%',
+            rotation: -90,
+            padding: 18
+        });
         return;
     }
     
@@ -5212,12 +5355,9 @@ async function updateDistributionChart() {
         hoverColors.push(savingsColor + 'CC');
     }
     
-    if (charts['distribution-chart']) {
-        charts['distribution-chart'].destroy();
-    }
+    destroyChartInstance('distribution-chart');
     
     // Обновляем легенду
-    const legendContainer = document.getElementById('distribution-legend');
     if (legendContainer) {
         let html = '';
         walletsData.forEach((wallet, index) => {
@@ -5343,17 +5483,10 @@ function updateDynamicsChart(data, period) {
     const ctx = document.getElementById('dynamics-chart');
     if (!ctx) return;
     
-    if (charts['dynamics-chart']) {
-        charts['dynamics-chart'].destroy();
-    }
+    destroyChartInstance('dynamics-chart');
     
     if (!data || data.length === 0) {
-        ctx.innerHTML = `
-            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--ios-text-tertiary);">
-                <div style="font-size: 48px; margin-bottom: 16px;">📈</div>
-                <div style="font-size: 15px;">${t('Нет данных за выбранный период')}</div>
-            </div>
-        `;
+        renderPlaceholderLineChart('dynamics-chart', ctx);
         return;
     }
     
