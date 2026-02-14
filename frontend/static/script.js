@@ -3504,6 +3504,10 @@ function setupReportTabs() {
 }
 
 async function updateReportTab(tabId) {
+    const shouldAnimateChartSwap = tabId === 'overview' || tabId === 'income' || tabId === 'expense';
+    if (shouldAnimateChartSwap) {
+        startReportChartSwapAnimation(tabId);
+    }
     switch(tabId) {
         case 'overview':
             await updateOverviewTab();
@@ -3521,6 +3525,9 @@ async function updateReportTab(tabId) {
             await updateBalanceTab();
             break;
     }
+    if (shouldAnimateChartSwap) {
+        endReportChartSwapAnimation(tabId);
+    }
 }
 
 async function loadReportData() {
@@ -3535,6 +3542,38 @@ function setupReportChartSwipes() {
     bindReportChartSwipe('overview', 'overview-chart');
     bindReportChartSwipe('income', 'income-chart');
     bindReportChartSwipe('expense', 'expense-chart');
+}
+
+function getReportChartCanvasId(tabId) {
+    if (tabId === 'overview') return 'overview-chart';
+    if (tabId === 'income') return 'income-chart';
+    if (tabId === 'expense') return 'expense-chart';
+    return '';
+}
+
+function getReportChartWrapper(tabId) {
+    const canvasId = getReportChartCanvasId(tabId);
+    if (!canvasId) return null;
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return null;
+    return canvas.closest('.report-chart-wrapper');
+}
+
+function startReportChartSwapAnimation(tabId) {
+    const wrapper = getReportChartWrapper(tabId);
+    if (!wrapper) return;
+    wrapper.classList.remove('is-updated');
+    wrapper.classList.add('is-updating');
+}
+
+function endReportChartSwapAnimation(tabId) {
+    const wrapper = getReportChartWrapper(tabId);
+    if (!wrapper) return;
+    wrapper.classList.remove('is-updating');
+    wrapper.classList.add('is-updated');
+    setTimeout(() => {
+        wrapper.classList.remove('is-updated');
+    }, 240);
 }
 
 function setupReportChartArrows() {
@@ -3723,7 +3762,7 @@ function bindReportSwipeElement(tabId, element, canvasId = null) {
         if (absX > 32 && absX > absY * 1.2) {
             handled = true;
             if (event.cancelable) event.preventDefault();
-            shiftReportChartMonth(tabId, deltaX < 0 ? 'older' : 'newer');
+            shiftReportChartMonth(tabId, deltaX < 0 ? 'newer' : 'older');
         }
     }, { passive: false });
 

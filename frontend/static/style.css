@@ -1063,14 +1063,35 @@ body.modal-open #main-content {
 
 .report-chart-wrapper {
   overflow: visible;
+  transition: opacity 0.18s ease, transform 0.22s ease, filter 0.22s ease;
+}
+
+.report-chart-wrapper.is-updating {
+  opacity: 0.32;
+  transform: scale(0.975);
+  filter: saturate(0.72);
+}
+
+.report-chart-wrapper.is-updated {
+  animation: reportChartSwapIn 0.24s ease;
+}
+
+@keyframes reportChartSwapIn {
+  0% {
+    opacity: 0.55;
+    transform: scale(0.985);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .report-chart-arrow {
   position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 28px;
-  height: 28px;
+  top: 4px;
+  width: 24px;
+  height: 24px;
   border-radius: 999px;
   border: 1px solid rgba(18, 24, 34, 0.35);
   background: rgba(17, 22, 31, 0.2);
@@ -1089,12 +1110,12 @@ body.modal-open #main-content {
 }
 
 .report-chart-arrow:active {
-  transform: translateY(-50%) scale(0.96);
+  transform: scale(0.96);
 }
 
 .report-chart-arrow svg {
-  width: 14px;
-  height: 14px;
+  width: 12px;
+  height: 12px;
   fill: none;
   stroke: currentColor;
   stroke-width: 1.8;
@@ -1103,11 +1124,11 @@ body.modal-open #main-content {
 }
 
 .report-chart-arrow--prev {
-  left: 2px;
+  left: 0;
 }
 
 .report-chart-arrow--next {
-  right: 2px;
+  right: 0;
 }
 
 .report-chart-arrow:disabled {
