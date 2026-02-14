@@ -1,19 +1,85 @@
 # backend/database.py
 import sqlite3
 import os
+import shutil
 from datetime import datetime, timedelta
 
 class Database:
     def __init__(self):
-        db_path = os.getenv('DB_PATH', 'finance.db')
+        db_path = self._resolve_db_path()
         db_dir = os.path.dirname(db_path)
         if db_dir:
             os.makedirs(db_dir, exist_ok=True)
+        self._migrate_legacy_db_if_needed(db_path)
         print(f"📊 Database: {os.path.abspath(db_path)}")
         
-        self.conn = sqlite3.connect(db_path, check_same_thread=False)
+        self.conn = sqlite3.connect(db_path, check_same_thread=False, timeout=30)
         self.conn.row_factory = sqlite3.Row
+        self._configure_connection()
         self.init_db()
+        self._log_database_state(db_path)
+
+    def _resolve_db_path(self):
+        configured = os.getenv('DB_PATH')
+        if configured:
+            return configured
+
+        persistent_dir = os.getenv('PERSISTENT_DATA_DIR')
+        if persistent_dir:
+            return os.path.join(persistent_dir, 'finance.db')
+
+        # Render persistent disk mount (if configured).
+        if os.path.isdir('/data'):
+            return '/data/finance.db'
+
+        # Stable local default path independent of current working directory.
+        backend_dir = os.path.dirname(os.path.abspath(__file__))
+        project_root = os.path.dirname(backend_dir)
+        return os.path.join(project_root, 'data', 'finance.db')
+
+    def _configure_connection(self):
+        # Durability/concurrency settings for SQLite.
+        self.conn.execute('PRAGMA journal_mode=WAL')
+        self.conn.execute('PRAGMA synchronous=FULL')
+        self.conn.execute('PRAGMA foreign_keys=ON')
+        self.conn.execute('PRAGMA busy_timeout=5000')
+
+    def _migrate_legacy_db_if_needed(self, target_path):
+        if os.path.exists(target_path):
+            return
+
+        backend_dir = os.path.dirname(os.path.abspath(__file__))
+        project_root = os.path.dirname(backend_dir)
+        candidates = [
+            os.path.join(backend_dir, 'finance.db'),
+            os.path.join(project_root, 'finance.db'),
+            os.path.abspath('finance.db'),
+        ]
+
+        target_abs = os.path.abspath(target_path)
+        for candidate in candidates:
+            candidate_abs = os.path.abspath(candidate)
+            if candidate_abs == target_abs or not os.path.exists(candidate_abs):
+                continue
+            try:
+                shutil.copy2(candidate_abs, target_abs)
+                print(f"📦 Migrated database from {candidate_abs} to {target_abs}")
+                return
+            except Exception as exc:
+                print(f"⚠️ Failed to migrate database from {candidate_abs}: {exc}")
+
+    def _log_database_state(self, db_path):
+        try:
+            size = os.path.getsize(db_path) if os.path.exists(db_path) else 0
+            print(f"🗄️ DB file size: {size} bytes")
+            cursor = self.conn.cursor()
+            for table in ('users', 'transactions', 'goals', 'debts', 'subscriptions'):
+                cursor.execute(f'SELECT COUNT(*) as total FROM {table}')
+                row = cursor.fetchone()
+                total = row['total'] if row and 'total' in row.keys() else 0
+                print(f"📈 {table}: {total}")
+        except Exception as exc:
+            print(f"⚠️ Failed to log DB state: {exc}")
     
     def init_db(self):
         cursor = self.conn.cursor()
