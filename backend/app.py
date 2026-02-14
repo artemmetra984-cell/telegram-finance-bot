@@ -914,6 +914,32 @@ def update_debts_setting():
         print(f"Debts setting error: {e}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/settings/reset_all', methods=['POST'])
+def reset_all_settings_data():
+    try:
+        data = request.json or {}
+        user_id = data.get('user_id')
+        confirmed = str(data.get('confirm', '')).strip().lower() in ('1', 'true', 'yes', 'on')
+
+        if user_id is None:
+            return jsonify({'error': 'Missing user_id'}), 400
+        if not confirmed:
+            return jsonify({'error': 'Confirmation required'}), 400
+        if not db:
+            return jsonify({'error': 'Database error'}), 500
+
+        result = db.reset_user_financial_data(user_id)
+        if result.get('error') == 'user_not_found':
+            return jsonify({'error': 'User not found'}), 404
+
+        return jsonify({
+            'success': True,
+            'deleted': result.get('deleted', {})
+        })
+    except Exception as e:
+        print(f"Reset all settings error: {e}")
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/debt', methods=['POST'])
 def create_debt():
     try:

@@ -452,6 +452,67 @@ class Database:
             self.conn.commit()
             print(f"👤 New user: {first_name} ({user_id})")
             return user_id, 'RUB', 'Карта'
+
+    def reset_user_financial_data(self, user_id):
+        owner_id = self._resolve_owner_id(user_id)
+        cursor = self.conn.cursor()
+        cursor.execute('SELECT id FROM users WHERE id = ?', (owner_id,))
+        if not cursor.fetchone():
+            return {'error': 'user_not_found'}
+
+        try:
+            deleted = {}
+            for table in ('transactions', 'goals', 'debts', 'categories', 'wallets'):
+                cursor.execute(f'SELECT COUNT(*) AS total FROM {table} WHERE user_id = ?', (owner_id,))
+                row = cursor.fetchone()
+                deleted[table] = int(row['total'] or 0) if row else 0
+
+            cursor.execute('DELETE FROM transactions WHERE user_id = ?', (owner_id,))
+            cursor.execute('DELETE FROM goals WHERE user_id = ?', (owner_id,))
+            cursor.execute('DELETE FROM debts WHERE user_id = ?', (owner_id,))
+            cursor.execute('DELETE FROM categories WHERE user_id = ?', (owner_id,))
+            cursor.execute('DELETE FROM wallets WHERE user_id = ?', (owner_id,))
+
+            default_categories = [
+                (owner_id, 'income', 'Зарплата', '💰', '#34C759'),
+                (owner_id, 'income', 'Фриланс', '💻', '#007AFF'),
+                (owner_id, 'income', 'Инвестиции', '📈', '#5856D6'),
+                (owner_id, 'expense', 'Продукты', '🛒', '#FF9500'),
+                (owner_id, 'expense', 'Транспорт', '🚗', '#FF5E3A'),
+                (owner_id, 'expense', 'Развлечения', '🎬', '#FF2D55'),
+                (owner_id, 'expense', 'ЖКХ', '🏠', '#AF52DE'),
+                (owner_id, 'expense', 'Связь', '📱', '#FF3B30'),
+                (owner_id, 'expense', 'Еда вне дома', '🍕', '#FF9500'),
+                (owner_id, 'savings', 'Накопления', '💰', '#FFD60A')
+            ]
+            cursor.executemany('''
+                INSERT INTO categories (user_id, type, name, icon, color)
+                VALUES (?, ?, ?, ?, ?)
+            ''', default_categories)
+
+            default_wallets = [
+                (owner_id, 'Карта', '💳', 0, 1),
+                (owner_id, 'Наличные', '💵', 0, 0)
+            ]
+            cursor.executemany('''
+                INSERT INTO wallets (user_id, name, icon, balance, is_default)
+                VALUES (?, ?, ?, ?, ?)
+            ''', default_wallets)
+
+            cursor.execute('''
+                UPDATE users
+                SET default_wallet = 'Карта',
+                    debts_enabled = 0,
+                    debt_target_amount = 0,
+                    debt_note = ''
+                WHERE id = ?
+            ''', (owner_id,))
+
+            self.conn.commit()
+            return {'success': True, 'owner_id': owner_id, 'deleted': deleted}
+        except Exception:
+            self.conn.rollback()
+            raise
     
     def get_user_by_session(self, session_token):
         cursor = self.conn.cursor()

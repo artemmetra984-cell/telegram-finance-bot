@@ -2048,6 +2048,24 @@ body.modal-open .modal-overlay.active {
   background: rgba(255, 255, 255, 0.05);
 }
 
+.service-link-danger {
+  color: #ff7f76;
+  background: linear-gradient(135deg, rgba(255, 69, 58, 0.2), rgba(255, 69, 58, 0.1));
+  border: 1px solid rgba(255, 69, 58, 0.45);
+}
+
+.service-link-danger .service-link-arrow {
+  color: #ff9a92;
+  opacity: 0.95;
+}
+
+.service-link-danger:hover,
+.service-link-compact.service-link-danger:hover {
+  background: linear-gradient(135deg, rgba(255, 69, 58, 0.28), rgba(255, 69, 58, 0.14));
+  border-color: rgba(255, 69, 58, 0.75);
+  box-shadow: 0 0 14px rgba(255, 69, 58, 0.35);
+}
+
 .service-link-arrow {
   font-size: 16px;
   opacity: 0.7;

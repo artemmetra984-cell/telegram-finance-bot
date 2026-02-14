@@ -360,6 +360,11 @@ const translations = {
         'Калькулятор': 'Calculator',
         'Статьи': 'Articles',
         'Добавить на экран': 'Add to Home',
+        'Сбросить всё': 'Reset all',
+        'Сбросить все данные?': 'Reset all data?',
+        'Будут удалены все операции, категории, кошельки, цели и долги. Это действие нельзя отменить.': 'All transactions, categories, wallets, goals, and debts will be deleted. This action cannot be undone.',
+        'Все данные сброшены': 'All data has been reset',
+        'Ошибка сброса данных': 'Failed to reset data',
         'Общий кошелёк': 'Shared wallet',
         'Полный доступ': 'Full access',
         'Оплата через Crypto Bot': 'Payment via Crypto Bot',
@@ -1813,6 +1818,54 @@ function toggleSettingsCard(forceState = null) {
     card.classList.toggle('collapsed', !shouldExpand);
     const header = card.querySelector('.settings-header');
     if (header) header.setAttribute('aria-expanded', shouldExpand ? 'true' : 'false');
+}
+
+async function resetAllData() {
+    if (!currentUser) return;
+
+    const confirmText = `${t('Сбросить все данные?')}\n\n${t('Будут удалены все операции, категории, кошельки, цели и долги. Это действие нельзя отменить.')}`;
+    if (!window.confirm(confirmText)) return;
+
+    try {
+        const response = await fetch('/api/settings/reset_all', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                user_id: currentUser.id,
+                confirm: true
+            })
+        });
+        const data = await response.json();
+        if (!response.ok || data.error) {
+            throw new Error(data.error || t('Ошибка сброса данных'));
+        }
+
+        const currentMonth = getCurrentMonthPeriodValue();
+        incomeStatsPeriod = currentMonth;
+        expenseStatsPeriod = currentMonth;
+        reportChartPeriods = {
+            overview: currentMonth,
+            income: currentMonth,
+            expense: currentMonth,
+            panel: currentMonth
+        };
+        reportChartRanges = {
+            overview: { from: '', to: '' },
+            income: { from: '', to: '' },
+            expense: { from: '', to: '' },
+            panel: { from: '', to: '' }
+        };
+
+        await loadPanelData();
+        await loadMonthTransactions();
+        await loadReportData();
+        updateDefaultWalletDisplay();
+
+        showNotification(t('Все данные сброшены'), 'success');
+    } catch (error) {
+        console.error('❌ Ошибка сброса данных:', error);
+        showNotification(`${t('Ошибка сброса данных')}: ${error.message}`, 'error');
+    }
 }
 
 // ==================== //
@@ -8150,4 +8203,5 @@ window.openAddToHome = openAddToHome;
 window.closeAddToHome = closeAddToHome;
 window.openAddToHomeLink = openAddToHomeLink;
 window.toggleSettingsCard = toggleSettingsCard;
+window.resetAllData = resetAllData;
 window.switchPage = switchPage;
