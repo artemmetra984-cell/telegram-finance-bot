@@ -50,6 +50,7 @@ def parse_reminder_texts(raw_value):
         return []
     parts = []
     normalized = str(raw_value).replace('\r', '')
+    normalized = normalized.replace('\\n', '\n')
     for line in normalized.split('\n'):
         for chunk in line.split('||'):
             text = chunk.strip()
@@ -63,7 +64,9 @@ DAILY_EXPENSE_REMINDER_TZ_OFFSET = int(os.getenv('DAILY_EXPENSE_REMINDER_TZ_OFFS
 DAILY_EXPENSE_REMINDER_TEXT = (os.getenv('DAILY_EXPENSE_REMINDER_TEXT', '📝 Напоминание: внеси расходы за сегодня, чтобы отчёты были точными.') or '').strip()
 DAILY_EXPENSE_REMINDER_TEXTS = parse_reminder_texts(os.getenv('DAILY_EXPENSE_REMINDER_TEXTS', ''))
 if not DAILY_EXPENSE_REMINDER_TEXTS:
-    DAILY_EXPENSE_REMINDER_TEXTS = [DAILY_EXPENSE_REMINDER_TEXT or '📝 Напоминание: внеси расходы за сегодня, чтобы отчёты были точными.']
+    DAILY_EXPENSE_REMINDER_TEXTS = parse_reminder_texts(DAILY_EXPENSE_REMINDER_TEXT)
+if not DAILY_EXPENSE_REMINDER_TEXTS:
+    DAILY_EXPENSE_REMINDER_TEXTS = ['📝 Напоминание: внеси расходы за сегодня, чтобы отчёты были точными.']
 DAILY_EXPENSE_REMINDER_POLL_SECONDS = max(15, int(os.getenv('DAILY_EXPENSE_REMINDER_POLL_SECONDS', '45') or 45))
 
 def parse_promo_codes(raw_value):
