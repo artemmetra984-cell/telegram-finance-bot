@@ -7,6 +7,8 @@ import hmac
 import hashlib
 import json
 import base64
+import csv
+import io
 import threading
 import time
 from flask import Flask, render_template, jsonify, request, send_from_directory
@@ -2901,6 +2903,78 @@ def export_data(user_id):
             return jsonify({'error': 'Database error'}), 500
     except Exception as e:
         print(f"Export error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/admin/export_users')
+def export_users_admin():
+    try:
+        secret = os.getenv('ADMIN_SECRET')
+        if not secret:
+            return jsonify({'error': 'ADMIN_SECRET is not set'}), 500
+
+        admin_key = (request.args.get('admin_key') or request.headers.get('X-Admin-Key') or '').strip()
+        if admin_key != secret:
+            return jsonify({'error': 'Forbidden'}), 403
+
+        if not db:
+            return jsonify({'error': 'Database error'}), 500
+
+        cursor = db.conn.cursor()
+        cursor.execute('''
+            SELECT
+                u.id,
+                u.telegram_id,
+                u.username,
+                u.first_name,
+                u.currency,
+                u.created_at,
+                u.last_login,
+                COALESCE(s.active, 0) AS subscription_active,
+                s.activated_at AS subscription_start,
+                s.expires_at AS subscription_end
+            FROM users u
+            LEFT JOIN subscriptions s ON s.user_id = u.id
+            ORDER BY datetime(u.created_at) DESC, u.id DESC
+        ''')
+        rows = cursor.fetchall()
+
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow([
+            'id',
+            'telegram_id',
+            'username',
+            'first_name',
+            'currency',
+            'created_at',
+            'last_login',
+            'subscription_active',
+            'subscription_start',
+            'subscription_end'
+        ])
+
+        for row in rows:
+            writer.writerow([
+                row['id'],
+                row['telegram_id'],
+                row['username'] or '',
+                row['first_name'] or '',
+                row['currency'] or 'RUB',
+                row['created_at'] or '',
+                row['last_login'] or '',
+                int(row['subscription_active'] or 0),
+                row['subscription_start'] or '',
+                row['subscription_end'] or ''
+            ])
+
+        filename = f"users_export_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.csv"
+        csv_data = '\ufeff' + output.getvalue()
+        return csv_data, 200, {
+            'Content-Type': 'text/csv; charset=utf-8',
+            'Content-Disposition': f'attachment; filename={filename}'
+        }
+    except Exception as e:
+        print(f"Export users error: {e}")
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
