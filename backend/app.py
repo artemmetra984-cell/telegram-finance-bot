@@ -44,6 +44,8 @@ CRYPTOPAY_API_TOKEN = os.getenv('CRYPTOPAY_API_TOKEN', '')
 CRYPTOPAY_WEBHOOK_SECRET = os.getenv('CRYPTOPAY_WEBHOOK_SECRET', '')
 DEFAULT_SUBSCRIPTION_MONTHS = int(os.getenv('SUBSCRIPTION_DEFAULT_MONTHS', '1'))
 SAVINGS_WALLET_NAME = 'Накопления'
+TRIAL_SUBSCRIPTION_ENABLED = os.getenv('TRIAL_SUBSCRIPTION_ENABLED', '1').strip().lower() in ('1', 'true', 'yes', 'on')
+TRIAL_SUBSCRIPTION_DAYS = max(1, int(os.getenv('TRIAL_SUBSCRIPTION_DAYS', '3') or 3))
 
 def parse_reminder_texts(raw_value):
     if not raw_value:
@@ -779,7 +781,13 @@ def init_user():
                 return jsonify({'error': 'Telegram ID or session token required'}), 400
         else:
             if db:
-                user_id, currency, default_wallet = db.get_or_create_user(telegram_id, username, first_name, session_token)
+                user_id, currency, default_wallet, is_new_user = db.get_or_create_user(telegram_id, username, first_name, session_token)
+                if is_new_user and TRIAL_SUBSCRIPTION_ENABLED:
+                    try:
+                        db.set_subscription_active(user_id, True, days=TRIAL_SUBSCRIPTION_DAYS, extend=False)
+                        print(f"🎁 Trial subscription activated for user {user_id}: {TRIAL_SUBSCRIPTION_DAYS} days")
+                    except Exception as trial_exc:
+                        print(f"⚠️ Trial subscription activation failed for user {user_id}: {trial_exc}")
             else:
                 user_id = telegram_id
                 currency = 'RUB'

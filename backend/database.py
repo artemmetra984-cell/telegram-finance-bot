@@ -411,7 +411,7 @@ class Database:
                 ''', (session_token, user['id']))
                 self.conn.commit()
             
-            return user['id'], user['currency'] or 'RUB', user['default_wallet'] or 'Карта'
+            return user['id'], user['currency'] or 'RUB', user['default_wallet'] or 'Карта', False
         else:
             cursor.execute('''
                 INSERT INTO users (telegram_id, username, first_name, session_token, last_login) 
@@ -451,7 +451,7 @@ class Database:
             
             self.conn.commit()
             print(f"👤 New user: {first_name} ({user_id})")
-            return user_id, 'RUB', 'Карта'
+            return user_id, 'RUB', 'Карта', True
 
     def reset_user_financial_data(self, user_id):
         owner_id = self._resolve_owner_id(user_id)
