@@ -204,7 +204,12 @@ def lecryptio_matches_subscription(amount, currency, network):
     net = ''.join(ch for ch in net if ch.isalnum())
     if amt is None:
         return False
-    return abs(amt - 2.0) < 0.0001 and cur == 'USDT' and net == 'TRC20'
+    if cur != 'USDT' or net != 'TRC20':
+        return False
+    for price in SUBSCRIPTION_PRICE_MAP.values():
+        if abs(amt - float(price)) < 0.0001:
+            return True
+    return False
 
 def lecryptio_signed_headers(body_str):
     if not LECRYPTIO_API_KEY or not LECRYPTIO_SIGNING_SECRET:
@@ -255,10 +260,10 @@ def is_cryptopay_paid(status):
     return status in ('paid',)
 
 SUBSCRIPTION_PRICE_MAP = {
-    1: 2.0,
-    3: 5.6,
-    6: 10.5,
-    12: 21.5
+    1: 4.0,
+    3: 10.5,
+    6: 18.0,
+    12: 30.0
 }
 
 def get_subscription_price(months):
@@ -1367,7 +1372,7 @@ def lecryptio_create():
         uuid_value = str(result.get('invoice_id'))
         order_ref = result.get('payload')
         status = result.get('status') or 'active'
-        amount = result.get('amount') or '2'
+        amount = result.get('amount') or f"{get_subscription_price(DEFAULT_SUBSCRIPTION_MONTHS):.2f}".rstrip('0').rstrip('.')
         currency = result.get('asset') or 'USDT'
         return jsonify({
             'uuid': uuid_value,
@@ -1559,7 +1564,7 @@ def cryptocloud_create():
         uuid_value = str(result.get('invoice_id'))
         order_id = result.get('payload')
         status = result.get('status') or 'active'
-        amount = result.get('amount') or '2'
+        amount = result.get('amount') or f"{get_subscription_price(DEFAULT_SUBSCRIPTION_MONTHS):.2f}".rstrip('0').rstrip('.')
         currency = result.get('asset') or 'USDT'
         return jsonify({
             'uuid': uuid_value,
@@ -1661,7 +1666,7 @@ def nowpayments_create():
         order_id = f"sub_{user_id}_{int(datetime.utcnow().timestamp())}"
         ipn_url = f"{request.host_url.rstrip('/')}/api/nowpayments/ipn"
         payload = {
-            'price_amount': 2.0,
+            'price_amount': get_subscription_price(DEFAULT_SUBSCRIPTION_MONTHS),
             'price_currency': 'usd',
             'pay_currency': 'usdttrc20',
             'order_id': order_id,

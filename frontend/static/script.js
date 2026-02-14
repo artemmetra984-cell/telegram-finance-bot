@@ -82,7 +82,7 @@ let subscriptionActive = false;
 let subscriptionStart = null;
 let subscriptionEnd = null;
 const subscriptionProvider = 'cryptopay';
-const subscriptionPrices = { 1: 2, 3: 5.6, 6: 10.5, 12: 21.5 };
+const subscriptionPrices = { 1: 4, 3: 10.5, 6: 18, 12: 30 };
 let subscriptionDuration = 1;
 let subscriptionPayment = {
     invoiceId: null,
@@ -392,10 +392,10 @@ const translations = {
         'С': 'From',
         'по': 'to',
         'User ID или @username': 'User ID or @username',
-        '1 месяц — $2': '1 month — $2',
-        '3 месяца — $5.6': '3 months — $5.6',
-        '6 месяцев — $10.5': '6 months — $10.5',
-        '12 месяцев — $21.5': '12 months — $21.5',
+        '1 месяц — $4': '1 month — $4',
+        '3 месяца — $10.5': '3 months — $10.5',
+        '6 месяцев — $18': '6 months — $18',
+        '12 месяцев — $30': '12 months — $30',
         'Admin key': 'Admin key',
         'Выдать подписку': 'Grant subscription',
         'Использовать мой username': 'Use my username',
@@ -3357,7 +3357,7 @@ function openSupportChat() {
 }
 
 function getSubscriptionPrice(months) {
-    return subscriptionPrices[months] || subscriptionPrices[1] || 2;
+    return subscriptionPrices[months] || subscriptionPrices[1] || 4;
 }
 
 function updateSubscriptionPrice() {
