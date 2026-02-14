@@ -201,6 +201,7 @@ const translations = {
         'Активировать промокод': 'Redeem promo',
         'Адрес': 'Address',
         'Сумма': 'Amount',
+        'Дата и время': 'Date and time',
         'Создать оплату': 'Create payment',
         'Скопировать адрес': 'Copy address',
         'Скопировать сумму': 'Copy amount',
@@ -2126,6 +2127,28 @@ function findTransactionById(id) {
     return fromRecent || null;
 }
 
+function formatDateForDateTimeInput(value) {
+    if (!value) return '';
+    if (value instanceof Date && !Number.isNaN(value.getTime())) {
+        const year = value.getFullYear();
+        const month = String(value.getMonth() + 1).padStart(2, '0');
+        const day = String(value.getDate()).padStart(2, '0');
+        const hours = String(value.getHours()).padStart(2, '0');
+        const minutes = String(value.getMinutes()).padStart(2, '0');
+        return `${year}-${month}-${day}T${hours}:${minutes}`;
+    }
+
+    const rawValue = String(value).trim();
+    const directMatch = rawValue.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::\d{2}(?:\.\d+)?)?$/);
+    if (directMatch) {
+        return `${directMatch[1]}-${directMatch[2]}-${directMatch[3]}T${directMatch[4]}:${directMatch[5]}`;
+    }
+
+    const parsed = new Date(rawValue);
+    if (Number.isNaN(parsed.getTime())) return '';
+    return formatDateForDateTimeInput(parsed);
+}
+
 function openEditTransactionById(id) {
     const transaction = findTransactionById(id);
     if (!transaction) {
@@ -2149,11 +2172,15 @@ function openEditTransaction(transaction) {
     const categorySelect = document.getElementById('transaction-category');
     const walletSelect = document.getElementById('transaction-wallet');
     const descriptionInput = document.getElementById('transaction-description');
+    const dateTimeInput = document.getElementById('transaction-date-time');
 
     if (amountInput) amountInput.value = transaction.amount;
     if (descriptionInput) descriptionInput.value = transaction.description || '';
     if (categorySelect) categorySelect.value = transaction.category;
     if (walletSelect) walletSelect.value = transaction.wallet;
+    if (dateTimeInput) {
+        dateTimeInput.value = formatDateForDateTimeInput(transaction.date) || formatDateForDateTimeInput(new Date());
+    }
 
     const title = document.getElementById('transaction-modal-title');
     if (title) title.textContent = t('Изменить операцию');
@@ -5219,6 +5246,14 @@ function showAddTransactionModal(prefilledCategory = null) {
     // Сбрасываем форму
     document.getElementById('transaction-amount').value = '';
     document.getElementById('transaction-description').value = '';
+    const dateTimeInput = document.getElementById('transaction-date-time');
+    const dateTimeGroup = document.getElementById('transaction-date-time-group');
+    if (dateTimeInput) {
+        dateTimeInput.value = '';
+    }
+    if (dateTimeGroup) {
+        dateTimeGroup.style.display = editingTransactionId ? '' : 'none';
+    }
     
     // Устанавливаем тип транзакции
     const typeTabs = document.querySelectorAll('.modal-tab');
@@ -5761,6 +5796,7 @@ async function submitTransaction(e) {
     const categorySelect = document.getElementById('transaction-category');
     const walletSelect = document.getElementById('transaction-wallet');
     const descriptionInput = document.getElementById('transaction-description');
+    const dateTimeInput = document.getElementById('transaction-date-time');
     
     if (!amountInput || !categorySelect || !currentUser) return;
     
@@ -5851,6 +5887,9 @@ async function submitTransaction(e) {
         }
         if (isEditing) {
             payload.transaction_id = editingTransactionId;
+            if (dateTimeInput && dateTimeInput.value) {
+                payload.date = dateTimeInput.value;
+            }
         }
 
         const response = await fetch(endpoint, {

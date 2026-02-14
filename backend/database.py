@@ -765,7 +765,7 @@ class Database:
         self.conn.commit()
         return True
 
-    def update_transaction(self, user_id, transaction_id, trans_type, amount, category, wallet, description, debt_id=None):
+    def update_transaction(self, user_id, transaction_id, trans_type, amount, category, wallet, description, debt_id=None, trans_date=None):
         cursor = self.conn.cursor()
         owner_id = self._resolve_owner_id(user_id)
         cursor.execute('''
@@ -810,9 +810,9 @@ class Database:
 
         cursor.execute('''
             UPDATE transactions
-            SET type = ?, amount = ?, category = ?, wallet = ?, description = ?, debt_id = ?
+            SET type = ?, amount = ?, category = ?, wallet = ?, description = ?, debt_id = ?, date = COALESCE(?, date)
             WHERE id = ? AND user_id = ?
-        ''', (trans_type, amount, category, wallet, description or '', debt_id, transaction_id, owner_id))
+        ''', (trans_type, amount, category, wallet, description or '', debt_id, trans_date, transaction_id, owner_id))
         self.conn.commit()
         return True
     

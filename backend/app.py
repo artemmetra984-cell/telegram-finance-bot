@@ -1655,6 +1655,8 @@ def update_transaction():
         wallet = data.get('wallet', 'Карта')
         description = data.get('description', '')
         debt_id = data.get('debt_id')
+        transaction_date_raw = data.get('date')
+        transaction_date = None
 
         if not all([user_id, transaction_id, trans_type, amount, category]):
             return jsonify({'error': 'Missing fields'}), 400
@@ -1668,6 +1670,32 @@ def update_transaction():
                 return jsonify({'error': 'Amount must be positive'}), 400
         except ValueError:
             return jsonify({'error': 'Invalid amount'}), 400
+
+        if transaction_date_raw not in (None, ''):
+            if not isinstance(transaction_date_raw, str):
+                return jsonify({'error': 'Invalid date format'}), 400
+            parsed_date = None
+            cleaned = transaction_date_raw.strip()
+            date_formats = (
+                '%Y-%m-%dT%H:%M',
+                '%Y-%m-%d %H:%M',
+                '%Y-%m-%dT%H:%M:%S',
+                '%Y-%m-%d %H:%M:%S'
+            )
+            for date_fmt in date_formats:
+                try:
+                    parsed_date = datetime.strptime(cleaned, date_fmt)
+                    break
+                except ValueError:
+                    continue
+            if parsed_date is None:
+                try:
+                    parsed_date = datetime.fromisoformat(cleaned.replace('Z', '+00:00'))
+                except ValueError:
+                    return jsonify({'error': 'Invalid date format'}), 400
+            if parsed_date.tzinfo is not None:
+                parsed_date = parsed_date.astimezone().replace(tzinfo=None)
+            transaction_date = parsed_date.strftime('%Y-%m-%d %H:%M:%S')
 
         if not db:
             return jsonify({'error': 'Database error'}), 500
@@ -1703,7 +1731,17 @@ def update_transaction():
             if amount > available_balance:
                 return jsonify({'error': 'insufficient_funds'}), 400
 
-        if not db.update_transaction(user_id, int(transaction_id), trans_type, amount, category, wallet, description, debt_id):
+        if not db.update_transaction(
+            user_id,
+            int(transaction_id),
+            trans_type,
+            amount,
+            category,
+            wallet,
+            description,
+            debt_id,
+            transaction_date
+        ):
             return jsonify({'error': 'Transaction not found'}), 404
 
         stats = db.get_user_stats(user_id)
