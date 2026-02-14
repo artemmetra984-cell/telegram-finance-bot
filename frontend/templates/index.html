@@ -510,10 +510,18 @@
                         </button>
                     </div>
 
-                    <!-- Статьи -->
-                    <div class="service-card">
+                    <!-- Статьи (временно скрыто) -->
+                    <div class="service-card" style="display: none;">
                         <button class="service-link service-link-compact" onclick="openArticlesLibrary()">
                             <span data-i18n="Статьи">Статьи</span>
+                            <span class="service-link-arrow">→</span>
+                        </button>
+                    </div>
+
+                    <!-- Как оплатить подписку -->
+                    <div class="service-card">
+                        <button class="service-link service-link-compact" onclick="openArticle('subscription_payment_guide')">
+                            <span data-i18n="Как оплатить подписку">Как оплатить подписку</span>
                             <span class="service-link-arrow">→</span>
                         </button>
                     </div>

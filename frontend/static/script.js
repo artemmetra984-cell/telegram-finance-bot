@@ -359,6 +359,7 @@ const translations = {
         'Валюта': 'Currency',
         'Калькулятор': 'Calculator',
         'Статьи': 'Articles',
+        'Как оплатить подписку': 'How to pay for subscription',
         'Добавить на экран': 'Add to Home',
         'Сбросить всё': 'Reset all',
         'Сбросить все данные?': 'Reset all data?',
@@ -892,6 +893,130 @@ const articlesLibrary = {
                 <h2>4. The 24-hour rule</h2>
                 <p>Pause before a large purchase. Often the impulse fades, saving money for what truly matters.</p>
                 <p>Financial literacy is not about counting every penny, but about conscious allocation of resources. Start by tracking expenses for a month, then apply these principles and adjust the percentages to your reality. Systems beat sums: even small, regular contributions create stability.</p>
+            `
+        }
+    },
+    subscription_payment_guide: {
+        title: {
+            ru: 'Как оплатить подписку',
+            en: 'How to pay for subscription'
+        },
+        body: {
+            ru: `
+                <p>Пошаговая инструкция оплаты подписки:</p>
+                <div class="article-step">
+                    <div class="article-step-title">Шаг 1</div>
+                    <img class="article-step-image" src="/static/payment-guide/step-01.jpeg" alt="Шаг 1 — выбор подписки и создание оплаты" />
+                    <div class="article-step-caption">В окне оплаты выбираем нужную подписку и нажимаем на кнопку создать оплату.</div>
+                </div>
+                <div class="article-step">
+                    <div class="article-step-title">Шаг 2</div>
+                    <img class="article-step-image" src="/static/payment-guide/step-02.jpeg" alt="Шаг 2 — копируем сумму и открываем оплату" />
+                    <div class="article-step-caption">При необходимости копируем сумму или запоминаем, далее нажимаем на «Открыть оплату».</div>
+                </div>
+                <div class="article-step">
+                    <div class="article-step-title">Шаг 3</div>
+                    <img class="article-step-image" src="/static/payment-guide/step-03.jpeg" alt="Шаг 3 — вход и переход к адресу пополнения" />
+                    <div class="article-step-caption">При переходе на страницу оплаты может потребоваться задать код для входа и подтвердить почту. Если что-то слетело, можно перезайти через предыдущий шаг. После попадания на страницу оплаты нажимаем «Показать адрес пополнения» в самом низу.</div>
+                </div>
+                <div class="article-step">
+                    <div class="article-step-title">Шаг 4</div>
+                    <img class="article-step-image" src="/static/payment-guide/step-04.jpeg" alt="Шаг 4 — копируем адрес и переходим в Telegram Кошелек" />
+                    <div class="article-step-caption">После перехода видим QR и адрес кошелька для перевода. Копируем адрес кошелька и переходим в Телеграм Кошелек (находится в настройках Telegram).</div>
+                </div>
+                <div class="article-step">
+                    <div class="article-step-title">Шаг 5</div>
+                    <img class="article-step-image" src="/static/payment-guide/step-05.jpeg" alt="Шаг 5 — открываем Telegram Кошелек" />
+                    <div class="article-step-caption">На фото выделен Телеграм Кошелек, переходим туда.</div>
+                </div>
+                <div class="article-step">
+                    <div class="article-step-title">Шаг 6</div>
+                    <img class="article-step-image" src="/static/payment-guide/step-06.jpeg" alt="Шаг 6 — проверяем сумму и нажимаем Вывести" />
+                    <div class="article-step-caption">Если ни разу не пользовались, то потребуется подтвердить почту и код. На кошельке должна быть нужная сумма, купить можно во вкладке «Пополнить». Следом нажимаем на кнопку «Вывести».</div>
+                </div>
+                <div class="article-step">
+                    <div class="article-step-title">Шаг 7</div>
+                    <img class="article-step-image" src="/static/payment-guide/step-07.jpeg" alt="Шаг 7 — выбираем внешний кошелек или биржу" />
+                    <div class="article-step-caption">Выбираем «внешний кошелек или биржа».</div>
+                </div>
+                <div class="article-step">
+                    <div class="article-step-title">Шаг 8</div>
+                    <img class="article-step-image" src="/static/payment-guide/step-08.jpeg" alt="Шаг 8 — выбираем USDT" />
+                    <div class="article-step-caption">Выбираем Доллар (USDT).</div>
+                </div>
+                <div class="article-step">
+                    <div class="article-step-title">Шаг 9</div>
+                    <img class="article-step-image" src="/static/payment-guide/step-09.jpeg" alt="Шаг 9 — вставляем адрес и выбираем TON" />
+                    <div class="article-step-caption">В верхнее поле вставляем адрес кошелька, скопированный на 4 скриншоте (подсвечено стрелочкой), выбираем систему TON и нажимаем «Далее».</div>
+                </div>
+                <div class="article-step">
+                    <div class="article-step-title">Шаг 10</div>
+                    <img class="article-step-image" src="/static/payment-guide/step-10.jpeg" alt="Шаг 10 — вводим сумму и продолжаем" />
+                    <div class="article-step-caption">Пишем сумму со страницы оплаты и нажимаем «Далее».</div>
+                </div>
+                <div class="article-step">
+                    <div class="article-step-title">Шаг 11</div>
+                    <img class="article-step-image" src="/static/payment-guide/step-11.jpeg" alt="Шаг 11 — подтверждаем перевод и ждём активацию подписки" />
+                    <div class="article-step-caption">Нажимаем «Подтвердить и отправить». Обработка транзакции занимает некоторое время (примерно 1-2 минуты), после этого вам придёт уведомление от CryptoBot об успешной покупке. Подписка активируется. Для покупки подписки обычной валютой можно обратиться в поддержку <strong>@uppersupp</strong>.</div>
+                </div>
+            `,
+            en: `
+                <p>Step-by-step subscription payment guide:</p>
+                <div class="article-step">
+                    <div class="article-step-title">Step 1</div>
+                    <img class="article-step-image" src="/static/payment-guide/step-01.jpeg" alt="Step 1 — choose subscription and create payment" />
+                    <div class="article-step-caption">In the payment window, choose the required subscription period and tap “Create payment”.</div>
+                </div>
+                <div class="article-step">
+                    <div class="article-step-title">Step 2</div>
+                    <img class="article-step-image" src="/static/payment-guide/step-02.jpeg" alt="Step 2 — copy amount and open invoice" />
+                    <div class="article-step-caption">If needed, copy or remember the amount, then tap “Open invoice”.</div>
+                </div>
+                <div class="article-step">
+                    <div class="article-step-title">Step 3</div>
+                    <img class="article-step-image" src="/static/payment-guide/step-03.jpeg" alt="Step 3 — sign in and open top-up address" />
+                    <div class="article-step-caption">On the payment page, you may need to set a login code and confirm your email. If anything resets, return through the previous step. Once on the payment page, tap “Show top-up address” at the bottom.</div>
+                </div>
+                <div class="article-step">
+                    <div class="article-step-title">Step 4</div>
+                    <img class="article-step-image" src="/static/payment-guide/step-04.jpeg" alt="Step 4 — copy wallet address and open Telegram Wallet" />
+                    <div class="article-step-caption">After opening it, you will see a QR code and a wallet address for transfer. Copy the wallet address and open Telegram Wallet (available in Telegram settings).</div>
+                </div>
+                <div class="article-step">
+                    <div class="article-step-title">Step 5</div>
+                    <img class="article-step-image" src="/static/payment-guide/step-05.jpeg" alt="Step 5 — open Telegram Wallet" />
+                    <div class="article-step-caption">The screenshot highlights Telegram Wallet, open it.</div>
+                </div>
+                <div class="article-step">
+                    <div class="article-step-title">Step 6</div>
+                    <img class="article-step-image" src="/static/payment-guide/step-06.jpeg" alt="Step 6 — make sure balance is enough and tap Withdraw" />
+                    <div class="article-step-caption">If this is your first time, you may need to confirm your email and code. Make sure the wallet has enough funds; you can buy in the “Top up” tab. Then tap “Withdraw”.</div>
+                </div>
+                <div class="article-step">
+                    <div class="article-step-title">Step 7</div>
+                    <img class="article-step-image" src="/static/payment-guide/step-07.jpeg" alt="Step 7 — choose external wallet or exchange" />
+                    <div class="article-step-caption">Choose “External wallet or exchange”.</div>
+                </div>
+                <div class="article-step">
+                    <div class="article-step-title">Step 8</div>
+                    <img class="article-step-image" src="/static/payment-guide/step-08.jpeg" alt="Step 8 — choose USDT" />
+                    <div class="article-step-caption">Choose Dollar (USDT).</div>
+                </div>
+                <div class="article-step">
+                    <div class="article-step-title">Step 9</div>
+                    <img class="article-step-image" src="/static/payment-guide/step-09.jpeg" alt="Step 9 — paste wallet address and choose TON" />
+                    <div class="article-step-caption">In the top field, paste the wallet address copied on screenshot 4 (highlighted with an arrow), choose TON network, and tap “Next”.</div>
+                </div>
+                <div class="article-step">
+                    <div class="article-step-title">Step 10</div>
+                    <img class="article-step-image" src="/static/payment-guide/step-10.jpeg" alt="Step 10 — enter amount and continue" />
+                    <div class="article-step-caption">Enter the amount from the payment page and tap “Next”.</div>
+                </div>
+                <div class="article-step">
+                    <div class="article-step-title">Step 11</div>
+                    <img class="article-step-image" src="/static/payment-guide/step-11.jpeg" alt="Step 11 — confirm transfer and wait for activation" />
+                    <div class="article-step-caption">Tap “Confirm and send”. Processing may take some time (about 1–2 minutes), then you will receive a CryptoBot notification about successful purchase. The subscription will be activated. To purchase with regular fiat currency, contact support <strong>@uppersupp</strong>.</div>
+                </div>
             `
         }
     }

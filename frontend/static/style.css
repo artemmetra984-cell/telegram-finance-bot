@@ -2547,6 +2547,36 @@ body.modal-open .modal-overlay.active {
   color: var(--ios-text-secondary);
 }
 
+.article-step {
+  margin-bottom: 14px;
+  padding: 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.article-step-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ios-text-primary);
+  margin-bottom: 8px;
+}
+
+.article-step-image {
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.28);
+  display: block;
+}
+
+.article-step-caption {
+  margin-top: 8px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ios-text-secondary);
+}
+
 /* Investments */
 .invest-section {
   margin: var(--spacing-md);
