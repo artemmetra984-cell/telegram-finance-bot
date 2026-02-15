@@ -16,7 +16,7 @@ from flask_cors import CORS
 from dotenv import load_dotenv
 import requests
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 load_dotenv()
@@ -2908,6 +2908,70 @@ def export_data(user_id):
 @app.route('/api/admin/export_users')
 def export_users_admin():
     try:
+        def sanitize_text(value):
+            return str(value or '').replace('\n', ' ').replace('\r', ' ').strip()
+
+        def format_amount(value):
+            try:
+                amount = float(value or 0)
+            except Exception:
+                amount = 0.0
+            if abs(amount - round(amount)) < 0.000001:
+                return f"{int(round(amount)):,}".replace(',', ' ')
+            return f"{amount:,.2f}".replace(',', ' ').replace('.', ',')
+
+        def format_rub(value):
+            return f"{format_amount(value)} ₽"
+
+        def format_datetime_msk(raw_value):
+            text = sanitize_text(raw_value)
+            if not text:
+                return ''
+            if text.endswith('Z'):
+                text = f"{text[:-1]}+00:00"
+
+            dt = None
+            try:
+                dt = datetime.fromisoformat(text)
+            except Exception:
+                pass
+
+            if dt is None:
+                for fmt in (
+                    '%Y-%m-%d %H:%M:%S.%f',
+                    '%Y-%m-%d %H:%M:%S',
+                    '%Y-%m-%dT%H:%M:%S.%f',
+                    '%Y-%m-%dT%H:%M:%S'
+                ):
+                    try:
+                        dt = datetime.strptime(text, fmt)
+                        break
+                    except Exception:
+                        continue
+
+            if dt is None:
+                return sanitize_text(raw_value)
+
+            if dt.tzinfo is not None:
+                dt_utc = dt.astimezone(timezone.utc).replace(tzinfo=None)
+            else:
+                dt_utc = dt
+
+            dt_msk = dt_utc + timedelta(hours=3)
+            return dt_msk.strftime('%Y-%m-%d %H:%M:%S')
+
+        def format_operation_struct(item):
+            tx_type = 'Доход' if item['type'] == 'income' else 'Расход'
+            sign = '+' if item['type'] == 'income' else '-'
+            return {
+                'date': format_datetime_msk(item['date']),
+                'type': tx_type,
+                'amount': f"{sign}{format_rub(item['amount'])}",
+                'category': sanitize_text(item['category']),
+                'wallet': sanitize_text(item['wallet']),
+                'description': sanitize_text(item['description'])
+            }
+
         secret = os.getenv('ADMIN_SECRET')
         if not secret:
             return jsonify({'error': 'ADMIN_SECRET is not set'}), 500
@@ -2950,38 +3014,125 @@ def export_users_admin():
         ''')
         rows = cursor.fetchall()
 
+        cursor.execute('''
+            SELECT user_id, name, balance
+            FROM wallets
+            ORDER BY user_id ASC, is_default DESC, name COLLATE NOCASE ASC
+        ''')
+        wallet_rows = cursor.fetchall()
+        wallets_map = {}
+        wallets_total_map = {}
+        for wallet_row in wallet_rows:
+            user_wallets = wallets_map.setdefault(wallet_row['user_id'], [])
+            wallet_name = sanitize_text(wallet_row['name'])
+            wallet_balance_value = float(wallet_row['balance'] or 0)
+            user_wallets.append({
+                'name': wallet_name,
+                'balance_value': wallet_balance_value,
+                'balance': format_rub(wallet_balance_value)
+            })
+            wallets_total_map[wallet_row['user_id']] = wallets_total_map.get(wallet_row['user_id'], 0.0) + wallet_balance_value
+
+        max_wallets = 0
+        for wallet_items in wallets_map.values():
+            if len(wallet_items) > max_wallets:
+                max_wallets = len(wallet_items)
+
+        cursor.execute('''
+            SELECT user_id, type, amount, category, wallet, description, date, id
+            FROM transactions
+            ORDER BY user_id ASC, datetime(date) DESC, id DESC
+        ''')
+        transaction_rows = cursor.fetchall()
+        recent_transactions_map = {}
+        for transaction_row in transaction_rows:
+            user_transactions = recent_transactions_map.setdefault(transaction_row['user_id'], [])
+            if len(user_transactions) < 3:
+                user_transactions.append(transaction_row)
+
         output = io.StringIO()
         writer = csv.writer(output, delimiter=delimiter, quoting=csv.QUOTE_MINIMAL)
-        writer.writerow([
+        headers = [
             'id',
             'telegram_id',
             'username',
             'first_name',
             'currency',
-            'created_at',
-            'last_login',
+            'created_at_msk',
+            'last_login_msk',
             'subscription_active',
-            'subscription_start',
-            'subscription_end'
-        ])
+            'subscription_start_msk',
+            'subscription_end_msk',
+            'wallets_total'
+        ]
+        for idx in range(max_wallets):
+            headers.extend([
+                f'wallet_{idx + 1}_name',
+                f'wallet_{idx + 1}_balance'
+            ])
+        for idx in range(1, 4):
+            headers.extend([
+                f'operation_{idx}_date_msk',
+                f'operation_{idx}_type',
+                f'operation_{idx}_amount',
+                f'operation_{idx}_category',
+                f'operation_{idx}_wallet',
+                f'operation_{idx}_description'
+            ])
+        writer.writerow(headers)
 
         for row in rows:
-            username = (row['username'] or '').replace('\n', ' ').replace('\r', ' ')
-            first_name = (row['first_name'] or '').replace('\n', ' ').replace('\r', ' ')
-            writer.writerow([
+            username = sanitize_text(row['username'])
+            first_name = sanitize_text(row['first_name'])
+            user_wallets = wallets_map.get(row['id'], [])
+            wallets_total = format_rub(wallets_total_map.get(row['id'], 0.0))
+            tx_items = recent_transactions_map.get(row['id'], [])
+            tx_structs = [format_operation_struct(tx) for tx in tx_items]
+            while len(tx_structs) < 3:
+                tx_structs.append({
+                    'date': '',
+                    'type': '',
+                    'amount': '',
+                    'category': '',
+                    'wallet': '',
+                    'description': ''
+                })
+
+            row_values = [
                 row['id'],
                 row['telegram_id'],
                 username,
                 first_name,
                 row['currency'] or 'RUB',
-                row['created_at'] or '',
-                row['last_login'] or '',
+                format_datetime_msk(row['created_at']),
+                format_datetime_msk(row['last_login']),
                 int(row['subscription_active'] or 0),
-                row['subscription_start'] or '',
-                row['subscription_end'] or ''
-            ])
+                format_datetime_msk(row['subscription_start']),
+                format_datetime_msk(row['subscription_end']),
+                wallets_total
+            ]
 
-        filename = f"users_export_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.{ext}"
+            for idx in range(max_wallets):
+                wallet_item = user_wallets[idx] if idx < len(user_wallets) else None
+                row_values.extend([
+                    wallet_item['name'] if wallet_item else '',
+                    wallet_item['balance'] if wallet_item else ''
+                ])
+
+            for tx in tx_structs[:3]:
+                row_values.extend([
+                    tx['date'],
+                    tx['type'],
+                    tx['amount'],
+                    tx['category'],
+                    tx['wallet'],
+                    tx['description']
+                ])
+
+            writer.writerow(row_values)
+
+        filename_stamp = (datetime.utcnow() + timedelta(hours=3)).strftime('%Y%m%d_%H%M%S')
+        filename = f"users_export_{filename_stamp}.{ext}"
         csv_data = '\ufeff' + output.getvalue()
         return csv_data, 200, {
             'Content-Type': ('text/tab-separated-values; charset=utf-8' if ext == 'tsv' else 'text/csv; charset=utf-8'),
