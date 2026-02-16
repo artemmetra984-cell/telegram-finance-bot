@@ -1194,57 +1194,57 @@ const articlesLibrary = {
                 <p>Step-by-step subscription payment guide:</p>
                 <div class="article-step">
                     <div class="article-step-title">Step 1</div>
-                    <img class="article-step-image" src="/static/payment-guide/step-01.jpeg" alt="Step 1 — choose subscription and create payment" />
+                    <img class="article-step-image" src="/static/payment-guide/eng-step-01.jpeg" alt="Step 1 — choose subscription and create payment" />
                     <div class="article-step-caption">In the payment window, choose the required subscription period and tap “Create payment”.</div>
                 </div>
                 <div class="article-step">
                     <div class="article-step-title">Step 2</div>
-                    <img class="article-step-image" src="/static/payment-guide/step-02.jpeg" alt="Step 2 — copy amount and open invoice" />
+                    <img class="article-step-image" src="/static/payment-guide/eng-step-02.jpeg" alt="Step 2 — copy amount and open invoice" />
                     <div class="article-step-caption">If needed, copy or remember the amount, then tap “Open invoice”.</div>
                 </div>
                 <div class="article-step">
                     <div class="article-step-title">Step 3</div>
-                    <img class="article-step-image" src="/static/payment-guide/step-03.jpeg" alt="Step 3 — sign in and open top-up address" />
+                    <img class="article-step-image" src="/static/payment-guide/eng-step-03.jpeg" alt="Step 3 — sign in and open top-up address" />
                     <div class="article-step-caption">On the payment page, you may need to set a login code and confirm your email. If anything resets, return through the previous step. Once on the payment page, tap “Show top-up address” at the bottom.</div>
                 </div>
                 <div class="article-step">
                     <div class="article-step-title">Step 4</div>
-                    <img class="article-step-image" src="/static/payment-guide/step-04.jpeg" alt="Step 4 — copy wallet address and open Telegram Wallet" />
+                    <img class="article-step-image" src="/static/payment-guide/eng-step-04.jpeg" alt="Step 4 — copy wallet address and open Telegram Wallet" />
                     <div class="article-step-caption">After opening it, you will see a QR code and a wallet address for transfer. Copy the wallet address and open Telegram Wallet (available in Telegram settings).</div>
                 </div>
                 <div class="article-step">
                     <div class="article-step-title">Step 5</div>
-                    <img class="article-step-image" src="/static/payment-guide/step-05.jpeg" alt="Step 5 — open Telegram Wallet" />
+                    <img class="article-step-image" src="/static/payment-guide/eng-step-05.jpeg" alt="Step 5 — open Telegram Wallet" />
                     <div class="article-step-caption">The screenshot highlights Telegram Wallet, open it.</div>
                 </div>
                 <div class="article-step">
                     <div class="article-step-title">Step 6</div>
-                    <img class="article-step-image" src="/static/payment-guide/step-06.jpeg" alt="Step 6 — make sure balance is enough and tap Withdraw" />
+                    <img class="article-step-image" src="/static/payment-guide/eng-step-06.jpeg" alt="Step 6 — make sure balance is enough and tap Withdraw" />
                     <div class="article-step-caption">If this is your first time, you may need to confirm your email and code. Make sure the wallet has enough funds; you can buy in the “Top up” tab. Then tap “Withdraw”.</div>
                 </div>
                 <div class="article-step">
                     <div class="article-step-title">Step 7</div>
-                    <img class="article-step-image" src="/static/payment-guide/step-07.jpeg" alt="Step 7 — choose external wallet or exchange" />
+                    <img class="article-step-image" src="/static/payment-guide/eng-step-07.jpeg" alt="Step 7 — choose external wallet or exchange" />
                     <div class="article-step-caption">Choose “External wallet or exchange”.</div>
                 </div>
                 <div class="article-step">
                     <div class="article-step-title">Step 8</div>
-                    <img class="article-step-image" src="/static/payment-guide/step-08.jpeg" alt="Step 8 — choose USDT" />
+                    <img class="article-step-image" src="/static/payment-guide/eng-step-08.jpeg" alt="Step 8 — choose USDT" />
                     <div class="article-step-caption">Choose Dollar (USDT).</div>
                 </div>
                 <div class="article-step">
                     <div class="article-step-title">Step 9</div>
-                    <img class="article-step-image" src="/static/payment-guide/step-09.jpeg" alt="Step 9 — paste wallet address and choose TON" />
+                    <img class="article-step-image" src="/static/payment-guide/eng-step-09.jpeg" alt="Step 9 — paste wallet address and choose TON" />
                     <div class="article-step-caption">In the top field, paste the wallet address copied on screenshot 4 (highlighted with an arrow), choose TON network, and tap “Next”.</div>
                 </div>
                 <div class="article-step">
                     <div class="article-step-title">Step 10</div>
-                    <img class="article-step-image" src="/static/payment-guide/step-10.jpeg" alt="Step 10 — enter amount and continue" />
+                    <img class="article-step-image" src="/static/payment-guide/eng-step-10.jpeg" alt="Step 10 — enter amount and continue" />
                     <div class="article-step-caption">Enter the amount from the payment page and tap “Next”.</div>
                 </div>
                 <div class="article-step">
                     <div class="article-step-title">Step 11</div>
-                    <img class="article-step-image" src="/static/payment-guide/step-11.jpeg" alt="Step 11 — confirm transfer and wait for activation" />
+                    <img class="article-step-image" src="/static/payment-guide/eng-step-11.jpeg" alt="Step 11 — confirm transfer and wait for activation" />
                     <div class="article-step-caption">Tap “Confirm and send”. Processing may take some time (about 1–2 minutes), then you will receive a CryptoBot notification about successful purchase. The subscription will be activated. To purchase with regular fiat currency, contact support <strong>@uppersupp</strong>.</div>
                 </div>
             `
