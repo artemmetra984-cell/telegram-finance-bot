@@ -2030,7 +2030,7 @@ async function cleanupServiceWorkerCache() {
 }
 
 async function initUser() {
-    let telegramId, username = '', firstName = t('Пользователь');
+    let telegramId, username = '', firstName = t('Пользователь'), languageCode = '';
     
     if (window.Telegram && Telegram.WebApp) {
         const user = Telegram.WebApp.initDataUnsafe?.user;
@@ -2038,6 +2038,7 @@ async function initUser() {
             telegramId = user.id;
             username = user.username || '';
             firstName = user.first_name || t('Пользователь');
+            languageCode = String(user.language_code || '').trim();
             if (user.language_code) {
                 telegramLanguageHint = String(user.language_code);
                 applyAutoLanguageIfNeeded(telegramLanguageHint);
@@ -2064,6 +2065,7 @@ async function initUser() {
                 telegram_id: telegramId,
                 username: username,
                 first_name: firstName,
+                language_code: languageCode,
                 session_token: sessionToken
             })
         });

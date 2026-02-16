@@ -71,7 +71,51 @@ if not DAILY_EXPENSE_REMINDER_TEXTS:
     DAILY_EXPENSE_REMINDER_TEXTS = parse_reminder_texts(DAILY_EXPENSE_REMINDER_TEXT)
 if not DAILY_EXPENSE_REMINDER_TEXTS:
     DAILY_EXPENSE_REMINDER_TEXTS = ['📝 Напоминание: внеси расходы за сегодня, чтобы отчёты были точными.']
+DAILY_EXPENSE_REMINDER_TEXT_EN = (
+    os.getenv(
+        'DAILY_EXPENSE_REMINDER_TEXT_EN',
+        '📝 Reminder: add today’s expenses so your reports stay accurate.'
+    ) or ''
+).strip()
+DAILY_EXPENSE_REMINDER_TEXTS_EN = parse_reminder_texts(os.getenv('DAILY_EXPENSE_REMINDER_TEXTS_EN', ''))
+if not DAILY_EXPENSE_REMINDER_TEXTS_EN:
+    DAILY_EXPENSE_REMINDER_TEXTS_EN = parse_reminder_texts(DAILY_EXPENSE_REMINDER_TEXT_EN)
+if not DAILY_EXPENSE_REMINDER_TEXTS_EN:
+    DAILY_EXPENSE_REMINDER_TEXTS_EN = ['📝 Reminder: add today’s expenses so your reports stay accurate.']
 DAILY_EXPENSE_REMINDER_POLL_SECONDS = max(15, int(os.getenv('DAILY_EXPENSE_REMINDER_POLL_SECONDS', '45') or 45))
+SUBSCRIPTION_EXPIRY_REMINDER_ENABLED = os.getenv('SUBSCRIPTION_EXPIRY_REMINDER_ENABLED', '1').strip().lower() in ('1', 'true', 'yes', 'on')
+
+NOTIFICATION_CIS_REGION_CODES = {'RU', 'BY', 'UA', 'KZ', 'KG', 'UZ', 'TJ', 'TM', 'AM', 'AZ', 'MD'}
+
+TRIAL_ENDING_REMINDER_TEXT = {
+    'ru': (
+        "⏳ Время подумать о будущем!\n\n"
+        "Твой пробный период подходит к концу — остался 1 день.\n"
+        "Путешествие в мир финансовой грамотности только начинается.\n\n"
+        "Оформляй подписку и продолжай путь к своим целям вместе с нами."
+    ),
+    'en': (
+        "⏳ Time to think about your future!\n\n"
+        "Your trial period is almost over — 1 day left.\n"
+        "Your journey into financial literacy is only beginning.\n\n"
+        "Get a subscription and keep moving toward your goals with us."
+    )
+}
+
+SUBSCRIPTION_ENDING_REMINDER_TEXT = {
+    'ru': (
+        "🔔 Напоминание о подписке\n\n"
+        "Твоя подписка на бота заканчивается через 1 день.\n"
+        "Все твои данные останутся в безопасности, но доступ к интерактивным функциям закроется.\n\n"
+        "Остался 1 день, чтобы сохранить полный контроль над финансами."
+    ),
+    'en': (
+        "🔔 Subscription reminder\n\n"
+        "Your bot subscription expires in 1 day.\n"
+        "Your data will stay safe, but access to interactive features will be locked.\n\n"
+        "You have 1 day left to keep full control of your finances."
+    )
+}
 
 def parse_promo_codes(raw_value):
     if not raw_value:
@@ -605,18 +649,33 @@ _daily_reminder_thread = None
 def _get_daily_reminder_local_now():
     return datetime.utcnow() + timedelta(hours=DAILY_EXPENSE_REMINDER_TZ_OFFSET)
 
-def _send_telegram_expense_reminder(chat_id):
+def _resolve_notification_language(language_code):
+    code = (language_code or '').strip().lower().replace('_', '-')
+    if not code:
+        return 'en'
+    if code.startswith('ru'):
+        return 'ru'
+    if code.startswith('en'):
+        return 'en'
+    parts = [part for part in code.split('-') if part]
+    if len(parts) >= 2:
+        region = parts[-1].upper()
+        if region in NOTIFICATION_CIS_REGION_CODES:
+            return 'ru'
+    return 'en'
+
+def _send_telegram_reminder_message(chat_id, text, lang='ru'):
     if not TELEGRAM_TOKEN:
         return False
-    text = random.choice(DAILY_EXPENSE_REMINDER_TEXTS)
     payload = {
         'chat_id': int(chat_id),
         'text': text
     }
     if WEBHOOK_URL:
+        button_text = '📱 Open' if lang == 'en' else '📱 Открыть'
         payload['reply_markup'] = {
             'inline_keyboard': [[{
-                'text': '📱 Открыть',
+                'text': button_text,
                 'web_app': {'url': WEBHOOK_URL}
             }]]
         }
@@ -634,10 +693,46 @@ def _send_telegram_expense_reminder(chat_id):
         print(f"Reminder send exception for {chat_id}: {exc}")
         return False
 
+def _send_telegram_expense_reminder(chat_id, lang='ru'):
+    key = 'en' if lang == 'en' else 'ru'
+    text_pool = DAILY_EXPENSE_REMINDER_TEXTS_EN if key == 'en' else DAILY_EXPENSE_REMINDER_TEXTS
+    text = random.choice(text_pool)
+    return _send_telegram_reminder_message(chat_id, text, key)
+
+def _parse_utc_datetime(raw_value):
+    text = str(raw_value or '').strip()
+    if not text:
+        return None
+    if text.endswith('Z'):
+        text = f"{text[:-1]}+00:00"
+    try:
+        dt = datetime.fromisoformat(text)
+        if dt.tzinfo is not None:
+            dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
+        return dt
+    except Exception:
+        pass
+    for fmt in ('%Y-%m-%d %H:%M:%S.%f', '%Y-%m-%d %H:%M:%S'):
+        try:
+            return datetime.strptime(text, fmt)
+        except Exception:
+            continue
+    return None
+
+def _send_telegram_subscription_expiry_reminder(chat_id, reminder_type, lang='ru'):
+    key = 'en' if lang == 'en' else 'ru'
+    if reminder_type == 'trial_end':
+        text = TRIAL_ENDING_REMINDER_TEXT[key]
+    else:
+        text = SUBSCRIPTION_ENDING_REMINDER_TEXT[key]
+    return _send_telegram_reminder_message(chat_id, text, key)
+
 def dispatch_daily_expense_reminders(force=False):
     result = {
         'checked': 0,
         'sent': 0,
+        'sent_ru': 0,
+        'sent_en': 0,
         'failed': 0,
         'skipped': False
     }
@@ -659,21 +754,82 @@ def dispatch_daily_expense_reminders(force=False):
         chat_id = user['telegram_id']
         if not chat_id:
             continue
-        if _send_telegram_expense_reminder(chat_id):
+        lang = _resolve_notification_language(user['language_code'])
+        if _send_telegram_expense_reminder(chat_id, lang):
             db.mark_daily_reminder_sent(user_id, date_key)
             result['sent'] += 1
+            if lang == 'en':
+                result['sent_en'] += 1
+            else:
+                result['sent_ru'] += 1
         else:
             result['failed'] += 1
+    return result
+
+def dispatch_daily_subscription_expiry_reminders(force=False):
+    result = {
+        'checked': 0,
+        'sent': 0,
+        'failed': 0,
+        'trial_sent': 0,
+        'subscription_sent': 0,
+        'skipped': False
+    }
+    if not db or not TELEGRAM_TOKEN or not SUBSCRIPTION_EXPIRY_REMINDER_ENABLED:
+        result['skipped'] = True
+        return result
+
+    now_local = _get_daily_reminder_local_now()
+    if not force and now_local.hour != DAILY_EXPENSE_REMINDER_HOUR:
+        result['skipped'] = True
+        return result
+
+    targets = db.get_subscription_expiry_reminder_candidates()
+    result['checked'] = len(targets)
+
+    for target in targets:
+        user_id = target['user_id']
+        chat_id = target['telegram_id']
+        if not chat_id:
+            continue
+
+        expires_at_raw = target['expires_at']
+        expires_at_utc = _parse_utc_datetime(expires_at_raw)
+        if not expires_at_utc:
+            continue
+
+        expires_at_local = expires_at_utc + timedelta(hours=DAILY_EXPENSE_REMINDER_TZ_OFFSET)
+        days_left = (expires_at_local.date() - now_local.date()).days
+        if days_left != 1:
+            continue
+
+        reminder_type = 'trial_end' if bool(target['is_trial']) else 'subscription_end'
+        if db.has_subscription_expiry_reminder_sent(user_id, expires_at_raw, reminder_type):
+            continue
+
+        lang = _resolve_notification_language(target['language_code'])
+        if _send_telegram_subscription_expiry_reminder(chat_id, reminder_type, lang):
+            db.mark_subscription_expiry_reminder_sent(user_id, expires_at_raw, reminder_type)
+            result['sent'] += 1
+            if reminder_type == 'trial_end':
+                result['trial_sent'] += 1
+            else:
+                result['subscription_sent'] += 1
+        else:
+            result['failed'] += 1
+
     return result
 
 def _daily_reminder_worker():
     print(
         f"🔔 Daily reminder worker started "
-        f"(hour={DAILY_EXPENSE_REMINDER_HOUR}, tz_offset={DAILY_EXPENSE_REMINDER_TZ_OFFSET})"
+        f"(hour={DAILY_EXPENSE_REMINDER_HOUR}, tz_offset={DAILY_EXPENSE_REMINDER_TZ_OFFSET}, "
+        f"expense={DAILY_EXPENSE_REMINDER_ENABLED}, subscription={SUBSCRIPTION_EXPIRY_REMINDER_ENABLED})"
     )
     while True:
         try:
             dispatch_daily_expense_reminders(force=False)
+            dispatch_daily_subscription_expiry_reminders(force=False)
         except Exception as exc:
             print(f"Daily reminder worker error: {exc}")
         time.sleep(DAILY_EXPENSE_REMINDER_POLL_SECONDS)
@@ -682,11 +838,11 @@ def start_daily_reminder_worker():
     global _daily_reminder_thread
     if _daily_reminder_thread and _daily_reminder_thread.is_alive():
         return
-    if not DAILY_EXPENSE_REMINDER_ENABLED:
-        print("🔕 Daily reminders disabled via env")
+    if not DAILY_EXPENSE_REMINDER_ENABLED and not SUBSCRIPTION_EXPIRY_REMINDER_ENABLED:
+        print("🔕 All reminder workers disabled via env")
         return
     if not TELEGRAM_TOKEN:
-        print("🔕 Daily reminders disabled: TELEGRAM_BOT_TOKEN is missing")
+        print("🔕 Reminder workers disabled: TELEGRAM_BOT_TOKEN is missing")
         return
     _daily_reminder_thread = threading.Thread(
         target=_daily_reminder_worker,
@@ -750,8 +906,17 @@ def dispatch_daily_reminders_api():
         admin_key = (data.get('admin_key') or '').strip()
         if admin_key != admin_secret:
             return jsonify({'error': 'Forbidden'}), 403
-        result = dispatch_daily_expense_reminders(force=True)
-        return jsonify({'success': True, **result})
+        expense_result = dispatch_daily_expense_reminders(force=True)
+        subscription_result = dispatch_daily_subscription_expiry_reminders(force=True)
+        return jsonify({
+            'success': True,
+            'checked': int(expense_result.get('checked', 0)) + int(subscription_result.get('checked', 0)),
+            'sent': int(expense_result.get('sent', 0)) + int(subscription_result.get('sent', 0)),
+            'failed': int(expense_result.get('failed', 0)) + int(subscription_result.get('failed', 0)),
+            'skipped': bool(expense_result.get('skipped', False) and subscription_result.get('skipped', False)),
+            'expense_reminders': expense_result,
+            'subscription_expiry_reminders': subscription_result
+        })
     except Exception as e:
         print(f"Dispatch reminders API error: {e}")
         return jsonify({'error': str(e)}), 500
@@ -764,6 +929,7 @@ def init_user():
         telegram_id = data.get('telegram_id')
         username = data.get('username', '')
         first_name = data.get('first_name', 'Пользователь')
+        language_code = (data.get('language_code') or '').strip()
         session_token = data.get('session_token')
         
         if not session_token:
@@ -783,10 +949,22 @@ def init_user():
                 return jsonify({'error': 'Telegram ID or session token required'}), 400
         else:
             if db:
-                user_id, currency, default_wallet, is_new_user = db.get_or_create_user(telegram_id, username, first_name, session_token)
+                user_id, currency, default_wallet, is_new_user = db.get_or_create_user(
+                    telegram_id,
+                    username,
+                    first_name,
+                    session_token,
+                    language_code=language_code
+                )
                 if is_new_user and TRIAL_SUBSCRIPTION_ENABLED:
                     try:
-                        db.set_subscription_active(user_id, True, days=TRIAL_SUBSCRIPTION_DAYS, extend=False)
+                        db.set_subscription_active(
+                            user_id,
+                            True,
+                            days=TRIAL_SUBSCRIPTION_DAYS,
+                            extend=False,
+                            trial=True
+                        )
                         print(f"🎁 Trial subscription activated for user {user_id}: {TRIAL_SUBSCRIPTION_DAYS} days")
                     except Exception as trial_exc:
                         print(f"⚠️ Trial subscription activation failed for user {user_id}: {trial_exc}")
@@ -1181,7 +1359,7 @@ def subscription_activate():
             months = int(months) if months else DEFAULT_SUBSCRIPTION_MONTHS
         except Exception:
             months = DEFAULT_SUBSCRIPTION_MONTHS
-        db.set_subscription_active(user_id, True, months=months)
+        db.set_subscription_active(user_id, True, months=months, trial=False)
         info = db.get_subscription_info(user_id)
         return jsonify({'success': True, 'subscription_start': info['activated_at'], 'subscription_end': info['expires_at'], 'months': months})
     except Exception as e:
@@ -1213,7 +1391,7 @@ def subscription_grant():
             months = DEFAULT_SUBSCRIPTION_MONTHS
         if months not in (1, 3, 6, 12):
             months = DEFAULT_SUBSCRIPTION_MONTHS
-        db.set_subscription_active(user_id, True, months=months)
+        db.set_subscription_active(user_id, True, months=months, trial=False)
         info = db.get_subscription_info(user_id)
         if not username:
             username = db.get_username_by_id(user_id)
@@ -1269,7 +1447,7 @@ def subscription_redeem():
                 return jsonify({'error': 'Promo code already used'}), 400
             promo_unit = 'months'
             promo_value = int(months)
-            db.set_subscription_active(user_id, True, months=promo_value)
+            db.set_subscription_active(user_id, True, months=promo_value, trial=False)
         else:
             period = PROMO_MULTI_CODE_MAP.get(code)
             if not period:
@@ -1288,9 +1466,9 @@ def subscription_redeem():
             if not db.redeem_promo_multi_code(user_id, code, months_to_store):
                 return jsonify({'error': 'Promo code already used'}), 400
             if promo_unit == 'days':
-                db.set_subscription_active(user_id, True, days=promo_value)
+                db.set_subscription_active(user_id, True, days=promo_value, trial=False)
             else:
-                db.set_subscription_active(user_id, True, months=promo_value)
+                db.set_subscription_active(user_id, True, months=promo_value, trial=False)
         info = db.get_subscription_info(user_id)
         response = {
             'success': True,
@@ -1413,7 +1591,7 @@ def lecryptio_status():
         if invoice and is_cryptopay_paid(status):
             months = cryptopay_resolve_months(invoice['amount'], invoice['asset'], invoice.get('payload'))
             if months:
-                db.set_subscription_active(invoice['user_id'], True, months=months)
+                db.set_subscription_active(invoice['user_id'], True, months=months, trial=False)
                 info = db.get_subscription_info(invoice['user_id'])
                 return jsonify({
                     'status': status,
@@ -1452,7 +1630,7 @@ def lecryptio_webhook():
         if uuid_value and user_id:
             db.create_lecryptio_invoice(user_id, uuid_value, order_id, status or event, amount, currency, network, address, pay_url)
             if (is_lecryptio_paid(status) or event == 'invoice.paid') and lecryptio_matches_subscription(amount, currency, network):
-                db.set_subscription_active(user_id, True, months=DEFAULT_SUBSCRIPTION_MONTHS)
+                db.set_subscription_active(user_id, True, months=DEFAULT_SUBSCRIPTION_MONTHS, trial=False)
         elif uuid_value and status:
             db.update_lecryptio_status(uuid_value, status)
         return jsonify({'success': True})
@@ -1493,7 +1671,7 @@ def cryptopay_status():
         if invoice and is_cryptopay_paid(status):
             months = cryptopay_resolve_months(invoice['amount'], invoice['asset'], invoice.get('payload'))
             if months:
-                db.set_subscription_active(invoice['user_id'], True, months=months)
+                db.set_subscription_active(invoice['user_id'], True, months=months, trial=False)
                 info = db.get_subscription_info(invoice['user_id'])
                 return jsonify({
                     'status': status,
@@ -1548,7 +1726,7 @@ def cryptopay_webhook(secret=None):
             if is_cryptopay_paid(status):
                 months = cryptopay_resolve_months(amount, asset, payload_ref)
                 if months:
-                    db.set_subscription_active(user_id, True, months=months)
+                    db.set_subscription_active(user_id, True, months=months, trial=False)
         elif invoice_id and status:
             db.update_cryptopay_status(invoice_id, status)
         return jsonify({'success': True})
@@ -1605,7 +1783,7 @@ def cryptocloud_status():
         if invoice and is_cryptopay_paid(status):
             months = cryptopay_resolve_months(invoice['amount'], invoice['asset'], invoice.get('payload'))
             if months:
-                db.set_subscription_active(invoice['user_id'], True, months=months)
+                db.set_subscription_active(invoice['user_id'], True, months=months, trial=False)
                 info = db.get_subscription_info(invoice['user_id'])
                 return jsonify({
                     'status': status,
@@ -1651,7 +1829,7 @@ def cryptocloud_postback():
         if user_id and uuid_value:
             db.create_cryptocloud_invoice(user_id, uuid_value, order_id, status, amount, currency, address, pay_url)
             if is_cryptocloud_paid(status):
-                db.set_subscription_active(user_id, True, months=DEFAULT_SUBSCRIPTION_MONTHS)
+                db.set_subscription_active(user_id, True, months=DEFAULT_SUBSCRIPTION_MONTHS, trial=False)
         elif uuid_value and status:
             db.update_cryptocloud_status(uuid_value, status)
         return jsonify({'success': True})
@@ -1718,7 +1896,7 @@ def nowpayments_status():
         if payment_id:
             payment = db.get_nowpayment(payment_id)
             if payment and payment['payment_status'] in ('finished', 'confirmed'):
-                db.set_subscription_active(payment['user_id'], True, months=DEFAULT_SUBSCRIPTION_MONTHS)
+                db.set_subscription_active(payment['user_id'], True, months=DEFAULT_SUBSCRIPTION_MONTHS, trial=False)
                 return jsonify({'payment_status': payment['payment_status'], 'active': True})
             if not NOWPAYMENTS_API_KEY:
                 status = payment['payment_status'] if payment else 'unknown'
@@ -1736,12 +1914,12 @@ def nowpayments_status():
             if status:
                 db.update_nowpayment_status(payment_id, status)
             if payment and status in ('finished', 'confirmed'):
-                db.set_subscription_active(payment['user_id'], True, months=DEFAULT_SUBSCRIPTION_MONTHS)
+                db.set_subscription_active(payment['user_id'], True, months=DEFAULT_SUBSCRIPTION_MONTHS, trial=False)
                 return jsonify({'payment_status': status, 'active': True})
             return jsonify({'payment_status': status})
         payment = db.get_nowpayment_by_order(order_id)
         if payment and payment['payment_status'] in ('finished', 'confirmed'):
-            db.set_subscription_active(payment['user_id'], True, months=DEFAULT_SUBSCRIPTION_MONTHS)
+            db.set_subscription_active(payment['user_id'], True, months=DEFAULT_SUBSCRIPTION_MONTHS, trial=False)
             return jsonify({'payment_status': payment['payment_status'], 'active': True})
         return jsonify({'payment_status': payment['payment_status'] if payment else 'waiting'})
     except Exception as e:
@@ -1791,7 +1969,7 @@ def nowpayments_ipn():
                 db.update_nowpayment_status(int(payment_id), status)
             payment = db.get_nowpayment(int(payment_id))
             if payment and status in ('finished', 'confirmed'):
-                db.set_subscription_active(payment['user_id'], True, months=DEFAULT_SUBSCRIPTION_MONTHS)
+                db.set_subscription_active(payment['user_id'], True, months=DEFAULT_SUBSCRIPTION_MONTHS, trial=False)
         return jsonify({'success': True})
     except Exception as e:
         print(f"NowPayments IPN error: {e}")

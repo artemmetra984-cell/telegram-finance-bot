@@ -104,6 +104,7 @@ class Database:
                 telegram_id INTEGER UNIQUE NOT NULL,
                 username TEXT,
                 first_name TEXT,
+                language_code TEXT,
                 currency TEXT DEFAULT 'RUB',
                 session_token TEXT UNIQUE,
                 default_wallet TEXT DEFAULT 'Карта',
@@ -214,7 +215,21 @@ class Database:
                 active INTEGER DEFAULT 0,
                 activated_at TIMESTAMP,
                 expires_at TEXT,
+                is_trial INTEGER DEFAULT 0,
                 FOREIGN KEY (user_id) REFERENCES users (id)
+            )
+        ''')
+
+        # Лог одноразовых напоминаний о завершении подписки
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS subscription_reminder_log (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                expires_at TEXT NOT NULL,
+                reminder_type TEXT NOT NULL,
+                sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users (id),
+                UNIQUE(user_id, expires_at, reminder_type)
             )
         ''')
 
@@ -329,6 +344,7 @@ class Database:
         cursor.execute('CREATE UNIQUE INDEX IF NOT EXISTS idx_shared_owner ON shared_wallets(owner_id)')
         cursor.execute('CREATE UNIQUE INDEX IF NOT EXISTS idx_shared_member ON shared_wallets(member_id)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_subscriptions_user_id ON subscriptions(user_id)')
+        cursor.execute('CREATE UNIQUE INDEX IF NOT EXISTS idx_sub_reminder_unique ON subscription_reminder_log(user_id, expires_at, reminder_type)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_nowpayments_user_id ON nowpayments_payments(user_id)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_cryptocloud_user_id ON cryptocloud_invoices(user_id)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_lecryptio_user_id ON lecryptio_invoices(user_id)')
@@ -343,6 +359,11 @@ class Database:
         if 'expires_at' not in existing_cols:
             try:
                 cursor.execute('ALTER TABLE subscriptions ADD COLUMN expires_at TEXT')
+            except Exception:
+                pass
+        if 'is_trial' not in existing_cols:
+            try:
+                cursor.execute('ALTER TABLE subscriptions ADD COLUMN is_trial INTEGER DEFAULT 0')
             except Exception:
                 pass
         
@@ -388,12 +409,19 @@ class Database:
             cursor.execute("ALTER TABLE users ADD COLUMN reminder_last_sent_date TEXT")
         except sqlite3.OperationalError:
             pass
+        try:
+            cursor.execute("ALTER TABLE users ADD COLUMN language_code TEXT")
+        except sqlite3.OperationalError:
+            pass
         
         self.conn.commit()
         print("✅ Tables ready")
     
-    def get_or_create_user(self, telegram_id, username, first_name, session_token=None):
+    def get_or_create_user(self, telegram_id, username, first_name, session_token=None, language_code=None):
         cursor = self.conn.cursor()
+        clean_username = (username or '').strip() or None
+        clean_first_name = (first_name or '').strip() or None
+        clean_language_code = (language_code or '').strip() or None
         
         cursor.execute('''
             SELECT id, currency, session_token, default_wallet FROM users 
@@ -404,19 +432,30 @@ class Database:
         
         if user:
             print(f"👤 User exists: {user['id']}")
-            if session_token and user['session_token'] != session_token:
+            should_update = (
+                (session_token and user['session_token'] != session_token)
+                or clean_username is not None
+                or clean_first_name is not None
+                or clean_language_code is not None
+            )
+            if should_update:
                 cursor.execute('''
-                    UPDATE users SET session_token = ?, last_login = CURRENT_TIMESTAMP 
+                    UPDATE users
+                    SET session_token = COALESCE(?, session_token),
+                        username = COALESCE(?, username),
+                        first_name = COALESCE(?, first_name),
+                        language_code = COALESCE(?, language_code),
+                        last_login = CURRENT_TIMESTAMP
                     WHERE id = ?
-                ''', (session_token, user['id']))
+                ''', (session_token if session_token else None, clean_username, clean_first_name, clean_language_code, user['id']))
                 self.conn.commit()
             
             return user['id'], user['currency'] or 'RUB', user['default_wallet'] or 'Карта', False
         else:
             cursor.execute('''
-                INSERT INTO users (telegram_id, username, first_name, session_token, last_login) 
-                VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
-            ''', (telegram_id, username, first_name, session_token))
+                INSERT INTO users (telegram_id, username, first_name, language_code, session_token, last_login) 
+                VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ''', (telegram_id, clean_username, clean_first_name, clean_language_code, session_token))
             user_id = cursor.lastrowid
             
             # Стандартные категории с цветами iOS
@@ -526,7 +565,7 @@ class Database:
         cursor = self.conn.cursor()
         hour_value = int(hour)
         cursor.execute('''
-            SELECT id, telegram_id
+            SELECT id, telegram_id, language_code
             FROM users
             WHERE telegram_id IS NOT NULL
               AND COALESCE(reminder_enabled, 1) = 1
@@ -542,6 +581,44 @@ class Database:
             SET reminder_last_sent_date = ?
             WHERE id = ?
         ''', (date_key, user_id))
+        self.conn.commit()
+        return cursor.rowcount > 0
+
+    def get_subscription_expiry_reminder_candidates(self):
+        cursor = self.conn.cursor()
+        cursor.execute('''
+            SELECT
+                u.id AS user_id,
+                u.telegram_id,
+                u.language_code,
+                s.expires_at,
+                COALESCE(s.is_trial, 0) AS is_trial
+            FROM subscriptions s
+            INNER JOIN users u ON u.id = s.user_id
+            WHERE u.telegram_id IS NOT NULL
+              AND COALESCE(s.active, 0) = 1
+              AND s.expires_at IS NOT NULL
+        ''')
+        return cursor.fetchall()
+
+    def has_subscription_expiry_reminder_sent(self, user_id, expires_at, reminder_type):
+        cursor = self.conn.cursor()
+        owner_id = self._resolve_owner_id(user_id)
+        cursor.execute('''
+            SELECT 1
+            FROM subscription_reminder_log
+            WHERE user_id = ? AND expires_at = ? AND reminder_type = ?
+            LIMIT 1
+        ''', (owner_id, str(expires_at), str(reminder_type)))
+        return cursor.fetchone() is not None
+
+    def mark_subscription_expiry_reminder_sent(self, user_id, expires_at, reminder_type):
+        cursor = self.conn.cursor()
+        owner_id = self._resolve_owner_id(user_id)
+        cursor.execute('''
+            INSERT OR IGNORE INTO subscription_reminder_log (user_id, expires_at, reminder_type)
+            VALUES (?, ?, ?)
+        ''', (owner_id, str(expires_at), str(reminder_type)))
         self.conn.commit()
         return cursor.rowcount > 0
 
@@ -1209,13 +1286,14 @@ class Database:
     def get_subscription_info(self, user_id):
         cursor = self.conn.cursor()
         owner_id = self._resolve_owner_id(user_id)
-        cursor.execute('SELECT active, activated_at, expires_at FROM subscriptions WHERE user_id = ?', (owner_id,))
+        cursor.execute('SELECT active, activated_at, expires_at, COALESCE(is_trial, 0) AS is_trial FROM subscriptions WHERE user_id = ?', (owner_id,))
         row = cursor.fetchone()
         if not row:
-            return {'active': False, 'activated_at': None, 'expires_at': None}
+            return {'active': False, 'activated_at': None, 'expires_at': None, 'is_trial': False}
         active = bool(row['active'])
         expires_at = row['expires_at']
         activated_at = row['activated_at']
+        is_trial = bool(row['is_trial'])
         if expires_at:
             try:
                 exp = datetime.fromisoformat(expires_at)
@@ -1225,19 +1303,21 @@ class Database:
                     self.conn.commit()
             except Exception:
                 pass
-        return {'active': active, 'activated_at': activated_at, 'expires_at': expires_at}
+        return {'active': active, 'activated_at': activated_at, 'expires_at': expires_at, 'is_trial': is_trial}
 
-    def set_subscription_active(self, user_id, active=True, months=None, days=None, extend=True):
+    def set_subscription_active(self, user_id, active=True, months=None, days=None, extend=True, trial=None):
         cursor = self.conn.cursor()
         owner_id = self._resolve_owner_id(user_id)
-        cursor.execute('SELECT active, activated_at, expires_at FROM subscriptions WHERE user_id = ?', (owner_id,))
+        cursor.execute('SELECT active, activated_at, expires_at, COALESCE(is_trial, 0) AS is_trial FROM subscriptions WHERE user_id = ?', (owner_id,))
         row = cursor.fetchone()
         now = datetime.utcnow()
         activated_at = now.isoformat()
         expires_at = None
+        is_trial = 0
         if row:
             if row['expires_at']:
                 expires_at = row['expires_at']
+            is_trial = int(row['is_trial'] or 0)
         if active and months:
             start = now
             if extend and expires_at:
@@ -1248,6 +1328,7 @@ class Database:
                 except Exception:
                     pass
             expires_at = self._add_months(start, months).isoformat()
+            is_trial = 0 if trial is None else (1 if trial else 0)
             if start == now:
                 activated_at = now.isoformat()
             elif row and row['activated_at']:
@@ -1262,23 +1343,26 @@ class Database:
                 except Exception:
                     pass
             expires_at = (start + timedelta(days=int(days))).isoformat()
+            if trial is not None:
+                is_trial = 1 if trial else 0
             if start == now:
                 activated_at = now.isoformat()
             elif row and row['activated_at']:
                 activated_at = row['activated_at']
         elif not active:
             expires_at = None
+            is_trial = 0
         if row:
             cursor.execute('''
                 UPDATE subscriptions
-                SET active = ?, activated_at = ?, expires_at = ?
+                SET active = ?, activated_at = ?, expires_at = ?, is_trial = ?
                 WHERE user_id = ?
-            ''', (1 if active else 0, activated_at, expires_at, owner_id))
+            ''', (1 if active else 0, activated_at, expires_at, int(is_trial), owner_id))
         else:
             cursor.execute('''
-                INSERT INTO subscriptions (user_id, active, activated_at, expires_at)
-                VALUES (?, ?, ?, ?)
-            ''', (owner_id, 1 if active else 0, activated_at, expires_at))
+                INSERT INTO subscriptions (user_id, active, activated_at, expires_at, is_trial)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (owner_id, 1 if active else 0, activated_at, expires_at, int(is_trial)))
         self.conn.commit()
         return True
 
