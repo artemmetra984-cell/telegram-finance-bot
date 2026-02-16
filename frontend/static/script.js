@@ -861,9 +861,18 @@ function resolveTelegramLanguagePreference(rawCode = '') {
     return '';
 }
 
-function resolveAutoLanguage(primaryCode = '') {
+function resolveAutoLanguage(primaryCode = '', options = {}) {
+    const telegramContext = !!options.telegramContext;
     const primary = String(primaryCode || '').trim();
-    if (normalizeAppLanguage(primary) === 'ru') return 'ru';
+    const primaryNormalized = normalizeAppLanguage(primary);
+    if (primaryNormalized) return primaryNormalized;
+    if (isCisLocaleCode(primary)) return 'ru';
+
+    if (telegramContext) {
+        // Inside Telegram, if explicit language code is unavailable,
+        // default to English to avoid sticky RU fallback from device locale/timezone.
+        return 'en';
+    }
 
     const localeCandidates = [];
     if (primary) localeCandidates.push(primary);
@@ -887,10 +896,20 @@ function resolveAutoLanguage(primaryCode = '') {
 function applyAutoLanguageIfNeeded(code) {
     const telegramCode = String(code || getTelegramLanguageCode() || '').trim();
     const telegramPreferred = resolveTelegramLanguagePreference(telegramCode);
+    const telegramContext = !!(window.Telegram && window.Telegram.WebApp);
     const manual = localStorage.getItem('finance_lang_manual') === '1';
     // If Telegram explicitly provides language, it must win over manual choice.
     if (manual && !telegramPreferred) return false;
-    const autoLang = telegramPreferred || resolveAutoLanguage(telegramCode);
+    const autoLang = telegramPreferred || resolveAutoLanguage(telegramCode, { telegramContext });
+    try {
+        console.info('🌐 auto-language sync', {
+            telegram_code: telegramCode || '',
+            telegram_preferred: telegramPreferred || '',
+            telegram_context: telegramContext,
+            manual,
+            resolved: autoLang
+        });
+    } catch {}
     if (!autoLang || autoLang === currentLang) return false;
     currentLang = autoLang;
     try {
@@ -912,7 +931,9 @@ function applyAutoLanguageIfNeeded(code) {
 }
 
 function detectLanguage() {
-    const telegramPreferred = resolveTelegramLanguagePreference(getTelegramLanguageCode());
+    const telegramCode = getTelegramLanguageCode();
+    const telegramPreferred = resolveTelegramLanguagePreference(telegramCode);
+    const telegramContext = !!(window.Telegram && window.Telegram.WebApp);
     if (telegramPreferred) return telegramPreferred;
 
     const manual = localStorage.getItem('finance_lang_manual') === '1';
@@ -922,7 +943,7 @@ function detectLanguage() {
     if (!manual && stored) {
         try { localStorage.removeItem('finance_lang'); } catch {}
     }
-    return resolveAutoLanguage();
+    return resolveAutoLanguage(telegramCode, { telegramContext });
 }
 
 function scheduleTelegramLanguageSync() {
