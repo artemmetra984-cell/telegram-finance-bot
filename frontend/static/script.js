@@ -712,23 +712,171 @@ function getLocale() {
     return currentLang === 'en' ? 'en-US' : 'ru-RU';
 }
 
+const CIS_REGION_CODES = new Set([
+    'RU', 'BY', 'UA', 'KZ', 'KG', 'UZ', 'TJ', 'TM', 'AM', 'AZ', 'MD'
+]);
+
+const CIS_TIMEZONE_PREFIXES = [
+    'Europe/Moscow',
+    'Europe/Minsk',
+    'Europe/Kyiv',
+    'Europe/Chisinau',
+    'Asia/Almaty',
+    'Asia/Aqtau',
+    'Asia/Aqtobe',
+    'Asia/Atyrau',
+    'Asia/Oral',
+    'Asia/Qostanay',
+    'Asia/Qyzylorda',
+    'Asia/Bishkek',
+    'Asia/Tashkent',
+    'Asia/Samarkand',
+    'Asia/Dushanbe',
+    'Asia/Ashgabat',
+    'Asia/Baku',
+    'Asia/Yerevan',
+    'Asia/Yekaterinburg',
+    'Asia/Omsk',
+    'Asia/Novosibirsk',
+    'Asia/Barnaul',
+    'Asia/Tomsk',
+    'Asia/Krasnoyarsk',
+    'Asia/Irkutsk',
+    'Asia/Chita',
+    'Asia/Yakutsk',
+    'Asia/Khandyga',
+    'Asia/Vladivostok',
+    'Asia/Ust-Nera',
+    'Asia/Magadan',
+    'Asia/Sakhalin',
+    'Asia/Srednekolymsk',
+    'Asia/Kamchatka',
+    'Asia/Anadyr',
+    'Pacific/Kanton'
+];
+
+function normalizeAppLanguage(code) {
+    const value = String(code || '').trim().toLowerCase();
+    if (!value) return '';
+    if (value.startsWith('en')) return 'en';
+    if (value.startsWith('ru')) return 'ru';
+    return '';
+}
+
+function extractLocaleRegion(code) {
+    const value = String(code || '').trim().replace('_', '-');
+    if (!value) return '';
+    const parts = value.split('-').filter(Boolean);
+    if (parts.length < 2) return '';
+    const region = String(parts[parts.length - 1] || '').toUpperCase();
+    if (/^[A-Z]{2}$/.test(region)) return region;
+    return '';
+}
+
+function isCisLocaleCode(code) {
+    const region = extractLocaleRegion(code);
+    if (!region) return false;
+    return CIS_REGION_CODES.has(region);
+}
+
+function isCisTimezone(zone) {
+    const value = String(zone || '').trim();
+    if (!value) return false;
+    return CIS_TIMEZONE_PREFIXES.some(prefix => value.startsWith(prefix));
+}
+
+function getTelegramLanguageCode() {
+    try {
+        const lang = window.Telegram?.WebApp?.initDataUnsafe?.user?.language_code;
+        if (lang) return String(lang);
+    } catch {}
+
+    try {
+        const initData = window.Telegram?.WebApp?.initData || '';
+        if (initData) {
+            const initParams = new URLSearchParams(initData);
+            const userRaw = initParams.get('user');
+            if (userRaw) {
+                const user = JSON.parse(userRaw);
+                if (user?.language_code) return String(user.language_code);
+            }
+        }
+    } catch {}
+
+    try {
+        const searchParams = new URLSearchParams(window.location.search || '');
+        const tgWebAppData = searchParams.get('tgWebAppData');
+        if (tgWebAppData) {
+            const initParams = new URLSearchParams(tgWebAppData);
+            const userRaw = initParams.get('user');
+            if (userRaw) {
+                const user = JSON.parse(userRaw);
+                if (user?.language_code) return String(user.language_code);
+            }
+        }
+    } catch {}
+
+    return '';
+}
+
+function resolveAutoLanguage(primaryCode = '') {
+    const primary = String(primaryCode || '').trim();
+    if (normalizeAppLanguage(primary) === 'ru') return 'ru';
+
+    const localeCandidates = [];
+    if (primary) localeCandidates.push(primary);
+    if (navigator.language) localeCandidates.push(navigator.language);
+    if (Array.isArray(navigator.languages)) {
+        navigator.languages.forEach((code) => {
+            if (code) localeCandidates.push(code);
+        });
+    }
+
+    if (localeCandidates.some(isCisLocaleCode)) return 'ru';
+
+    try {
+        const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        if (isCisTimezone(timezone)) return 'ru';
+    } catch {}
+
+    return 'en';
+}
+
+function applyAutoLanguageIfNeeded(code) {
+    const manual = localStorage.getItem('finance_lang_manual') === '1';
+    if (manual) return false;
+    const autoLang = resolveAutoLanguage(code || getTelegramLanguageCode());
+    if (!autoLang || autoLang === currentLang) return false;
+    currentLang = autoLang;
+    try {
+        localStorage.setItem('finance_lang', currentLang);
+        localStorage.removeItem('finance_lang_manual');
+    } catch {}
+    const selector = document.getElementById('language-select');
+    if (selector) selector.value = currentLang;
+    applyTranslations();
+    updateSubscriptionUI();
+    updateMonthDisplay();
+    if (currentPage === 'panel') {
+        renderPanelPeriodControls();
+        applyPanelPeriodFilter();
+    }
+    return true;
+}
+
 function detectLanguage() {
     const manual = localStorage.getItem('finance_lang_manual') === '1';
     const stored = localStorage.getItem('finance_lang');
-    if (manual && (stored === 'ru' || stored === 'en')) return stored;
+    const storedNormalized = normalizeAppLanguage(stored);
+    if (manual && storedNormalized) return storedNormalized;
     if (!manual && stored) {
         try { localStorage.removeItem('finance_lang'); } catch {}
     }
-    const telegramLang = (window.Telegram?.WebApp?.initDataUnsafe?.user?.language_code || '').toLowerCase();
-    if (telegramLang) {
-        return telegramLang.startsWith('en') ? 'en' : 'ru';
-    }
-    const deviceLang = (navigator.language || '').toLowerCase();
-    return deviceLang.startsWith('en') ? 'en' : 'ru';
+    return resolveAutoLanguage(getTelegramLanguageCode());
 }
 
 function setLanguage(lang) {
-    currentLang = lang === 'en' ? 'en' : 'ru';
+    currentLang = normalizeAppLanguage(lang) || 'en';
     try {
         localStorage.setItem('finance_lang', currentLang);
         localStorage.setItem('finance_lang_manual', '1');
@@ -749,6 +897,7 @@ function initLanguage() {
     const selector = document.getElementById('language-select');
     if (selector) selector.value = currentLang;
     applyTranslations();
+    applyAutoLanguageIfNeeded(getTelegramLanguageCode());
 }
 
 function readMarketCache(market, kind) {
@@ -1726,6 +1875,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         currentCurrency = localStorage.getItem('finance_currency') || 'RUB';
         
         await initUser();
+        applyAutoLanguageIfNeeded(getTelegramLanguageCode());
         
         document.getElementById('loading').style.display = 'none';
         document.getElementById('main-content').style.display = 'block';
@@ -1752,6 +1902,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             try { Telegram.WebApp.setBackgroundColor && Telegram.WebApp.setBackgroundColor('#000000'); } catch (e) {}
             try { Telegram.WebApp.ready && Telegram.WebApp.ready(); } catch (e) {}
             try { Telegram.WebApp.setupClosingBehavior && Telegram.WebApp.setupClosingBehavior(); } catch (e) {}
+            applyAutoLanguageIfNeeded(getTelegramLanguageCode());
         }
         
         console.log('✅ Приложение загружено в стиле iOS 26');
