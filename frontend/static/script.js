@@ -53,6 +53,7 @@ let reportChartPeriodOptions = {
     expense: [],
     panel: []
 };
+let telegramLanguageHint = '';
 let sessionToken = null;
 let defaultWallet = 'Карта';
 let charts = {};
@@ -786,9 +787,16 @@ function isCisTimezone(zone) {
 }
 
 function getTelegramLanguageCode() {
+    if (telegramLanguageHint) {
+        return String(telegramLanguageHint);
+    }
+
     try {
         const lang = window.Telegram?.WebApp?.initDataUnsafe?.user?.language_code;
-        if (lang) return String(lang);
+        if (lang) {
+            telegramLanguageHint = String(lang);
+            return String(lang);
+        }
     } catch {}
 
     try {
@@ -798,7 +806,10 @@ function getTelegramLanguageCode() {
             const userRaw = initParams.get('user');
             if (userRaw) {
                 const user = JSON.parse(userRaw);
-                if (user?.language_code) return String(user.language_code);
+                if (user?.language_code) {
+                    telegramLanguageHint = String(user.language_code);
+                    return String(user.language_code);
+                }
             }
         }
     } catch {}
@@ -811,7 +822,29 @@ function getTelegramLanguageCode() {
             const userRaw = initParams.get('user');
             if (userRaw) {
                 const user = JSON.parse(userRaw);
-                if (user?.language_code) return String(user.language_code);
+                if (user?.language_code) {
+                    telegramLanguageHint = String(user.language_code);
+                    return String(user.language_code);
+                }
+            }
+        }
+    } catch {}
+
+    try {
+        const hash = String(window.location.hash || '').replace(/^#/, '');
+        if (hash) {
+            const hashParams = new URLSearchParams(hash);
+            const tgWebAppData = hashParams.get('tgWebAppData');
+            if (tgWebAppData) {
+                const initParams = new URLSearchParams(tgWebAppData);
+                const userRaw = initParams.get('user');
+                if (userRaw) {
+                    const user = JSON.parse(userRaw);
+                    if (user?.language_code) {
+                        telegramLanguageHint = String(user.language_code);
+                        return String(user.language_code);
+                    }
+                }
             }
         }
     } catch {}
@@ -892,6 +925,15 @@ function detectLanguage() {
     return resolveAutoLanguage();
 }
 
+function scheduleTelegramLanguageSync() {
+    const delays = [0, 180, 450, 900, 1500, 2500, 4000];
+    delays.forEach((delay) => {
+        setTimeout(() => {
+            applyAutoLanguageIfNeeded(getTelegramLanguageCode());
+        }, delay);
+    });
+}
+
 function setLanguage(lang) {
     currentLang = normalizeAppLanguage(lang) || 'en';
     try {
@@ -915,6 +957,7 @@ function initLanguage() {
     if (selector) selector.value = currentLang;
     applyTranslations();
     applyAutoLanguageIfNeeded(getTelegramLanguageCode());
+    scheduleTelegramLanguageSync();
 }
 
 function readMarketCache(market, kind) {
@@ -1939,6 +1982,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 document.addEventListener('visibilitychange', () => {
     if (!document.hidden) {
+        applyAutoLanguageIfNeeded(getTelegramLanguageCode());
         refreshSubscriptionInfo();
     }
 });
@@ -1973,6 +2017,10 @@ async function initUser() {
             telegramId = user.id;
             username = user.username || '';
             firstName = user.first_name || t('Пользователь');
+            if (user.language_code) {
+                telegramLanguageHint = String(user.language_code);
+                applyAutoLanguageIfNeeded(telegramLanguageHint);
+            }
         }
     }
     
