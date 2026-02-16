@@ -819,6 +819,15 @@ function getTelegramLanguageCode() {
     return '';
 }
 
+function resolveTelegramLanguagePreference(rawCode = '') {
+    const code = String(rawCode || '').trim();
+    if (!code) return '';
+    const normalized = normalizeAppLanguage(code);
+    if (normalized) return normalized;
+    if (isCisLocaleCode(code)) return 'ru';
+    return '';
+}
+
 function resolveAutoLanguage(primaryCode = '') {
     const primary = String(primaryCode || '').trim();
     if (normalizeAppLanguage(primary) === 'ru') return 'ru';
@@ -843,14 +852,19 @@ function resolveAutoLanguage(primaryCode = '') {
 }
 
 function applyAutoLanguageIfNeeded(code) {
+    const telegramCode = String(code || getTelegramLanguageCode() || '').trim();
+    const telegramPreferred = resolveTelegramLanguagePreference(telegramCode);
     const manual = localStorage.getItem('finance_lang_manual') === '1';
-    if (manual) return false;
-    const autoLang = resolveAutoLanguage(code || getTelegramLanguageCode());
+    // If Telegram explicitly provides language, it must win over manual choice.
+    if (manual && !telegramPreferred) return false;
+    const autoLang = telegramPreferred || resolveAutoLanguage(telegramCode);
     if (!autoLang || autoLang === currentLang) return false;
     currentLang = autoLang;
     try {
         localStorage.setItem('finance_lang', currentLang);
-        localStorage.removeItem('finance_lang_manual');
+        if (telegramPreferred) {
+            localStorage.removeItem('finance_lang_manual');
+        }
     } catch {}
     const selector = document.getElementById('language-select');
     if (selector) selector.value = currentLang;
@@ -865,6 +879,9 @@ function applyAutoLanguageIfNeeded(code) {
 }
 
 function detectLanguage() {
+    const telegramPreferred = resolveTelegramLanguagePreference(getTelegramLanguageCode());
+    if (telegramPreferred) return telegramPreferred;
+
     const manual = localStorage.getItem('finance_lang_manual') === '1';
     const stored = localStorage.getItem('finance_lang');
     const storedNormalized = normalizeAppLanguage(stored);
@@ -872,7 +889,7 @@ function detectLanguage() {
     if (!manual && stored) {
         try { localStorage.removeItem('finance_lang'); } catch {}
     }
-    return resolveAutoLanguage(getTelegramLanguageCode());
+    return resolveAutoLanguage();
 }
 
 function setLanguage(lang) {
