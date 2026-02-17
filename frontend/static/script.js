@@ -84,19 +84,27 @@ let subscriptionStart = null;
 let subscriptionEnd = null;
 const subscriptionProvider = 'cryptopay';
 const subscriptionPrices = { 1: 4, 3: 10.5, 6: 18, 12: 30 };
+const SUBSCRIPTION_INVOICE_TTL_SECONDS = 1800;
+const SUBSCRIPTION_TERMINAL_STATUSES = new Set(['expired', 'canceled', 'cancelled', 'invalid']);
 let subscriptionDuration = 1;
-let subscriptionPayment = {
-    invoiceId: null,
-    status: '',
-    asset: 'USDT',
-    amount: '',
-    currency: '',
-    invoiceUrl: '',
-    miniAppUrl: '',
-    webAppUrl: '',
-    botUrl: '',
-    months: 1
-};
+function createEmptySubscriptionPayment(overrides = {}) {
+    return {
+        invoiceId: null,
+        status: '',
+        asset: 'USDT',
+        amount: '',
+        currency: '',
+        invoiceUrl: '',
+        miniAppUrl: '',
+        webAppUrl: '',
+        botUrl: '',
+        months: subscriptionDuration,
+        createdAt: null,
+        expiresIn: SUBSCRIPTION_INVOICE_TTL_SECONDS,
+        ...overrides
+    };
+}
+let subscriptionPayment = createEmptySubscriptionPayment({ months: 1 });
 let subscriptionPoller = null;
 let subscriptionAsset = 'USDT';
 const marketCacheKey = (market, kind) => `market_cache_${market}_${kind}`;
@@ -2101,7 +2109,7 @@ async function initUser() {
         subscriptionStart = data.subscription_start || null;
         subscriptionEnd = data.subscription_end || null;
         if (subscriptionActive) {
-            subscriptionPayment = { invoiceId: null, status: '', asset: 'USDT', amount: '', currency: '', invoiceUrl: '', miniAppUrl: '', webAppUrl: '', botUrl: '', months: subscriptionDuration };
+            subscriptionPayment = createEmptySubscriptionPayment();
             try { localStorage.removeItem('subscription_payment'); } catch {}
         }
         
@@ -3767,22 +3775,65 @@ function updateSubscriptionPeriod() {
     }
 }
 
+function isSubscriptionInvoiceTerminalStatus(status) {
+    const normalized = String(status || '').trim().toLowerCase();
+    return SUBSCRIPTION_TERMINAL_STATUSES.has(normalized);
+}
+
+function normalizeSubscriptionInvoiceStatus(status) {
+    const normalized = String(status || '').trim().toLowerCase();
+    if (normalized === 'cancelled') return 'canceled';
+    return normalized;
+}
+
+function getSubscriptionInvoiceExpiryMs(payment = subscriptionPayment) {
+    const createdAt = Number(payment?.createdAt);
+    const expiresIn = Number(payment?.expiresIn || SUBSCRIPTION_INVOICE_TTL_SECONDS);
+    if (!Number.isFinite(createdAt) || createdAt <= 0) return null;
+    if (!Number.isFinite(expiresIn) || expiresIn <= 0) return null;
+    return createdAt + (expiresIn * 1000);
+}
+
+function isLocalSubscriptionInvoiceExpired(payment = subscriptionPayment) {
+    if (!payment?.invoiceId) return false;
+    const expiresAtMs = getSubscriptionInvoiceExpiryMs(payment);
+    if (!expiresAtMs) return false;
+    return Date.now() >= expiresAtMs;
+}
+
+function clearSubscriptionInvoiceState(status = '') {
+    const nextStatus = normalizeSubscriptionInvoiceStatus(status);
+    subscriptionPayment = createEmptySubscriptionPayment({
+        status: nextStatus,
+        months: subscriptionPayment.months || subscriptionDuration
+    });
+}
+
+function normalizeSubscriptionPaymentState() {
+    if (subscriptionActive) return;
+    const hasInvoiceData = !!(
+        subscriptionPayment.invoiceId ||
+        subscriptionPayment.invoiceUrl ||
+        subscriptionPayment.miniAppUrl ||
+        subscriptionPayment.webAppUrl ||
+        subscriptionPayment.botUrl ||
+        subscriptionPayment.amount ||
+        subscriptionPayment.address
+    );
+    const currentStatus = normalizeSubscriptionInvoiceStatus(subscriptionPayment.status);
+    const expiredByTime = isLocalSubscriptionInvoiceExpired(subscriptionPayment);
+    const terminal = isSubscriptionInvoiceTerminalStatus(currentStatus) || expiredByTime;
+    if (!terminal || !hasInvoiceData) return;
+    clearSubscriptionInvoiceState(expiredByTime ? 'expired' : currentStatus);
+    stopSubscriptionPolling();
+    saveSubscriptionState();
+}
+
 function activateSubscriptionState(data = {}, closeModalOnSuccess = false) {
     subscriptionActive = true;
     subscriptionStart = data.subscription_start || subscriptionStart;
     subscriptionEnd = data.subscription_end || subscriptionEnd;
-    subscriptionPayment = {
-        invoiceId: null,
-        status: '',
-        asset: 'USDT',
-        amount: '',
-        currency: '',
-        invoiceUrl: '',
-        miniAppUrl: '',
-        webAppUrl: '',
-        botUrl: '',
-        months: subscriptionDuration
-    };
+    subscriptionPayment = createEmptySubscriptionPayment();
     try { localStorage.removeItem('subscription_payment'); } catch {}
     stopSubscriptionPolling();
     updateSubscriptionUI();
@@ -3842,6 +3893,15 @@ function loadSubscriptionState() {
         if (!raw) return;
         const parsed = JSON.parse(raw);
         subscriptionPayment = { ...subscriptionPayment, ...parsed };
+        subscriptionPayment.status = normalizeSubscriptionInvoiceStatus(subscriptionPayment.status);
+        const parsedExpiresIn = Number(subscriptionPayment.expiresIn);
+        subscriptionPayment.expiresIn = Number.isFinite(parsedExpiresIn) && parsedExpiresIn > 0
+            ? parsedExpiresIn
+            : SUBSCRIPTION_INVOICE_TTL_SECONDS;
+        const parsedCreatedAt = Number(subscriptionPayment.createdAt);
+        subscriptionPayment.createdAt = Number.isFinite(parsedCreatedAt) && parsedCreatedAt > 0
+            ? parsedCreatedAt
+            : null;
         const url = (subscriptionPayment.invoiceUrl || '') +
             (subscriptionPayment.webAppUrl || '') +
             (subscriptionPayment.miniAppUrl || '') +
@@ -3860,7 +3920,7 @@ function loadSubscriptionState() {
         const badProvider = url.includes('lecryptio') || url.includes('cryptocloud');
         const providerMismatch = parsed && parsed.provider && parsed.provider !== subscriptionProvider;
         if (badProvider || providerMismatch || stalePrice) {
-            subscriptionPayment = { invoiceId: null, status: '', asset: 'USDT', amount: '', currency: '', invoiceUrl: '', miniAppUrl: '', webAppUrl: '', botUrl: '', months: subscriptionDuration };
+            clearSubscriptionInvoiceState();
             localStorage.removeItem('subscription_payment');
         }
         if (parsed && parsed.asset) {
@@ -3871,6 +3931,10 @@ function loadSubscriptionState() {
             if (subscriptionPrices[parsedMonths]) {
                 subscriptionDuration = parsedMonths;
             }
+        }
+        if (isLocalSubscriptionInvoiceExpired(subscriptionPayment) && !subscriptionActive) {
+            clearSubscriptionInvoiceState('expired');
+            saveSubscriptionState();
         }
     } catch {}
     try {
@@ -3925,6 +3989,7 @@ function updateSubscriptionUI() {
         updateSubscriptionPeriod();
         return;
     }
+    normalizeSubscriptionPaymentState();
     if (statusEl) statusEl.textContent = formatSubscriptionStatus(subscriptionPayment.status) || t('Создайте оплату');
     if (addressEl) addressEl.textContent = subscriptionPayment.address || '';
     const displayAsset = subscriptionPayment.asset || subscriptionPayment.currency || subscriptionAsset || 'USDT';
@@ -3980,13 +4045,15 @@ async function redeemPromoCode() {
 }
 
 function formatSubscriptionStatus(status) {
+    const statusKey = normalizeSubscriptionInvoiceStatus(status);
     const map = {
         active: 'Ожидает оплаты',
         paid: 'Оплата завершена',
         expired: 'Счёт истёк',
-        canceled: 'Платёж отменён'
+        canceled: 'Платёж отменён',
+        invalid: 'Счёт истёк'
     };
-    const label = map[status] || status;
+    const label = map[statusKey] || statusKey;
     return t(label);
 }
 
@@ -4008,6 +4075,7 @@ function setSubscriptionAsset(asset) {
 async function createCryptoPayPayment() {
     if (!currentUser) return;
     try {
+        stopSubscriptionPolling();
         const res = await fetch('/api/subscription/cryptopay/create', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -4019,9 +4087,10 @@ async function createCryptoPayPayment() {
             activateSubscriptionState(data, true);
             return;
         }
+        const expiresIn = Number(data.expires_in);
         subscriptionPayment = {
             invoiceId: data.invoice_id || null,
-            status: data.status || 'active',
+            status: normalizeSubscriptionInvoiceStatus(data.status || 'active'),
             asset: (data.asset || subscriptionAsset || 'USDT').toUpperCase(),
             amount: data.amount ? String(data.amount) : '',
             currency: (data.asset || subscriptionAsset || 'USDT').toUpperCase(),
@@ -4029,7 +4098,9 @@ async function createCryptoPayPayment() {
             miniAppUrl: data.mini_app_invoice_url || '',
             webAppUrl: data.web_app_invoice_url || '',
             botUrl: data.bot_invoice_url || '',
-            months: data.months || subscriptionDuration
+            months: data.months || subscriptionDuration,
+            createdAt: Date.now(),
+            expiresIn: Number.isFinite(expiresIn) && expiresIn > 0 ? expiresIn : SUBSCRIPTION_INVOICE_TTL_SECONDS
         };
         saveSubscriptionState();
         updateSubscriptionUI();
@@ -4047,10 +4118,18 @@ async function checkSubscriptionStatus() {
         const res = await fetch(`/api/subscription/cryptopay/status?${query}`);
         const data = await res.json();
         if (data.error) throw new Error(data.error);
-        subscriptionPayment.status = data.status || subscriptionPayment.status;
+        const nextStatus = normalizeSubscriptionInvoiceStatus(data.status || subscriptionPayment.status);
+        subscriptionPayment.status = nextStatus;
         if (data.active) {
             showNotification('Подписка активирована', 'success');
             activateSubscriptionState(data, true);
+            return;
+        }
+        if (isSubscriptionInvoiceTerminalStatus(nextStatus) || isLocalSubscriptionInvoiceExpired(subscriptionPayment)) {
+            clearSubscriptionInvoiceState(isLocalSubscriptionInvoiceExpired(subscriptionPayment) ? 'expired' : nextStatus);
+            stopSubscriptionPolling();
+            saveSubscriptionState();
+            updateSubscriptionUI();
             return;
         }
         saveSubscriptionState();
@@ -4063,6 +4142,10 @@ async function checkSubscriptionStatus() {
 function startSubscriptionPolling() {
     if (subscriptionPoller) return;
     if (!subscriptionPayment.invoiceId || subscriptionActive) return;
+    if (isSubscriptionInvoiceTerminalStatus(subscriptionPayment.status) || isLocalSubscriptionInvoiceExpired(subscriptionPayment)) {
+        return;
+    }
+    checkSubscriptionStatus();
     subscriptionPoller = setInterval(() => {
         checkSubscriptionStatus();
     }, 15000);

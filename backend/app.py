@@ -45,6 +45,7 @@ LECRYPTIO_WEBHOOK_SECRET = os.getenv('LECRYPTIO_WEBHOOK_SECRET', '')
 CRYPTOPAY_API_TOKEN = os.getenv('CRYPTOPAY_API_TOKEN', '')
 CRYPTOPAY_WEBHOOK_SECRET = os.getenv('CRYPTOPAY_WEBHOOK_SECRET', '')
 DEFAULT_SUBSCRIPTION_MONTHS = int(os.getenv('SUBSCRIPTION_DEFAULT_MONTHS', '1'))
+CRYPTOPAY_INVOICE_EXPIRES_IN = max(60, int(os.getenv('CRYPTOPAY_INVOICE_EXPIRES_IN', '1800') or 1800))
 SAVINGS_WALLET_NAME = 'Накопления'
 TRIAL_SUBSCRIPTION_ENABLED = os.getenv('TRIAL_SUBSCRIPTION_ENABLED', '1').strip().lower() in ('1', 'true', 'yes', 'on')
 TRIAL_SUBSCRIPTION_DAYS = max(1, int(os.getenv('TRIAL_SUBSCRIPTION_DAYS', '3') or 3))
@@ -370,7 +371,7 @@ def create_cryptopay_invoice_for_user(user_id, asset='USDT', months=1):
         'payload': order_id,
         'allow_comments': False,
         'allow_anonymous': False,
-        'expires_in': 3600
+        'expires_in': CRYPTOPAY_INVOICE_EXPIRES_IN
     }
     body_str = json.dumps(payload, separators=(',', ':'), ensure_ascii=False)
     resp = requests.post(
@@ -404,6 +405,7 @@ def create_cryptopay_invoice_for_user(user_id, asset='USDT', months=1):
         'mini_app_invoice_url': mini_url,
         'web_app_invoice_url': web_url,
         'payload': order_id,
+        'expires_in': CRYPTOPAY_INVOICE_EXPIRES_IN,
         'months': months
     }, None
 
