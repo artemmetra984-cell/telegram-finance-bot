@@ -333,13 +333,17 @@
 
                     <!-- ВКЛАДКА 4: НАКОПЛЕНИЯ -->
                     <div id="tab-savings" class="report-section">
+                        <!-- Выбор периода -->
+                        <div class="period-selector">
+                            <button class="period-btn" data-chart="savings" data-period="day" data-i18n="День">День</button>
+                            <button class="period-btn active" data-chart="savings" data-period="week" data-i18n="Неделя">Неделя</button>
+                            <button class="period-btn" data-chart="savings" data-period="month" data-i18n="Месяц">Месяц</button>
+                        </div>
+
                         <div class="chart-container">
-                            <div class="chart-title" data-i18n="Накопления">Накопления</div>
+                            <div class="chart-title" data-i18n="Динамика накоплений">Динамика накоплений</div>
                             <div class="chart-wrapper">
-                                <canvas id="savings-chart"></canvas>
-                            </div>
-                            <div class="chart-legend" id="savings-legend">
-                                <!-- Легенда диаграммы -->
+                                <canvas id="savings-dynamics-chart"></canvas>
                             </div>
                         </div>
 
@@ -372,9 +376,9 @@
 
                         <!-- Выбор периода -->
                         <div class="period-selector">
-                            <button class="period-btn" data-period="day" data-i18n="День">День</button>
-                            <button class="period-btn active" data-period="week" data-i18n="Неделя">Неделя</button>
-                            <button class="period-btn" data-period="month" data-i18n="Месяц">Месяц</button>
+                            <button class="period-btn" data-chart="balance" data-period="day" data-i18n="День">День</button>
+                            <button class="period-btn active" data-chart="balance" data-period="week" data-i18n="Неделя">Неделя</button>
+                            <button class="period-btn" data-chart="balance" data-period="month" data-i18n="Месяц">Месяц</button>
                         </div>
 
                         <!-- Динамика баланса -->
@@ -483,6 +487,15 @@
                                 <div class="service-toggle">
                                     <label class="switch">
                                         <input type="checkbox" id="debts-toggle">
+                                        <span class="slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="settings-item settings-item-row">
+                                <div class="settings-item-title" data-i18n="Исключить накопления">Исключить накопления</div>
+                                <div class="service-toggle">
+                                    <label class="switch">
+                                        <input type="checkbox" id="exclude-savings-toggle">
                                         <span class="slider"></span>
                                     </label>
                                 </div>

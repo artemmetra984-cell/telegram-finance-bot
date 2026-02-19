@@ -45,6 +45,8 @@ let reportChartMonthValues = {
     panel: []
 };
 let reportChartSwipeInitialized = false;
+let balanceDynamicsPeriod = 'week';
+let savingsDynamicsPeriod = 'week';
 let reportPeriodModalTabId = null;
 let reportRangeModalTabId = null;
 let reportChartPeriodOptions = {
@@ -69,6 +71,7 @@ let currentMonthTransactions = [];
 let isCreatingGoal = false;
 let editingGoalId = null;
 let debtsEnabled = false;
+let excludeSavingsFromBalance = false;
 let currentDebtId = null;
 let editingDebtId = null;
 let compoundListenersInitialized = false;
@@ -259,8 +262,21 @@ function isSavingsCategoryName(name) {
     return name === 'Накопления' || name === 'Цели';
 }
 
+function isSavingsWalletName(name) {
+    return String(name || '').trim() === 'Накопления';
+}
+
+function getWalletsBalanceTotal(includeSavingsWallet = true) {
+    return (walletsData || []).reduce((sum, wallet) => {
+        if (!wallet) return sum;
+        if (!includeSavingsWallet && isSavingsWalletName(wallet.name)) return sum;
+        const balance = Number(wallet.balance) || 0;
+        return sum + balance;
+    }, 0);
+}
+
 function getSavingsWallet() {
-    return (walletsData || []).find(wallet => wallet && wallet.name === 'Накопления') || null;
+    return (walletsData || []).find(wallet => wallet && isSavingsWalletName(wallet.name)) || null;
 }
 
 function getSavingsAmount() {
@@ -366,6 +382,7 @@ const translations = {
         'Основной кошелёк': 'Primary wallet',
         'Используется по умолчанию': 'Default wallet',
         'Валюта': 'Currency',
+        'Исключить накопления': 'Exclude savings',
         'Калькулятор': 'Calculator',
         'Статьи': 'Articles',
         'Как оплатить подписку': 'How to pay for subscription',
@@ -538,6 +555,7 @@ const translations = {
         'Топ расходов': 'Top expenses',
         'Распределение средств': 'Funds distribution',
         'Динамика баланса': 'Balance dynamics',
+        'Динамика накоплений': 'Savings dynamics',
         'Топ дня': 'Top of the day',
         'Посмотреть все': 'View all',
         'Криптовалюты': 'Cryptocurrencies',
@@ -2105,6 +2123,7 @@ async function initUser() {
         categoryStats = data.category_stats || { income: {}, expense: {}, wallets: {} };
         allTransactions = data.recent_transactions || [];
         debtsEnabled = !!data.debts_enabled;
+        excludeSavingsFromBalance = !!data.exclude_savings_from_balance;
         subscriptionActive = !!data.subscription_active;
         subscriptionStart = data.subscription_start || null;
         subscriptionEnd = data.subscription_end || null;
@@ -2118,6 +2137,7 @@ async function initUser() {
         updateBalanceDisplay(data.summary);
         updateSubscriptionPeriod();
         updateDebtsUI(false);
+        updateSavingsBalanceToggleUI();
         
     } catch (error) {
         console.error('❌ Ошибка инициализации:', error);
@@ -2251,15 +2271,11 @@ function updateBalanceDisplay(summary) {
     // Остаток
     const balanceElement = document.getElementById('balance');
     if (balanceElement) {
-        let balanceValue = summary?.balance ?? 0;
-        if (currentPage === 'panel' && panelTransactions.length > 0) {
-            balanceValue = Number(panelScopedSummary?.balance) || 0;
-        } else {
-            const walletsTotal = walletsData.reduce((sum, wallet) => sum + (wallet.balance || 0), 0);
-            if (Number.isFinite(walletsTotal) && walletsTotal > 0) {
-                balanceValue = walletsTotal;
-            }
-        }
+        const includeSavingsWallet = !excludeSavingsFromBalance;
+        const hasWallets = Array.isArray(walletsData) && walletsData.length > 0;
+        const walletsTotal = getWalletsBalanceTotal(includeSavingsWallet);
+        let balanceValue = hasWallets ? walletsTotal : Number(summary?.balance ?? 0);
+        if (!Number.isFinite(balanceValue)) balanceValue = 0;
         balanceElement.textContent = formatCurrency(balanceValue) + ' ' + symbol;
     }
     
@@ -2470,6 +2486,9 @@ async function loadPanelData() {
         if (typeof data.debts_enabled !== 'undefined') {
             debtsEnabled = !!data.debts_enabled;
         }
+        if (typeof data.exclude_savings_from_balance !== 'undefined') {
+            excludeSavingsFromBalance = !!data.exclude_savings_from_balance;
+        }
 
         await loadPanelTransactions();
         renderPanelPeriodControls();
@@ -2477,6 +2496,7 @@ async function loadPanelData() {
         
         // Обновляем отображение
         updateDebtsUI(false);
+        updateSavingsBalanceToggleUI();
         
     } catch (error) {
         console.error('❌ Ошибка загрузки данных:', error);
@@ -2949,6 +2969,11 @@ function injectDebtCategory() {
     }
 }
 
+function updateSavingsBalanceToggleUI() {
+    const toggle = document.getElementById('exclude-savings-toggle');
+    if (toggle) toggle.checked = !!excludeSavingsFromBalance;
+}
+
 async function setDebtsEnabled(enabled) {
     const nextValue = !!enabled;
     const prevValue = debtsEnabled;
@@ -2977,6 +3002,35 @@ async function setDebtsEnabled(enabled) {
         updateDebtsUI(true);
         updateDebtsDisplay();
         updatePanelCategories();
+        showNotification('Ошибка сохранения', 'error');
+    }
+}
+
+async function setExcludeSavingsFromBalance(enabled) {
+    const nextValue = !!enabled;
+    const prevValue = excludeSavingsFromBalance;
+    excludeSavingsFromBalance = nextValue;
+    updateSavingsBalanceToggleUI();
+    updateBalanceDisplay(panelInitSummary || {});
+    if (!currentUser) return;
+    try {
+        const response = await fetch('/api/settings/exclude_savings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                user_id: currentUser.id,
+                enabled: nextValue
+            })
+        });
+        const data = await response.json();
+        if (data.error) throw new Error(data.error);
+        excludeSavingsFromBalance = !!data.exclude_savings_from_balance;
+        updateSavingsBalanceToggleUI();
+        updateBalanceDisplay(panelInitSummary || {});
+    } catch (error) {
+        excludeSavingsFromBalance = prevValue;
+        updateSavingsBalanceToggleUI();
+        updateBalanceDisplay(panelInitSummary || {});
         showNotification('Ошибка сохранения', 'error');
     }
 }
@@ -5726,103 +5780,12 @@ async function updateSavingsTab() {
     if (!currentUser) return;
     
     try {
-        const response = await fetch(`/api/transactions/${currentUser.id}?limit=1000`);
-        const transactions = await response.json();
-        await updateSavingsChart(transactions);
+        syncDynamicsPeriodButtons('savings', savingsDynamicsPeriod);
+        await updateSavingsDynamicsChart(savingsDynamicsPeriod);
         await loadGoals();
     } catch (error) {
         console.error('❌ Ошибка обновления накоплений:', error);
     }
-}
-
-async function updateSavingsChart(transactions) {
-    const ctx = document.getElementById('savings-chart');
-    if (!ctx) return;
-    destroyChartInstance('savings-chart');
-    
-    const savingsTransactions = transactions.filter(t => isSavingsCategoryName(t.category));
-    
-    if (savingsTransactions.length === 0) {
-        renderPlaceholderBarChart('savings-chart', ctx);
-        return;
-    }
-    
-    // Группируем по месяцам
-    const savingsByMonth = {};
-    savingsTransactions.forEach(trans => {
-        const date = parseTransactionDate(trans.date);
-        if (Number.isNaN(date.getTime())) return;
-        const monthKey = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
-        savingsByMonth[monthKey] = (savingsByMonth[monthKey] || 0) + trans.amount;
-    });
-    
-    const months = Object.keys(savingsByMonth).sort();
-    const amounts = months.map(month => savingsByMonth[month]);
-    
-    // Создаем новый график
-    charts['savings-chart'] = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: months.map(month => {
-                const [year, monthNum] = month.split('-');
-                return `${getMonthName(parseInt(monthNum) - 1)} ${year}`;
-            }),
-            datasets: [{
-                label: t('Накопления'),
-                data: amounts,
-                backgroundColor: 'rgba(255, 214, 10, 0.7)',
-                borderColor: 'rgba(255, 214, 10, 1)',
-                borderWidth: 2,
-                borderRadius: 8,
-                hoverBackgroundColor: 'rgba(255, 214, 10, 0.9)',
-                hoverBorderColor: 'rgba(255, 255, 255, 0.3)',
-                hoverBorderWidth: 3
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false },
-                tooltip: {
-                    callbacks: {
-                        label: (context) => {
-                            const symbol = currencySymbols[currentCurrency] || '₽';
-                            return `${t('Накопления')}: ${formatCurrency(context.raw)} ${symbol}`;
-                        }
-                    }
-                }
-            },
-            scales: {
-                x: {
-                    grid: {
-                        color: 'rgba(255, 255, 255, 0.1)',
-                        borderColor: 'rgba(255, 255, 255, 0.1)'
-                    },
-                    ticks: {
-                        color: 'rgba(255, 255, 255, 0.7)'
-                    }
-                },
-                y: {
-                    grid: {
-                        color: 'rgba(255, 255, 255, 0.1)',
-                        borderColor: 'rgba(255, 255, 255, 0.1)'
-                    },
-                    ticks: {
-                        color: 'rgba(255, 255, 255, 0.7)',
-                        callback: function(value) {
-                            const symbol = currencySymbols[currentCurrency] || '₽';
-                            return formatCurrency(value) + ' ' + symbol;
-                        }
-                    }
-                }
-            },
-            animation: {
-                duration: 1000,
-                easing: 'easeOutQuart'
-            }
-        }
-    });
 }
 
 async function updateBalanceTab() {
@@ -5830,7 +5793,8 @@ async function updateBalanceTab() {
     
     try {
         await updateDistributionChart();
-        await updateBalanceDynamicsChart('week');
+        syncDynamicsPeriodButtons('balance', balanceDynamicsPeriod);
+        await updateBalanceDynamicsChart(balanceDynamicsPeriod);
     } catch (error) {
         console.error('❌ Ошибка обновления баланса:', error);
     }
@@ -5971,99 +5935,75 @@ async function updateDistributionChart() {
 }
 
 function setupBalancePeriods() {
-    document.querySelectorAll('.period-btn').forEach(btn => {
+    document.querySelectorAll('.period-btn[data-chart]').forEach(btn => {
         btn.onclick = function() {
             const period = this.dataset.period;
-            
-            // Обновляем активную кнопку
-            document.querySelectorAll('.period-btn').forEach(b => {
-                b.classList.remove('active');
-            });
-            this.classList.add('active');
-            
-            // Обновляем график динамики баланса
-            updateBalanceDynamicsChart(period);
+            const chartType = this.dataset.chart;
+            if (chartType === 'savings') {
+                savingsDynamicsPeriod = (period === 'day' || period === 'week' || period === 'month') ? period : 'week';
+                syncDynamicsPeriodButtons('savings', savingsDynamicsPeriod);
+                updateSavingsDynamicsChart(savingsDynamicsPeriod);
+                return;
+            }
+            balanceDynamicsPeriod = (period === 'day' || period === 'week' || period === 'month') ? period : 'week';
+            syncDynamicsPeriodButtons('balance', balanceDynamicsPeriod);
+            updateBalanceDynamicsChart(balanceDynamicsPeriod);
         };
     });
-    
-    // Инициализируем график
-    updateBalanceDynamicsChart('week');
+    syncDynamicsPeriodButtons('balance', balanceDynamicsPeriod);
+    syncDynamicsPeriodButtons('savings', savingsDynamicsPeriod);
 }
 
-async function updateBalanceDynamicsChart(period) {
-    if (!currentUser) return;
-    
-    try {
-        const response = await fetch(`/api/balance_dynamics/${currentUser.id}?period=${period}`);
-        const dynamics = await response.json();
-        
-        updateDynamicsChart(dynamics, period);
-        
-    } catch (error) {
-        console.error('❌ Ошибка загрузки динамики:', error);
-    }
+function syncDynamicsPeriodButtons(chartType, period) {
+    document.querySelectorAll(`.period-btn[data-chart="${chartType}"]`).forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.period === period);
+    });
 }
 
-function updateDynamicsChart(data, period) {
-    const ctx = document.getElementById('dynamics-chart');
-    if (!ctx) return;
-    
-    destroyChartInstance('dynamics-chart');
-    
-    if (!data || data.length === 0) {
-        renderPlaceholderLineChart('dynamics-chart', ctx);
-        return;
-    }
-    
-    const labels = data.map(item => {
+function getDynamicsLabels(data, period) {
+    return data.map(item => {
         if (period === 'day') {
             return new Date(item.period).toLocaleTimeString(getLocale(), { hour: '2-digit', minute: '2-digit' });
-        } else if (period === 'week') {
+        }
+        if (period === 'week') {
             const date = new Date(item.period);
             return date.toLocaleDateString(getLocale(), { weekday: 'short', day: 'numeric' });
-        } else if (period === 'month') {
-            return item.period;
         }
         return item.period;
     });
-    
-    const balances = data.map(item => item.balance);
-    const savingsSeries = data.map(item => item.savings ?? 0);
-    
-    charts['dynamics-chart'] = new Chart(ctx, {
+}
+
+function renderLineDynamicsChart(chartKey, canvasId, data, period, label, seriesKey, colors) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+    destroyChartInstance(chartKey);
+
+    if (!data || data.length === 0) {
+        renderPlaceholderLineChart(chartKey, canvas);
+        return;
+    }
+
+    const labels = getDynamicsLabels(data, period);
+    const values = data.map(item => Number(item[seriesKey] || 0));
+
+    charts[chartKey] = new Chart(canvas, {
         type: 'line',
         data: {
-            labels: labels,
-            datasets: [
-                {
-                    label: t('Баланс'),
-                    data: balances,
-                    backgroundColor: 'rgba(10, 132, 255, 0.1)',
-                    borderColor: 'rgba(10, 132, 255, 1)',
-                    borderWidth: 3,
-                    fill: true,
-                    tension: 0.4,
-                    pointBackgroundColor: 'rgba(10, 132, 255, 1)',
-                    pointBorderColor: 'rgba(255, 255, 255, 1)',
-                    pointBorderWidth: 2,
-                    pointRadius: 5,
-                    pointHoverRadius: 7
-                },
-                {
-                    label: t('Накопления'),
-                    data: savingsSeries,
-                    backgroundColor: 'rgba(255, 209, 102, 0.12)',
-                    borderColor: 'rgba(255, 209, 102, 0.9)',
-                    borderWidth: 2,
-                    fill: false,
-                    tension: 0.4,
-                    pointBackgroundColor: 'rgba(255, 209, 102, 0.9)',
-                    pointBorderColor: 'rgba(0, 0, 0, 0.2)',
-                    pointBorderWidth: 1,
-                    pointRadius: 4,
-                    pointHoverRadius: 6
-                }
-            ]
+            labels,
+            datasets: [{
+                label,
+                data: values,
+                backgroundColor: colors.fill,
+                borderColor: colors.stroke,
+                borderWidth: 3,
+                fill: true,
+                tension: 0.4,
+                pointBackgroundColor: colors.point,
+                pointBorderColor: 'rgba(255, 255, 255, 1)',
+                pointBorderWidth: 2,
+                pointRadius: 5,
+                pointHoverRadius: 7
+            }]
         },
         options: {
             responsive: true,
@@ -6076,7 +6016,7 @@ function updateDynamicsChart(data, period) {
                     callbacks: {
                         label: (context) => {
                             const symbol = currencySymbols[currentCurrency] || '₽';
-                            return `${context.dataset.label}: ${formatCurrency(context.raw)} ${symbol}`;
+                            return `${label}: ${formatCurrency(context.raw)} ${symbol}`;
                         }
                     }
                 }
@@ -6111,6 +6051,58 @@ function updateDynamicsChart(data, period) {
             }
         }
     });
+}
+
+async function updateBalanceDynamicsChart(period) {
+    if (!currentUser) return;
+    const nextPeriod = (period === 'day' || period === 'week' || period === 'month') ? period : 'week';
+    balanceDynamicsPeriod = nextPeriod;
+    
+    try {
+        const response = await fetch(`/api/balance_dynamics/${currentUser.id}?period=${nextPeriod}`);
+        const dynamics = await response.json();
+        renderLineDynamicsChart(
+            'dynamics-chart',
+            'dynamics-chart',
+            dynamics,
+            nextPeriod,
+            t('Баланс'),
+            'balance',
+            {
+                fill: 'rgba(10, 132, 255, 0.1)',
+                stroke: 'rgba(10, 132, 255, 1)',
+                point: 'rgba(10, 132, 255, 1)'
+            }
+        );
+    } catch (error) {
+        console.error('❌ Ошибка загрузки динамики:', error);
+    }
+}
+
+async function updateSavingsDynamicsChart(period) {
+    if (!currentUser) return;
+    const nextPeriod = (period === 'day' || period === 'week' || period === 'month') ? period : 'week';
+    savingsDynamicsPeriod = nextPeriod;
+
+    try {
+        const response = await fetch(`/api/balance_dynamics/${currentUser.id}?period=${nextPeriod}`);
+        const dynamics = await response.json();
+        renderLineDynamicsChart(
+            'savings-dynamics-chart',
+            'savings-dynamics-chart',
+            dynamics,
+            nextPeriod,
+            t('Накопления'),
+            'savings',
+            {
+                fill: 'rgba(255, 209, 102, 0.16)',
+                stroke: 'rgba(255, 209, 102, 1)',
+                point: 'rgba(255, 209, 102, 1)'
+            }
+        );
+    } catch (error) {
+        console.error('❌ Ошибка загрузки динамики накоплений:', error);
+    }
 }
 
 function updateChartLegend(legendId, categories, amounts, colors) {
@@ -7892,6 +7884,13 @@ function initEventListeners() {
             setDebtsEnabled(this.checked);
         };
     }
+
+    const excludeSavingsToggle = document.getElementById('exclude-savings-toggle');
+    if (excludeSavingsToggle) {
+        excludeSavingsToggle.onchange = function() {
+            setExcludeSavingsFromBalance(this.checked);
+        };
+    }
     
     // Форма категории
     const categoryForm = document.getElementById('add-category-form');
@@ -7920,17 +7919,8 @@ function initEventListeners() {
         };
     }
     
-    // Периоды для графика баланса
-    document.querySelectorAll('.period-btn').forEach(btn => {
-        btn.onclick = function() {
-            const period = this.dataset.period;
-            document.querySelectorAll('.period-btn').forEach(b => {
-                b.classList.remove('active');
-            });
-            this.classList.add('active');
-            updateBalanceDynamicsChart(period);
-        };
-    });
+    // Периоды для динамики (баланс/накопления)
+    setupBalancePeriods();
     
     // Закрытие модальных окон по клику на оверлей
     document.querySelectorAll('.modal-overlay').forEach(modal => {

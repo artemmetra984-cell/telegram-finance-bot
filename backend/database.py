@@ -109,6 +109,7 @@ class Database:
                 session_token TEXT UNIQUE,
                 default_wallet TEXT DEFAULT 'Карта',
                 debts_enabled INTEGER DEFAULT 0,
+                exclude_savings_from_balance INTEGER DEFAULT 0,
                 debt_target_amount REAL DEFAULT 0,
                 debt_note TEXT DEFAULT '',
                 reminder_enabled INTEGER DEFAULT 1,
@@ -372,6 +373,11 @@ class Database:
             cursor.execute("ALTER TABLE users ADD COLUMN debts_enabled INTEGER DEFAULT 0")
         except sqlite3.OperationalError:
             pass
+        # Миграция: настройка исключения накоплений из остатка
+        try:
+            cursor.execute("ALTER TABLE users ADD COLUMN exclude_savings_from_balance INTEGER DEFAULT 0")
+        except sqlite3.OperationalError:
+            pass
         # Миграция: поле debt_id для транзакций
         try:
             cursor.execute("ALTER TABLE transactions ADD COLUMN debt_id INTEGER")
@@ -629,6 +635,13 @@ class Database:
         row = cursor.fetchone()
         return bool(row['debts_enabled']) if row and row['debts_enabled'] is not None else False
 
+    def get_exclude_savings_from_balance(self, user_id):
+        cursor = self.conn.cursor()
+        owner_id = self._resolve_owner_id(user_id)
+        cursor.execute('SELECT exclude_savings_from_balance FROM users WHERE id = ?', (owner_id,))
+        row = cursor.fetchone()
+        return bool(row['exclude_savings_from_balance']) if row and row['exclude_savings_from_balance'] is not None else False
+
     def get_debt_settings(self, user_id):
         cursor = self.conn.cursor()
         owner_id = self._resolve_owner_id(user_id)
@@ -645,6 +658,16 @@ class Database:
         cursor = self.conn.cursor()
         owner_id = self._resolve_owner_id(user_id)
         cursor.execute('UPDATE users SET debts_enabled = ? WHERE id = ?', (1 if enabled else 0, owner_id))
+        self.conn.commit()
+        return True
+
+    def set_exclude_savings_from_balance(self, user_id, enabled):
+        cursor = self.conn.cursor()
+        owner_id = self._resolve_owner_id(user_id)
+        cursor.execute(
+            'UPDATE users SET exclude_savings_from_balance = ? WHERE id = ?',
+            (1 if enabled else 0, owner_id)
+        )
         self.conn.commit()
         return True
 

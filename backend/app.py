@@ -701,6 +701,48 @@ def _send_telegram_expense_reminder(chat_id, lang='ru'):
     text = random.choice(text_pool)
     return _send_telegram_reminder_message(chat_id, text, key)
 
+def _extract_telegram_user_fields(message):
+    from_user = (message or {}).get('from') or {}
+    chat = (message or {}).get('chat') or {}
+    telegram_id = from_user.get('id') or chat.get('id')
+    username = (from_user.get('username') or chat.get('username') or '').strip()
+    first_name = (
+        (from_user.get('first_name') or '').strip()
+        or (chat.get('first_name') or '').strip()
+        or 'Пользователь'
+    )
+    language_code = (from_user.get('language_code') or '').strip()
+    return telegram_id, username, first_name, language_code
+
+def _upsert_user_from_start_message(message):
+    if not db:
+        return
+    telegram_id, username, first_name, language_code = _extract_telegram_user_fields(message)
+    if not telegram_id:
+        return
+    try:
+        user_id, _, _, is_new_user = db.get_or_create_user(
+            telegram_id,
+            username,
+            first_name,
+            session_token=None,
+            language_code=language_code
+        )
+        if is_new_user and TRIAL_SUBSCRIPTION_ENABLED:
+            try:
+                db.set_subscription_active(
+                    user_id,
+                    True,
+                    days=TRIAL_SUBSCRIPTION_DAYS,
+                    extend=False,
+                    trial=True
+                )
+                print(f"🎁 Trial subscription activated on /start for user {user_id}: {TRIAL_SUBSCRIPTION_DAYS} days")
+            except Exception as trial_exc:
+                print(f"⚠️ Trial activation on /start failed for user {user_id}: {trial_exc}")
+    except Exception as exc:
+        print(f"Start upsert warning for {telegram_id}: {exc}")
+
 def _parse_utc_datetime(raw_value):
     text = str(raw_value or '').strip()
     if not text:
@@ -866,22 +908,33 @@ def service_worker():
 @app.route('/webhook', methods=['POST'])
 def telegram_webhook():
     try:
-        data = request.get_json()
-        
+        data = request.get_json(silent=True) or {}
+
         if 'message' in data and 'text' in data['message']:
             message = data['message']
             text = message.get('text', '').strip()
             chat_id = message['chat']['id']
-            
-            if text == '/start' and TELEGRAM_TOKEN and WEBHOOK_URL:
+            _, _, _, language_code = _extract_telegram_user_fields(message)
+            lang = _resolve_notification_language(language_code)
+
+            if text.startswith('/start'):
+                _upsert_user_from_start_message(message)
+
+            if text.startswith('/start') and TELEGRAM_TOKEN and WEBHOOK_URL:
+                start_text = (
+                    'Your personal finance assistant 💸\nTap the button to get started'
+                    if lang == 'en'
+                    else 'Твой личный финансвоый помощник 💸\nНажми на кнопку что бы начать'
+                )
+                open_button = '📱 Open' if lang == 'en' else '📱 Открыть'
                 requests.post(
                     f'https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage',
                     json={
                         'chat_id': chat_id,
-                        'text': 'Твой личный финансвоый помощник 💸\nНажми на кнопку что бы начать',
+                        'text': start_text,
                         'reply_markup': {
                             'inline_keyboard': [[{
-                                'text': '📱 Открыть',
+                                'text': open_button,
                                 'web_app': {'url': WEBHOOK_URL}
                             }]]
                         }
@@ -982,6 +1035,7 @@ def init_user():
             subscription_info = db.get_subscription_info(user_id)
             subscription_active = subscription_info['active']
             debts_enabled = db.get_debts_enabled(user_id)
+            exclude_savings_from_balance = db.get_exclude_savings_from_balance(user_id)
             debts_data = db.get_debts(user_id)
             
             categories = {'income': [], 'expense': [], 'savings': []}
@@ -1057,6 +1111,7 @@ def init_user():
             subscription_active = False
             subscription_info = {'activated_at': None, 'expires_at': None}
             debts_enabled = False
+            exclude_savings_from_balance = False
             debts_data = []
         
         return jsonify({
@@ -1087,7 +1142,8 @@ def init_user():
             'subscription_active': subscription_active,
             'subscription_start': subscription_info['activated_at'],
             'subscription_end': subscription_info['expires_at'],
-            'debts_enabled': debts_enabled
+            'debts_enabled': debts_enabled,
+            'exclude_savings_from_balance': bool(exclude_savings_from_balance)
         })
     except Exception as e:
         print(f"Init error: {e}")
@@ -1107,6 +1163,22 @@ def update_debts_setting():
         return jsonify({'success': True, 'debts_enabled': bool(enabled)})
     except Exception as e:
         print(f"Debts setting error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/settings/exclude_savings', methods=['POST'])
+def update_exclude_savings_setting():
+    try:
+        data = request.json or {}
+        user_id = data.get('user_id')
+        enabled = data.get('enabled')
+        if user_id is None or enabled is None:
+            return jsonify({'error': 'Missing fields'}), 400
+        if not db:
+            return jsonify({'error': 'Database error'}), 500
+        db.set_exclude_savings_from_balance(user_id, bool(enabled))
+        return jsonify({'success': True, 'exclude_savings_from_balance': bool(enabled)})
+    except Exception as e:
+        print(f"Exclude savings setting error: {e}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/settings/reset_all', methods=['POST'])
