@@ -1738,53 +1738,123 @@ class Database:
     def get_balance_dynamics(self, user_id, period='week'):
         cursor = self.conn.cursor()
         owner_id = self._resolve_owner_id(user_id)
-        
+
         end_date = datetime.now()
         if period == 'day':
             start_date = end_date - timedelta(days=1)
-            group_format = '%Y-%m-%d %H:00'
-        elif period == 'week':
-            start_date = end_date - timedelta(days=7)
-            group_format = '%Y-%m-%d'
+            bucket_format = '%Y-%m-%d %H:00'
+            step = timedelta(hours=1)
+            timeline_start = start_date.replace(minute=0, second=0, microsecond=0)
+            timeline_end = end_date.replace(minute=0, second=0, microsecond=0)
         elif period == 'month':
             start_date = end_date - timedelta(days=30)
-            group_format = '%Y-%m-%d'
+            bucket_format = '%Y-%m-%d'
+            step = timedelta(days=1)
+            timeline_start = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
+            timeline_end = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
         else:
             start_date = end_date - timedelta(days=7)
-            group_format = '%Y-%m-%d'
-        
+            bucket_format = '%Y-%m-%d'
+            step = timedelta(days=1)
+            timeline_start = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
+            timeline_end = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
+
         cursor.execute('''
-            SELECT 
-                strftime(?, date) as period,
-                SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END) as income,
-                SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) as expense,
-                SUM(CASE WHEN type = 'expense' AND category IN ('Накопления','Цели') THEN amount ELSE 0 END) as savings
-            FROM transactions 
-            WHERE user_id = ? AND date >= ?
-            GROUP BY strftime(?, date)
-            ORDER BY period
-        ''', (group_format, owner_id, start_date, group_format))
-        
+            SELECT name, balance
+            FROM wallets
+            WHERE user_id = ?
+        ''', (owner_id,))
+        wallet_rows = cursor.fetchall()
+        current_savings = 0.0
+        current_non_savings = 0.0
+        for wallet in wallet_rows:
+            wallet_name = wallet['name'] or ''
+            wallet_balance = float(wallet['balance'] or 0)
+            if wallet_name == SAVINGS_WALLET_NAME:
+                current_savings += wallet_balance
+            else:
+                current_non_savings += wallet_balance
+
+        cursor.execute('''
+            SELECT date, type, amount, category, wallet
+            FROM transactions
+            WHERE user_id = ? AND date >= ? AND date <= ?
+            ORDER BY date ASC
+        ''', (owner_id, start_date, end_date))
+        tx_rows = cursor.fetchall()
+
+        bucket_income = {}
+        bucket_expense = {}
+        bucket_non_savings_delta = {}
+        bucket_savings_delta = {}
+        range_non_savings_delta = 0.0
+        range_savings_delta = 0.0
+
+        for tx in tx_rows:
+            tx_date_raw = str(tx['date'] or '').strip()
+            if not tx_date_raw:
+                continue
+            try:
+                tx_date = datetime.fromisoformat(tx_date_raw.replace('Z', '+00:00'))
+            except Exception:
+                continue
+
+            bucket_key = tx_date.strftime(bucket_format)
+            tx_type = (tx['type'] or '').strip().lower()
+            category = tx['category'] or ''
+            wallet_name = tx['wallet'] or ''
+            amount = float(tx['amount'] or 0)
+
+            if tx_type == 'income':
+                bucket_income[bucket_key] = bucket_income.get(bucket_key, 0.0) + amount
+            elif tx_type == 'expense':
+                bucket_expense[bucket_key] = bucket_expense.get(bucket_key, 0.0) + amount
+
+            non_savings_delta = 0.0
+            if wallet_name != SAVINGS_WALLET_NAME:
+                if tx_type == 'income':
+                    non_savings_delta += amount
+                elif tx_type == 'expense':
+                    non_savings_delta -= amount
+            if non_savings_delta:
+                range_non_savings_delta += non_savings_delta
+                bucket_non_savings_delta[bucket_key] = bucket_non_savings_delta.get(bucket_key, 0.0) + non_savings_delta
+
+            savings_delta = 0.0
+            if wallet_name == SAVINGS_WALLET_NAME:
+                if tx_type == 'income':
+                    savings_delta += amount
+                elif tx_type == 'expense':
+                    savings_delta -= amount
+            if tx_type == 'expense' and category in SAVINGS_CATEGORIES and wallet_name != SAVINGS_WALLET_NAME:
+                savings_delta += amount
+            if savings_delta:
+                range_savings_delta += savings_delta
+                bucket_savings_delta[bucket_key] = bucket_savings_delta.get(bucket_key, 0.0) + savings_delta
+
+        baseline_non_savings = current_non_savings - range_non_savings_delta
+        baseline_savings = current_savings - range_savings_delta
+        running_non_savings = max(0.0, float(baseline_non_savings))
+        running_savings = max(0.0, float(baseline_savings))
+
         dynamics = []
-        cumulative_balance = 0
-        cumulative_savings = 0
-        
-        for row in cursor.fetchall():
-            income = float(row['income'] or 0)
-            expense = float(row['expense'] or 0)
-            savings = float(row['savings'] or 0)
-            balance_change = income - expense
-            cumulative_balance += balance_change
-            cumulative_savings += savings
-            
+        if timeline_start > timeline_end:
+            timeline_start = timeline_end
+
+        cursor_dt = timeline_start
+        while cursor_dt <= timeline_end:
+            bucket_key = cursor_dt.strftime(bucket_format)
+            running_non_savings = max(0.0, running_non_savings + bucket_non_savings_delta.get(bucket_key, 0.0))
+            running_savings = max(0.0, running_savings + bucket_savings_delta.get(bucket_key, 0.0))
             dynamics.append({
-                'period': row['period'],
-                'income': income,
-                'expense': expense,
-                'balance': cumulative_balance,
-                'savings': cumulative_savings
+                'period': bucket_key,
+                'income': float(bucket_income.get(bucket_key, 0.0)),
+                'expense': float(bucket_expense.get(bucket_key, 0.0)),
+                'balance': float(running_non_savings),
+                'savings': float(running_savings)
             })
-        
+            cursor_dt += step
+
         return dynamics
 
 db = Database()
